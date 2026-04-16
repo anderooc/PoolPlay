@@ -13,6 +13,7 @@ import {
 import { eq, and } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { createTournamentSchema, createDivisionSchema } from "@/lib/validators";
+import { checkContentFilter } from "@/lib/utils/content-filter";
 import type { TournamentStatus } from "@/types";
 
 export async function createTournament(formData: FormData) {
@@ -30,6 +31,14 @@ export async function createTournament(formData: FormData) {
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
+
+  const contentError = checkContentFilter(
+    parsed.data.name,
+    parsed.data.description,
+    parsed.data.location,
+    parsed.data.address
+  );
+  if (contentError) return { error: contentError };
 
   const [tournament] = await db
     .insert(tournaments)
@@ -117,9 +126,25 @@ export async function addDivision(tournamentId: string, formData: FormData) {
     return { error: parsed.error.issues[0].message };
   }
 
+  const divContentError = checkContentFilter(parsed.data.name);
+  if (divContentError) return { error: divContentError };
+
+  const normalizedDivisionName = parsed.data.name.trim().toLowerCase();
+  const existingDivisions = await db
+    .select({ name: divisions.name })
+    .from(divisions)
+    .where(eq(divisions.tournamentId, tournamentId));
+
+  const duplicateDivision = existingDivisions.some(
+    (div) => div.name.trim().toLowerCase() === normalizedDivisionName
+  );
+  if (duplicateDivision) {
+    return { error: "A pool/division with this name already exists" };
+  }
+
   await db.insert(divisions).values({
     tournamentId,
-    name: parsed.data.name,
+    name: parsed.data.name.trim(),
     format: parsed.data.format,
     teamCap: parsed.data.teamCap ?? null,
   });
@@ -160,8 +185,24 @@ export async function addCourt(tournamentId: string, formData: FormData) {
     return { error: "Only the organizer can add courts" };
   }
 
-  const name = formData.get("name") as string;
+  const rawName = formData.get("name");
+  const name = typeof rawName === "string" ? rawName.trim() : "";
   if (!name) return { error: "Court name is required" };
+
+  const courtContentError = checkContentFilter(name);
+  if (courtContentError) return { error: courtContentError };
+
+  const existingCourts = await db
+    .select({ name: courts.name })
+    .from(courts)
+    .where(eq(courts.tournamentId, tournamentId));
+
+  const duplicateCourt = existingCourts.some(
+    (court) => court.name.trim().toLowerCase() === name.toLowerCase()
+  );
+  if (duplicateCourt) {
+    return { error: "A court with this name already exists" };
+  }
 
   await db.insert(courts).values({ tournamentId, name });
 

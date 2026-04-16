@@ -24,10 +24,17 @@ export function CourtManager({
 }) {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleAdd(formData: FormData) {
     setLoading(true);
-    await addCourt(tournamentId, formData);
+    setError(null);
+    const result = await addCourt(tournamentId, formData);
+    if (result?.error) {
+      setError(result.error);
+      setLoading(false);
+      return;
+    }
     setShowForm(false);
     setLoading(false);
   }
@@ -90,18 +97,21 @@ export function CourtManager({
       )}
 
       {showForm && (
-        <form action={handleAdd} className="flex gap-2 items-end">
-          <Input name="name" placeholder="Court 1" required className="w-48" />
-          <Button type="submit" disabled={loading}>
-            {loading ? "Adding..." : "Add"}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => setShowForm(false)}
-          >
-            Cancel
-          </Button>
+        <form action={handleAdd} className="space-y-2">
+          <div className="flex gap-2 items-end">
+            <Input name="name" placeholder="Court 1" required className="w-48" />
+            <Button type="submit" disabled={loading}>
+              {loading ? "Adding..." : "Add"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowForm(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
         </form>
       )}
     </div>

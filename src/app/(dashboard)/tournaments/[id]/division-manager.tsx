@@ -37,6 +37,13 @@ export function DivisionManager({
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [divisionFormat, setDivisionFormat] = useState("pool_to_bracket");
+
+  const formatLabel: Record<string, string> = {
+    pool_to_bracket: "Pool Play to Bracket",
+    single_elimination: "Single Elimination",
+    double_elimination: "Double Elimination",
+  };
 
   async function handleAdd(formData: FormData) {
     setLoading(true);
@@ -46,6 +53,7 @@ export function DivisionManager({
       setError(result.error);
     } else {
       setShowForm(false);
+      setDivisionFormat("pool_to_bracket");
     }
     setLoading(false);
   }
@@ -137,9 +145,15 @@ export function DivisionManager({
               </div>
               <div className="space-y-1">
                 <Label htmlFor="div-format">Format</Label>
-                <Select name="format" defaultValue="pool_to_bracket">
+                <Select
+                  name="format"
+                  value={divisionFormat}
+                  onValueChange={(value) =>
+                    setDivisionFormat(value ?? "pool_to_bracket")
+                  }
+                >
                   <SelectTrigger id="div-format">
-                    <SelectValue />
+                    <SelectValue>{formatLabel[divisionFormat]}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pool_to_bracket">
@@ -160,7 +174,7 @@ export function DivisionManager({
                   id="div-cap"
                   name="teamCap"
                   type="number"
-                  placeholder="16"
+                  placeholder="4"
                   min={2}
                 />
               </div>
