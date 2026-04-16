@@ -12,6 +12,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { navLinks } from "./nav-links";
+import { PoolPlayMark } from "./poolplay-mark";
 import { useState } from "react";
 
 export function MobileNav() {
@@ -29,8 +30,8 @@ export function MobileNav() {
         <span className="sr-only">Toggle menu</span>
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-0">
-        <SheetTitle className="flex h-14 items-center border-b px-4 font-bold text-lg">
-          PoolPlay
+        <SheetTitle className="flex h-14 items-center border-b px-4">
+          <PoolPlayMark href="/dashboard" wordmarkClassName="text-lg font-bold" />
         </SheetTitle>
         <nav className="space-y-1 p-3">
           {navLinks.map((link) => {

@@ -1,12 +1,4 @@
-import {
-  Home,
-  LayoutDashboard,
-  Trophy,
-  Users,
-  Calendar,
-  Globe,
-  type LucideIcon,
-} from "lucide-react";
+import { LayoutDashboard, Trophy, Users, Calendar, type LucideIcon } from "lucide-react";
 
 export interface NavLink {
   label: string;
@@ -16,9 +8,7 @@ export interface NavLink {
 }
 
 export const navLinks: NavLink[] = [
-  { label: "Home", href: "/", icon: Home, exact: true },
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Explore", href: "/explore", icon: Globe },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, exact: true },
   { label: "Tournaments", href: "/tournaments", icon: Trophy },
   { label: "Teams", href: "/teams", icon: Users },
   { label: "Schedule", href: "/schedule", icon: Calendar },
