@@ -1,0 +1,133 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { db } from "@/lib/db";
+import { teams, teamMembers, users } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
+import { requireUser } from "@/lib/auth";
+import { createTeamSchema } from "@/lib/validators";
+
+export async function createTeam(formData: FormData) {
+  const user = await requireUser();
+
+  const parsed = createTeamSchema.safeParse({
+    name: formData.get("name"),
+    university: formData.get("university"),
+    season: formData.get("season") || undefined,
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const [team] = await db
+    .insert(teams)
+    .values({
+      name: parsed.data.name,
+      university: parsed.data.university,
+      season: parsed.data.season || null,
+    })
+    .returning();
+
+  await db.insert(teamMembers).values({
+    teamId: team.id,
+    userId: user.id,
+    role: "captain",
+  });
+
+  // Promote user to captain role if currently player
+  if (user.role === "player") {
+    await db
+      .update(users)
+      .set({ role: "captain" })
+      .where(eq(users.id, user.id));
+  }
+
+  redirect(`/teams/${team.id}`);
+}
+
+export async function addTeamMember(teamId: string, formData: FormData) {
+  const user = await requireUser();
+  const email = formData.get("email") as string;
+
+  const [membership] = await db
+    .select()
+    .from(teamMembers)
+    .where(
+      and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, user.id))
+    );
+
+  if (!membership || membership.role !== "captain") {
+    return { error: "Only captains can add members" };
+  }
+
+  const [targetUser] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  if (!targetUser) {
+    return { error: "No user found with that email" };
+  }
+
+  const [existing] = await db
+    .select()
+    .from(teamMembers)
+    .where(
+      and(
+        eq(teamMembers.teamId, teamId),
+        eq(teamMembers.userId, targetUser.id)
+      )
+    );
+
+  if (existing) {
+    return { error: "User is already on this team" };
+  }
+
+  const jerseyNumber = formData.get("jerseyNumber");
+
+  await db.insert(teamMembers).values({
+    teamId,
+    userId: targetUser.id,
+    role: "player",
+    jerseyNumber: jerseyNumber ? parseInt(jerseyNumber as string, 10) : null,
+  });
+
+  revalidatePath(`/teams/${teamId}`);
+  return { success: true };
+}
+
+export async function removeTeamMember(teamId: string, memberId: string) {
+  const user = await requireUser();
+
+  const [membership] = await db
+    .select()
+    .from(teamMembers)
+    .where(
+      and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, user.id))
+    );
+
+  if (!membership || membership.role !== "captain") {
+    return { error: "Only captains can remove members" };
+  }
+
+  await db.delete(teamMembers).where(eq(teamMembers.id, memberId));
+
+  revalidatePath(`/teams/${teamId}`);
+  return { success: true };
+}
+
+export async function updateJerseyNumber(
+  memberId: string,
+  jerseyNumber: number | null
+) {
+  await db
+    .update(teamMembers)
+    .set({ jerseyNumber })
+    .where(eq(teamMembers.id, memberId));
+
+  revalidatePath("/teams");
+  return { success: true };
+}
