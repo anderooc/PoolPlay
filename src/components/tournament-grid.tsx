@@ -3,9 +3,9 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Search, ChevronDown } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { MapPin, Search, ChevronDown, Trophy } from "lucide-react";
 
 interface Tournament {
   id: string;
@@ -94,27 +94,30 @@ function TournamentRow({
 }) {
   return (
     <Link href={`${linkPrefix}/${t.id}`} className="block">
-      <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium truncate">{t.name}</span>
-            <Badge variant={statusVariant(t.status)} className="shrink-0 text-xs">
+      <div className="flex items-start gap-4 rounded-lg border bg-card px-4 py-3.5 transition-colors hover:bg-muted/40">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <span className="font-medium leading-tight">{t.name}</span>
+            <Badge
+              variant={statusVariant(t.status)}
+              className="shrink-0 text-xs"
+            >
               {STATUS_LABEL[t.status] ?? t.status.replace(/_/g, " ")}
             </Badge>
           </div>
-          <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
               <MapPin className="h-3 w-3 shrink-0" />
               {t.location}
             </span>
             {t.startDate !== t.endDate && (
-              <span>
-                {t.startDate} – {t.endDate}
+              <span className="tabular-nums">
+                {t.startDate}&nbsp;–&nbsp;{t.endDate}
               </span>
             )}
           </div>
           {t.description && (
-            <p className="text-sm text-muted-foreground truncate mt-0.5">
+            <p className="mt-1 line-clamp-1 text-sm text-muted-foreground/90">
               {t.description}
             </p>
           )}
@@ -137,7 +140,7 @@ function DateGroupedList({
     <div className="space-y-4">
       {groups.map((group) => (
         <div key={group.date}>
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          <h3 className="mb-2 text-sm font-medium text-foreground/70">
             {formatDate(group.date)}
           </h3>
           <div className="space-y-2">
@@ -176,7 +179,9 @@ function Section({
     <section className="space-y-3">
       <button
         type="button"
-        className="flex items-center gap-2 w-full text-left"
+        className={`flex w-full items-center gap-2 rounded-md py-1 text-left transition-colors ${
+          collapsible ? "cursor-pointer hover:bg-muted/40 px-2 -mx-2" : ""
+        }`}
         onClick={() => collapsible && setExpanded((v) => !v)}
         disabled={!collapsible}
       >
@@ -231,9 +236,9 @@ export function TournamentGrid({
   return (
     <div className="space-y-6">
       <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search tournaments by name, location..."
+          placeholder="Search tournaments..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="pl-9"
@@ -241,15 +246,15 @@ export function TournamentGrid({
       </div>
 
       {filtered.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">
-              {query.trim()
-                ? `No tournaments match "${query}".`
-                : "No tournaments yet."}
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Trophy}
+          title={query.trim() ? "No matches" : "No tournaments yet"}
+          description={
+            query.trim()
+              ? `Nothing matches "${query}". Try a different search.`
+              : "Check back soon for upcoming events."
+          }
+        />
       ) : (
         <>
           <Section

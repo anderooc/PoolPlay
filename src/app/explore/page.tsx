@@ -6,7 +6,6 @@ import { buttonVariants } from "@/components/ui/button";
 import { HeaderNav } from "@/components/layout/header-nav";
 import { PoolPlayMark } from "@/components/layout/poolplay-mark";
 import { createClient } from "@/lib/supabase/server";
-import { ArrowLeft } from "lucide-react";
 import { TournamentGrid } from "@/components/tournament-grid";
 
 export const dynamic = "force-dynamic";
@@ -31,11 +30,7 @@ export default async function ExplorePage() {
             <HeaderNav />
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {user ? (
-              <Link href="/dashboard" className={buttonVariants({ size: "sm" })}>
-                Dashboard
-              </Link>
-            ) : (
+            {!user && (
               <>
                 <Link
                   href="/login"
@@ -43,7 +38,10 @@ export default async function ExplorePage() {
                 >
                   Sign In
                 </Link>
-                <Link href="/signup" className={buttonVariants({ size: "sm" })}>
+                <Link
+                  href="/signup"
+                  className={buttonVariants({ size: "sm" })}
+                >
                   Get Started
                 </Link>
               </>
@@ -53,17 +51,12 @@ export default async function ExplorePage() {
       </header>
 
       <main className="flex-1">
-        <div className="container mx-auto px-4 py-8 space-y-6">
-          <div>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Back to home
-            </Link>
-            <h1 className="text-3xl font-bold tracking-tight">Tournaments</h1>
-            <p className="text-muted-foreground mt-1">
+        <div className="container mx-auto space-y-8 px-4 py-10">
+          <div className="max-w-2xl">
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Tournaments
+            </h1>
+            <p className="mt-2 text-muted-foreground">
               Browse upcoming and ongoing collegiate club volleyball tournaments.
             </p>
           </div>
