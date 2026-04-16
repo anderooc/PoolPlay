@@ -2,8 +2,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { matches, teams, courts, tournaments, pools, brackets, divisions } from "@/lib/db/schema";
 import { eq, isNotNull, asc } from "drizzle-orm";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { CalendarClock } from "lucide-react";
 import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { ScheduleControls } from "./schedule-controls";
@@ -91,8 +92,10 @@ export default async function SchedulePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          Schedule
+        </h1>
+        <p className="mt-1 text-muted-foreground">
           View all scheduled matches across tournaments.
         </p>
       </div>
@@ -102,41 +105,38 @@ export default async function SchedulePage() {
       )}
 
       {enrichedMatches.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center">
-            <p className="text-muted-foreground">
-              No scheduled matches yet. Generate pools or brackets first, then
-              use auto-schedule.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={CalendarClock}
+          title="No scheduled matches yet"
+          description="Create a tournament and generate pools or brackets, then auto-schedule to see matches here."
+        />
       ) : (
         [...byDate.entries()].map(([dateKey, dayMatches]) => (
           <div key={dateKey} className="space-y-3">
-            <h2 className="text-lg font-semibold">
+            <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
               {dateKey === "unscheduled"
                 ? "Unscheduled"
-                : format(new Date(dateKey + "T00:00:00"), "EEEE, MMMM d, yyyy")}
+                : format(new Date(dateKey + "T00:00:00"), "EEE, MMM d, yyyy")}
             </h2>
             <div className="grid gap-2">
               {dayMatches.map((match) => (
                 <div
                   key={match.id}
-                  className="flex items-center justify-between rounded-md border p-3"
+                  className="flex items-center justify-between gap-3 rounded-md border bg-card p-3 transition-colors hover:bg-muted/30"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex min-w-0 items-center gap-4">
                     {match.scheduledTime && (
-                      <span className="text-sm font-medium text-muted-foreground w-16">
+                      <span className="min-w-[4.5rem] text-right text-sm font-medium tabular-nums text-muted-foreground">
                         {format(match.scheduledTime, "h:mm a")}
                       </span>
                     )}
-                    <div>
-                      <p className="font-medium">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
                         {match.teamAName} vs {match.teamBName}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="truncate text-xs text-muted-foreground">
                         {match.courtName}
-                        {match.contextLabel && ` \u00B7 ${match.contextLabel}`}
+                        {match.contextLabel && `\u00A0\u00B7\u00A0${match.contextLabel}`}
                       </p>
                     </div>
                   </div>
@@ -148,6 +148,7 @@ export default async function SchedulePage() {
                           ? "secondary"
                           : "outline"
                     }
+                    className="shrink-0"
                   >
                     {match.status.replace(/_/g, " ")}
                   </Badge>
