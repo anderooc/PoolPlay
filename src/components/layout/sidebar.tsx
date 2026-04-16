@@ -39,7 +39,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "hidden min-h-0 md:flex md:min-h-0 md:flex-col md:border-r md:bg-sidebar md:transition-[width] md:duration-200 md:ease-out",
+        "hidden min-h-0 md:flex md:min-h-0 md:flex-col md:border-r md:bg-sidebar md:transition-[width,transform,opacity] md:duration-300 md:ease-out motion-safe:md:animate-in motion-safe:md:fade-in-0 motion-safe:md:slide-in-from-left-1",
         collapsed ? "md:w-[4.25rem]" : "md:w-60"
       )}
     >

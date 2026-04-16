@@ -20,7 +20,7 @@ export function HeaderNav({ className }: { className?: string }) {
         <Link
           key={link.href}
           href={link.href}
-          className="rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:px-3"
+          className="rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground transition-[color,background-color,transform] duration-200 ease-out hover:text-foreground motion-safe:hover:-translate-y-0.5 sm:px-3"
         >
           {link.label}
         </Link>
