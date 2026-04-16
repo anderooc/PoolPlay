@@ -10,12 +10,10 @@ import {
   users,
 } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buttonVariants } from "@/components/ui/button";
-import { MapPin, Calendar } from "lucide-react";
+import { MapPin, Calendar, ArrowLeft, User } from "lucide-react";
 import Link from "next/link";
 import { StatusControls } from "./status-controls";
 import { DivisionManager } from "./division-manager";
@@ -75,21 +73,30 @@ export default async function TournamentDetailPage({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">
+      <Link
+        href="/tournaments"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        All tournaments
+      </Link>
+
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
               {tournament.name}
             </h1>
             <Badge
               variant={
                 tournament.status === "in_progress" ? "default" : "secondary"
               }
+              className="shrink-0"
             >
               {tournament.status.replace(/_/g, " ")}
             </Badge>
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5" />
               {tournament.location}
@@ -98,30 +105,40 @@ export default async function TournamentDetailPage({ params }: Props) {
               <Calendar className="h-3.5 w-3.5" />
               {tournament.startDate}
               {tournament.startDate !== tournament.endDate &&
-                ` \u2013 ${tournament.endDate}`}
+                `\u00A0\u2013\u00A0${tournament.endDate}`}
+            </span>
+            <span className="flex items-center gap-1">
+              <User className="h-3.5 w-3.5" />
+              {organizer?.fullName ?? "Unknown organizer"}
             </span>
           </div>
           {tournament.description && (
-            <p className="mt-2 text-sm text-muted-foreground max-w-2xl">
+            <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
               {tournament.description}
             </p>
           )}
-          <p className="mt-1 text-xs text-muted-foreground">
-            Organized by {organizer?.fullName ?? "Unknown"}
-          </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:justify-end">
           {tournament.status === "registration_open" && !isOrganizer && (
-            <Link href={`/tournaments/${tournament.id}/register`} className={buttonVariants()}>
-                Register Team
+            <Link
+              href={`/tournaments/${tournament.id}/register`}
+              className={buttonVariants({ className: "col-span-2 sm:col-span-1" })}
+            >
+              Register Team
             </Link>
           )}
-          <Link href={`/tournaments/${tournament.id}/brackets`} className={buttonVariants({ variant: "outline" })}>
-              Pools &amp; Brackets
+          <Link
+            href={`/tournaments/${tournament.id}/brackets`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Pools &amp; Brackets
           </Link>
-          <Link href={`/tournaments/${tournament.id}/scoring`} className={buttonVariants({ variant: "outline" })}>
-              Live Scoring
+          <Link
+            href={`/tournaments/${tournament.id}/scoring`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Live Scoring
           </Link>
           {isOrganizer && (
             <StatusControls
@@ -134,7 +151,9 @@ export default async function TournamentDetailPage({ params }: Props) {
 
       <Tabs defaultValue="divisions">
         <TabsList>
-          <TabsTrigger value="divisions">Divisions</TabsTrigger>
+          <TabsTrigger value="divisions">
+            Divisions ({tournamentDivisions.length})
+          </TabsTrigger>
           <TabsTrigger value="registrations">
             Registrations ({tournamentRegistrations.length})
           </TabsTrigger>
