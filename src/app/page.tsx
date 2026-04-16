@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { HeaderNav } from "@/components/layout/header-nav";
+import { PoolPlayMark } from "@/components/layout/poolplay-mark";
 import { Trophy, Users, Calendar, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
@@ -11,13 +13,13 @@ export default async function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b bg-white/85 backdrop-blur-sm">
-        <div className="container mx-auto flex h-14 items-center justify-between px-4">
-          <span className="font-extrabold text-lg tracking-tight">
-            <span className="text-primary">Pool</span>
-            <span className="text-secondary">Play</span>
-          </span>
-          <div className="flex items-center gap-2">
+      <header className="sticky top-0 z-40 border-b bg-white/85 backdrop-blur-sm">
+        <div className="container mx-auto flex h-14 items-center justify-between gap-4 px-4">
+          <div className="flex min-w-0 items-center gap-4 sm:gap-6">
+            <PoolPlayMark href="/" wordmarkClassName="text-lg" />
+            <HeaderNav />
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
             {user ? (
               <Link
                 href="/dashboard"
@@ -46,7 +48,9 @@ export default async function HomePage() {
         <section className="container mx-auto px-4 py-20 text-center">
           <div className="mx-auto max-w-4xl rounded-3xl border bg-white/90 px-6 py-12 shadow-xl shadow-secondary/10 md:px-10">
             <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
-              <span className="text-primary">PoolPlay</span>
+              <PoolPlayMark
+                wordmarkClassName="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight"
+              />
               <br />
               <span className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl text-foreground">
                 Collegiate club volleyball
@@ -108,7 +112,7 @@ export default async function HomePage() {
       </main>
 
       <footer className="border-t py-6 text-center text-sm text-muted-foreground">
-        PoolPlay
+        <PoolPlayMark wordmarkClassName="text-sm font-bold" />
       </footer>
     </div>
   );
