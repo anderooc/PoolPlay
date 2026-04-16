@@ -45,40 +45,49 @@ export default async function HomePage() {
       </header>
 
       <main className="flex-1">
-        <section className="container mx-auto px-4 py-20 text-center">
-          <div className="mx-auto max-w-4xl rounded-3xl border bg-white/90 px-6 py-12 shadow-xl shadow-secondary/10 md:px-10">
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
+        <section className="container mx-auto px-4 py-14 text-center sm:py-20">
+          <div className="mx-auto max-w-4xl rounded-3xl border bg-white/90 px-5 py-10 shadow-md shadow-secondary/5 sm:px-8 sm:py-12 md:px-10">
+            <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl md:text-6xl">
               <PoolPlayMark
                 wordmarkClassName="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight"
               />
               <br />
-              <span className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl text-foreground">
+              <span className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl md:text-4xl">
                 Collegiate club volleyball
               </span>
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+            <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg">
               The all-in-one platform for organizing tournaments, managing teams,
               and tracking live scores for college club volleyball.
             </p>
-            <div className="mt-8 flex justify-center gap-4">
-            {user ? (
-              <Link href="/dashboard" className={buttonVariants({ size: "lg" })}>
-                Go to Dashboard
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
+              {user ? (
+                <Link
+                  href="/dashboard"
+                  className={buttonVariants({ size: "lg" })}
+                >
+                  Go to Dashboard
+                </Link>
+              ) : (
+                <Link
+                  href="/signup"
+                  className={buttonVariants({ size: "lg" })}
+                >
+                  Create Account
+                </Link>
+              )}
+              <Link
+                href="/explore"
+                className={buttonVariants({ size: "lg", variant: "outline" })}
+              >
+                Browse Tournaments
               </Link>
-            ) : (
-              <Link href="/signup" className={buttonVariants({ size: "lg" })}>
-                Create Account
-              </Link>
-            )}
-            <Link href="/explore" className={buttonVariants({ size: "lg", variant: "outline" })}>
-              Browse Tournaments
-            </Link>
             </div>
           </div>
         </section>
 
-        <section className="border-t bg-muted/30">
-          <div className="container mx-auto grid gap-8 px-4 py-16 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="border-t bg-muted/20">
+          <div className="container mx-auto grid gap-5 px-4 py-14 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
             {[
               {
                 icon: Trophy,
@@ -101,8 +110,19 @@ export default async function HomePage() {
                 desc: "Real-time score updates so everyone can follow the action.",
               },
             ].map((feature, idx) => (
-              <div key={feature.title} className="space-y-2 rounded-2xl border bg-white/85 p-5 shadow-sm">
-                <feature.icon className={`h-8 w-8 ${idx % 2 === 0 ? "text-primary" : "text-secondary"}`} />
+              <div
+                key={feature.title}
+                className="space-y-2 rounded-2xl border bg-white/85 p-5 transition-shadow hover:shadow-md"
+              >
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                    idx % 2 === 0
+                      ? "bg-primary/10 text-primary"
+                      : "bg-secondary/10 text-secondary"
+                  }`}
+                >
+                  <feature.icon className="h-5 w-5" />
+                </div>
                 <h3 className="font-semibold">{feature.title}</h3>
                 <p className="text-sm text-muted-foreground">{feature.desc}</p>
               </div>
