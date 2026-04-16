@@ -31,11 +31,16 @@ export function UserMenu({ fullName, email }: UserMenuProps) {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="ghost" className="relative h-8 w-8 rounded-full" />
+          <Button
+            variant="ghost"
+            className="relative h-9 w-9 rounded-full p-0 hover:bg-transparent"
+          />
         }
       >
-        <Avatar className="h-8 w-8">
-          <AvatarFallback>{initials}</AvatarFallback>
+        <Avatar className="h-9 w-9 ring-2 ring-transparent transition-all hover:ring-border">
+          <AvatarFallback className="bg-primary/10 text-primary font-medium">
+            {initials}
+          </AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end">
