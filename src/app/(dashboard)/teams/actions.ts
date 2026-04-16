@@ -7,6 +7,7 @@ import { teams, teamMembers, users } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { createTeamSchema } from "@/lib/validators";
+import { checkContentFilter } from "@/lib/utils/content-filter";
 
 export async function createTeam(formData: FormData) {
   const user = await requireUser();
@@ -19,6 +20,28 @@ export async function createTeam(formData: FormData) {
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
+  }
+
+  const teamContentError = checkContentFilter(
+    parsed.data.name,
+    parsed.data.university,
+    parsed.data.season
+  );
+  if (teamContentError) return { error: teamContentError };
+
+  const [existing] = await db
+    .select({ id: teams.id })
+    .from(teams)
+    .where(
+      and(
+        eq(teams.name, parsed.data.name),
+        eq(teams.university, parsed.data.university)
+      )
+    )
+    .limit(1);
+
+  if (existing) {
+    return { error: "A team with this name already exists at this university" };
   }
 
   const [team] = await db

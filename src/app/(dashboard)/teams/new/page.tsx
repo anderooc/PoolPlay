@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,14 +16,18 @@ import { createTeam } from "../actions";
 export default function NewTeamPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const submitted = useRef(false);
 
   async function handleSubmit(formData: FormData) {
+    if (submitted.current) return;
+    submitted.current = true;
     setLoading(true);
     setError(null);
     const result = await createTeam(formData);
     if (result?.error) {
       setError(result.error);
       setLoading(false);
+      submitted.current = false;
     }
   }
 
