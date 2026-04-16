@@ -34,7 +34,7 @@ export default function SignupPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
           <CardDescription>
-            Create your PoolPlay account
+            Create your PoolPlay account with a school or institutional email.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -49,14 +49,18 @@ export default function SignupPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">School email</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
+                autoComplete="email"
                 placeholder="you@university.edu"
                 required
               />
+              <p className="text-xs text-muted-foreground">
+                Must be an institutional address (e.g. .edu, .ac.uk, .edu.au).
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="university">University</Label>

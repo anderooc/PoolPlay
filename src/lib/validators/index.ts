@@ -1,7 +1,13 @@
 import { z } from "zod/v4";
+import { isCollegeEmail } from "@/lib/utils/college-email";
 
 export const signUpSchema = z.object({
-  email: z.email(),
+  email: z
+    .email()
+    .refine(
+      (val) => isCollegeEmail(val),
+      "Use your school email (e.g. name@school.edu or your institution’s domain)."
+    ),
   password: z.string().min(6, "Password must be at least 6 characters"),
   fullName: z.string().min(1, "Full name is required"),
   university: z.string().optional(),
