@@ -1,14 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import {
-  tournaments,
-  divisions,
-  teams,
-  teamMembers,
-  registrations,
-} from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { tournaments, teams, teamMembers, registrations } from "@/lib/db/schema";
+import { eq, and, asc } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RegisterForm } from "./register-form";
 
@@ -43,18 +37,7 @@ export default async function RegisterPage({ params }: Props) {
     );
   }
 
-  const tournamentDivisions = await db
-    .select()
-    .from(divisions)
-    .where(eq(divisions.tournamentId, id));
-
-  const captainTeams = await db
-    .select({ id: teams.id, name: teams.name, university: teams.university })
-    .from(teamMembers)
-    .innerJoin(teams, eq(teamMembers.teamId, teams.id))
-    .where(
-      and(eq(teamMembers.userId, user.id), eq(teamMembers.role, "captain"))
-    );
+  const isHost = tournament.organizerId === user.id;
 
   const existingRegs = await db
     .select({ teamId: registrations.teamId })
@@ -62,30 +45,64 @@ export default async function RegisterPage({ params }: Props) {
     .where(eq(registrations.tournamentId, id));
 
   const alreadyRegisteredIds = new Set(existingRegs.map((r) => r.teamId));
-  const availableTeams = captainTeams.filter(
-    (t) => !alreadyRegisteredIds.has(t.id)
-  );
+
+  let availableTeams: { id: string; name: string; university: string }[];
+
+  if (isHost) {
+    const allTeams = await db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        university: teams.university,
+      })
+      .from(teams)
+      .orderBy(asc(teams.name));
+
+    availableTeams = allTeams.filter((t) => !alreadyRegisteredIds.has(t.id));
+  } else {
+    const captainTeams = await db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        university: teams.university,
+      })
+      .from(teamMembers)
+      .innerJoin(teams, eq(teamMembers.teamId, teams.id))
+      .where(
+        and(eq(teamMembers.userId, user.id), eq(teamMembers.role, "captain"))
+      );
+
+    availableTeams = captainTeams.filter(
+      (t) => !alreadyRegisteredIds.has(t.id)
+    );
+  }
+
+  const emptyMessage = isHost
+    ? "Every team is already registered for this tournament, or no teams exist in PoolPlay yet."
+    : "You don't have any teams eligible to register. Either all your teams are already registered, or you need to be a team captain. The tournament host can register teams on your behalf.";
 
   return (
     <div className="mx-auto max-w-lg">
       <Card>
         <CardHeader>
-          <CardTitle>Register for {tournament.name}</CardTitle>
+          <CardTitle>
+            {isHost ? "Add teams to" : "Register for"} {tournament.name}
+          </CardTitle>
+          {isHost && (
+            <p className="text-sm text-muted-foreground">
+              As host, you can register any team for this tournament. Division
+              and pool placement can be set later from the tournament page.
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           {availableTeams.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              You don&apos;t have any teams eligible to register. Either all your
-              teams are already registered, or you need to be a team captain.
-            </p>
+            <p className="text-sm text-muted-foreground">{emptyMessage}</p>
           ) : (
             <RegisterForm
               tournamentId={id}
               teams={availableTeams}
-              divisions={tournamentDivisions.map((d) => ({
-                id: d.id,
-                name: d.name,
-              }))}
+              asHost={isHost}
             />
           )}
         </CardContent>

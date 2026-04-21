@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardContent,
@@ -16,21 +17,39 @@ import { signup } from "../actions";
 
 export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  async function handleSubmit(formData: FormData) {
-    setLoading(true);
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
     setError(null);
-    const result = await signup(formData);
-    if (result?.error) {
-      setError(result.error);
-      setLoading(false);
-    }
+    startTransition(async () => {
+      try {
+        const result = await signup(formData);
+        if (result?.error) {
+          setError(result.error);
+        }
+      } catch {
+        // Successful signup triggers Next.js redirect — ignore.
+      }
+    });
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-muted/30">
-      <Card className="w-full max-w-md">
+    <div className="relative flex min-h-screen items-center justify-center bg-muted/30 px-4">
+      {isPending && (
+        <div
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-background/75 backdrop-blur-sm"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <Spinner size={44} />
+          <p className="text-sm font-medium text-foreground">
+            Creating your account…
+          </p>
+        </div>
+      )}
+      <Card className="relative z-[1] w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
           <CardDescription>
@@ -38,7 +57,7 @@ export default function SignupPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={handleSubmit} className="space-y-4">
+          <form onSubmit={onSubmit} className="space-y-4" aria-busy={isPending}>
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
               <Input
@@ -46,6 +65,7 @@ export default function SignupPage() {
                 name="fullName"
                 placeholder="Jane Smith"
                 required
+                disabled={isPending}
               />
             </div>
             <div className="space-y-2">
@@ -57,6 +77,7 @@ export default function SignupPage() {
                 autoComplete="email"
                 placeholder="you@university.edu"
                 required
+                disabled={isPending}
               />
               <p className="text-xs text-muted-foreground">
                 Must be an institutional address (e.g. .edu, .ac.uk, .edu.au).
@@ -68,6 +89,7 @@ export default function SignupPage() {
                 id="university"
                 name="university"
                 placeholder="State University"
+                disabled={isPending}
               />
             </div>
             <div className="space-y-2">
@@ -79,13 +101,21 @@ export default function SignupPage() {
                 placeholder="••••••••"
                 minLength={6}
                 required
+                disabled={isPending}
               />
             </div>
             {error && (
               <p className="text-sm text-destructive">{error}</p>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Create Account"}
+            <Button type="submit" className="w-full" disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Spinner size={16} variant="onPrimary" className="mr-2" />
+                  Creating account…
+                </>
+              ) : (
+                "Create Account"
+              )}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">

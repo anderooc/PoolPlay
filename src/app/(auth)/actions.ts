@@ -34,7 +34,7 @@ export async function login(formData: FormData) {
     return { error: error.message };
   }
 
-  redirect("/dashboard");
+  redirect("/dashboard?welcome=1");
 }
 
 export async function signup(formData: FormData) {
@@ -97,7 +97,7 @@ export async function signup(formData: FormData) {
     }
   }
 
-  redirect("/dashboard");
+  redirect("/dashboard?welcome=1");
 }
 
 export async function logout() {

@@ -1,25 +1,27 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { useMemo, useOptimistic, useState, startTransition } from "react";
+import { useRouter } from "next/navigation";
 import { updateTournamentStatus } from "../actions";
-import { useState } from "react";
 import type { TournamentStatus } from "@/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
-const nextStatus: Record<TournamentStatus, TournamentStatus | null> = {
-  draft: "registration_open",
-  registration_open: "registration_closed",
-  registration_closed: "in_progress",
-  in_progress: "completed",
-  completed: null,
-};
-
-const statusLabels: Record<TournamentStatus, string> = {
-  draft: "Open Registration",
-  registration_open: "Close Registration",
-  registration_closed: "Start Tournament",
-  in_progress: "Complete Tournament",
-  completed: "",
-};
+const STATUS_OPTIONS: { value: TournamentStatus; label: string }[] = [
+  { value: "draft", label: "Draft" },
+  { value: "registration_open", label: "Registration open" },
+  { value: "registration_closed", label: "Registration closed" },
+  { value: "in_progress", label: "In progress" },
+  { value: "completed", label: "Completed" },
+];
 
 export function StatusControls({
   tournamentId,
@@ -28,23 +30,102 @@ export function StatusControls({
   tournamentId: string;
   currentStatus: string;
 }) {
-  const [loading, setLoading] = useState(false);
-  const next = nextStatus[currentStatus as TournamentStatus];
+  const router = useRouter();
+  const [blocking, setBlocking] = useState(false);
 
-  if (!next) return null;
+  const value = useMemo((): TournamentStatus => {
+    const v = currentStatus as TournamentStatus;
+    return STATUS_OPTIONS.some((o) => o.value === v) ? v : "draft";
+  }, [currentStatus]);
 
-  async function handleAdvance() {
-    if (!next) return;
-    setLoading(true);
-    await updateTournamentStatus(tournamentId, next);
-    setLoading(false);
+  const [displayStatus, setOptimisticStatus] = useOptimistic(
+    value,
+    (_current, next: TournamentStatus) => next
+  );
+
+  function onChange(next: TournamentStatus) {
+    setBlocking(true);
+    startTransition(() => {
+      setOptimisticStatus(next);
+    });
+    void (async () => {
+      try {
+        const result = await updateTournamentStatus(tournamentId, next);
+        if (result?.error) {
+          await router.refresh();
+          return;
+        }
+        await router.refresh();
+      } catch {
+        await router.refresh();
+      } finally {
+        setBlocking(false);
+      }
+    })();
   }
 
   return (
-    <Button onClick={handleAdvance} disabled={loading}>
-      {loading
-        ? "Updating..."
-        : statusLabels[currentStatus as TournamentStatus]}
-    </Button>
+    <div
+      className={cn(
+        "relative inline-flex items-center",
+        blocking && "cursor-wait"
+      )}
+      aria-busy={blocking}
+      aria-live="polite"
+    >
+      <span className="sr-only">Tournament status</span>
+      {/*
+        key resets internal selectedIndex when the value changes so Base UI
+        does not show multiple ItemIndicators (selectedIndex vs value mismatch).
+      */}
+      <Select
+        key={`${tournamentId}-${displayStatus}`}
+        value={displayStatus}
+        onValueChange={(v) => {
+          if (
+            typeof v === "string" &&
+            STATUS_OPTIONS.some((o) => o.value === v)
+          ) {
+            onChange(v as TournamentStatus);
+          }
+        }}
+        disabled={blocking}
+      >
+        <SelectTrigger
+          id="tournament-status"
+          size="default"
+          className={cn(
+            buttonVariants({ variant: "outline", size: "default" }),
+            "relative z-0 h-8 min-w-[12.5rem] max-w-[min(100vw-2rem,18rem)] justify-between gap-2 font-medium transition-opacity duration-200",
+            blocking && "pointer-events-none opacity-60"
+          )}
+        >
+          <SelectValue>
+            {(v) =>
+              STATUS_OPTIONS.find((o) => o.value === v)?.label ??
+              String(v ?? "")
+            }
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {STATUS_OPTIONS.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {blocking && (
+        <>
+          <span className="sr-only">Updating tournament status…</span>
+          <div
+            className="pointer-events-auto absolute inset-0 z-10 flex cursor-wait items-center justify-center rounded-lg bg-background/50 backdrop-blur-[1px] ring-1 ring-inset ring-border/40 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-150"
+            aria-hidden
+          >
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          </div>
+        </>
+      )}
+    </div>
   );
 }
