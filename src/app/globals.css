@@ -131,3 +131,13 @@
     @apply font-sans;
   }
 }
+
+/* Indeterminate bar for division edit save overlay */
+@keyframes division-save-bar {
+  from {
+    transform: translateX(-130%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
