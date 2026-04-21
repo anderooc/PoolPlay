@@ -6,6 +6,7 @@ import {
   integer,
   pgEnum,
   date,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -121,9 +122,10 @@ export const registrations = pgTable("registrations", {
   tournamentId: uuid("tournament_id")
     .references(() => tournaments.id, { onDelete: "cascade" })
     .notNull(),
-  divisionId: uuid("division_id")
-    .references(() => divisions.id, { onDelete: "cascade" })
-    .notNull(),
+  /** Set by tournament organizer when placing teams into divisions / pools */
+  divisionId: uuid("division_id").references(() => divisions.id, {
+    onDelete: "cascade",
+  }),
   status: registrationStatusEnum("status").default("pending").notNull(),
   registeredAt: timestamp("registered_at").defaultNow().notNull(),
 });
@@ -167,6 +169,20 @@ export const courts = pgTable("courts", {
     .notNull(),
   name: text("name").notNull(),
 });
+
+/** Many-to-many: a court may serve multiple divisions; courts with no rows here are shared for scheduling */
+export const courtDivisions = pgTable(
+  "court_divisions",
+  {
+    courtId: uuid("court_id")
+      .references(() => courts.id, { onDelete: "cascade" })
+      .notNull(),
+    divisionId: uuid("division_id")
+      .references(() => divisions.id, { onDelete: "cascade" })
+      .notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.courtId, t.divisionId] })]
+);
 
 export const matches = pgTable("matches", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -234,6 +250,7 @@ export const divisionsRelations = relations(divisions, ({ one, many }) => ({
   registrations: many(registrations),
   pools: many(pools),
   brackets: many(brackets),
+  courtDivisions: many(courtDivisions),
 }));
 
 export const registrationsRelations = relations(registrations, ({ one }) => ({
@@ -278,7 +295,19 @@ export const courtsRelations = relations(courts, ({ one, many }) => ({
     fields: [courts.tournamentId],
     references: [tournaments.id],
   }),
+  courtDivisions: many(courtDivisions),
   matches: many(matches),
+}));
+
+export const courtDivisionsRelations = relations(courtDivisions, ({ one }) => ({
+  court: one(courts, {
+    fields: [courtDivisions.courtId],
+    references: [courts.id],
+  }),
+  division: one(divisions, {
+    fields: [courtDivisions.divisionId],
+    references: [divisions.id],
+  }),
 }));
 
 export const matchesRelations = relations(matches, ({ one, many }) => ({
