@@ -16,26 +16,26 @@ import { registerTeam } from "./actions";
 interface Props {
   tournamentId: string;
   teams: { id: string; name: string; university: string }[];
-  divisions: { id: string; name: string }[];
+  /** Tournament organizer — copy reflects host registration */
+  asHost?: boolean;
 }
 
-export function RegisterForm({ tournamentId, teams, divisions }: Props) {
+export function RegisterForm({ tournamentId, teams, asHost = false }: Props) {
   const router = useRouter();
   const [teamId, setTeamId] = useState("");
-  const [divisionId, setDivisionId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!teamId || !divisionId) {
-      setError("Please select both a team and a division");
+    if (!teamId) {
+      setError("Please select a team");
       return;
     }
 
     setLoading(true);
     setError(null);
-    const result = await registerTeam(tournamentId, teamId, divisionId);
+    const result = await registerTeam(tournamentId, teamId);
     if (result?.error) {
       setError(result.error);
       setLoading(false);
@@ -49,12 +49,28 @@ export function RegisterForm({ tournamentId, teams, divisions }: Props) {
       <div className="space-y-2">
         <Label>Team</Label>
         <Select value={teamId} onValueChange={(v) => setTeamId(v ?? "")}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select a team" />
+          <SelectTrigger className="w-full">
+            <SelectValue>
+              {(value) => {
+                if (value == null || value === "") {
+                  return (
+                    <span className="text-muted-foreground">Select a team</span>
+                  );
+                }
+                const team = teams.find((t) => t.id === value);
+                return team
+                  ? `${team.name} (${team.university})`
+                  : String(value);
+              }}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {teams.map((team) => (
-              <SelectItem key={team.id} value={team.id}>
+              <SelectItem
+                key={team.id}
+                value={team.id}
+                label={`${team.name} (${team.university})`}
+              >
                 {team.name} ({team.university})
               </SelectItem>
             ))}
@@ -62,21 +78,11 @@ export function RegisterForm({ tournamentId, teams, divisions }: Props) {
         </Select>
       </div>
 
-      <div className="space-y-2">
-        <Label>Division</Label>
-        <Select value={divisionId} onValueChange={(v) => setDivisionId(v ?? "")}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select a division" />
-          </SelectTrigger>
-          <SelectContent>
-            {divisions.map((div) => (
-              <SelectItem key={div.id} value={div.id}>
-                {div.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <p className="text-xs text-muted-foreground">
+        {asHost
+          ? "Assign divisions and pools later from the tournament dashboard."
+          : "Division and pool placement is set by the tournament organizer after you register."}
+      </p>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
