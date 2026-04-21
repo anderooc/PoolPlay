@@ -2,10 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { matches, courts, tournaments } from "@/lib/db/schema";
-import { eq, and, isNull, isNotNull, or } from "drizzle-orm";
+import {
+  matches,
+  courts,
+  courtDivisions,
+  tournaments,
+  pools,
+  brackets,
+  divisions,
+} from "@/lib/db/schema";
+import { eq, and, isNull, or, asc } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { requireUser } from "@/lib/auth";
-import { autoScheduleMatches } from "@/lib/utils/scheduling";
+import { autoScheduleMatchesWithCourtSets } from "@/lib/utils/scheduling";
 
 export async function autoScheduleTournament(
   tournamentId: string,
@@ -27,36 +36,86 @@ export async function autoScheduleTournament(
   const tournamentCourts = await db
     .select()
     .from(courts)
-    .where(eq(courts.tournamentId, tournamentId));
+    .where(eq(courts.tournamentId, tournamentId))
+    .orderBy(asc(courts.name), asc(courts.id));
 
   if (tournamentCourts.length === 0) {
     return { error: "Add courts before scheduling" };
   }
 
-  // Get all unscheduled matches for this tournament's pools and brackets
+  const courtDivisionLinks = await db
+    .select({
+      courtId: courtDivisions.courtId,
+      divisionId: courtDivisions.divisionId,
+    })
+    .from(courtDivisions)
+    .innerJoin(courts, eq(courtDivisions.courtId, courts.id))
+    .where(eq(courts.tournamentId, tournamentId));
+
+  const divisionIdsByCourt = new Map<string, Set<string>>();
+  for (const row of courtDivisionLinks) {
+    let set = divisionIdsByCourt.get(row.courtId);
+    if (!set) {
+      set = new Set();
+      divisionIdsByCourt.set(row.courtId, set);
+    }
+    set.add(row.divisionId);
+  }
+
+  const divFromPool = alias(divisions, "schedule_div_pool");
+  const divFromBracket = alias(divisions, "schedule_div_bracket");
+
   const unscheduledMatches = await db
-    .select({ id: matches.id, poolId: matches.poolId, bracketRound: matches.bracketRound })
+    .select({
+      id: matches.id,
+      poolDivisionId: divFromPool.id,
+      bracketDivisionId: divFromBracket.id,
+    })
     .from(matches)
+    .leftJoin(pools, eq(matches.poolId, pools.id))
+    .leftJoin(divFromPool, eq(pools.divisionId, divFromPool.id))
+    .leftJoin(brackets, eq(matches.bracketId, brackets.id))
+    .leftJoin(divFromBracket, eq(brackets.divisionId, divFromBracket.id))
     .where(
       and(
         eq(matches.status, "upcoming"),
-        isNull(matches.scheduledTime)
+        isNull(matches.scheduledTime),
+        or(
+          eq(divFromPool.tournamentId, tournamentId),
+          eq(divFromBracket.tournamentId, tournamentId)
+        )
       )
     );
 
-  // Filter to only matches belonging to this tournament
-  // (via pools -> divisions -> tournament or brackets -> divisions -> tournament)
-  // For simplicity, we schedule all unscheduled upcoming matches
-  const matchIds = unscheduledMatches.map((m) => m.id);
-
-  if (matchIds.length === 0) {
+  if (unscheduledMatches.length === 0) {
     return { error: "No unscheduled matches found" };
   }
 
   const startTime = new Date(startTimeISO);
-  const courtIds = tournamentCourts.map((c) => c.id);
+  const allCourtIds = tournamentCourts.map((c) => c.id);
 
-  const schedule = autoScheduleMatches(matchIds, courtIds, startTime, matchDuration);
+  const items = unscheduledMatches.map((row) => {
+    const divisionId = row.poolDivisionId ?? row.bracketDivisionId;
+    let allowed = tournamentCourts
+      .filter((c) => {
+        const linked = divisionIdsByCourt.get(c.id);
+        if (!linked || linked.size === 0) {
+          return true;
+        }
+        return divisionId != null && linked.has(divisionId);
+      })
+      .map((c) => c.id);
+    if (allowed.length === 0) {
+      allowed = allCourtIds;
+    }
+    return { matchId: row.id, courtIds: allowed };
+  });
+
+  const schedule = autoScheduleMatchesWithCourtSets(
+    items,
+    startTime,
+    matchDuration
+  );
 
   for (const slot of schedule) {
     await db
@@ -79,7 +138,7 @@ export async function updateMatchSchedule(
   courtId: string,
   scheduledTime: string
 ) {
-  const user = await requireUser();
+  await requireUser();
 
   await db
     .update(matches)
