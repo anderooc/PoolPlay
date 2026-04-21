@@ -5,11 +5,12 @@ import {
   tournaments,
   divisions,
   courts,
+  courtDivisions,
   registrations,
   teams,
   users,
 } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buttonVariants } from "@/components/ui/button";
@@ -46,12 +47,48 @@ export default async function TournamentDetailPage({ params }: Props) {
   const tournamentDivisions = await db
     .select()
     .from(divisions)
-    .where(eq(divisions.tournamentId, id));
+    .where(eq(divisions.tournamentId, id))
+    .orderBy(asc(divisions.name), asc(divisions.id));
 
-  const tournamentCourts = await db
-    .select()
+  const courtRows = await db
+    .select({ id: courts.id, name: courts.name })
     .from(courts)
+    .where(eq(courts.tournamentId, id))
+    .orderBy(asc(courts.name), asc(courts.id));
+
+  const courtDivisionLinks = await db
+    .select({
+      courtId: courtDivisions.courtId,
+      divisionId: courtDivisions.divisionId,
+      divisionName: divisions.name,
+    })
+    .from(courtDivisions)
+    .innerJoin(courts, eq(courtDivisions.courtId, courts.id))
+    .innerJoin(divisions, eq(courtDivisions.divisionId, divisions.id))
     .where(eq(courts.tournamentId, id));
+
+  type CourtDivPair = { divisionId: string; divisionName: string };
+  const pairsByCourt = new Map<string, CourtDivPair[]>();
+  for (const row of courtDivisionLinks) {
+    const list = pairsByCourt.get(row.courtId) ?? [];
+    list.push({
+      divisionId: row.divisionId,
+      divisionName: row.divisionName,
+    });
+    pairsByCourt.set(row.courtId, list);
+  }
+
+  const tournamentCourts = courtRows.map((c) => {
+    const pairs = (pairsByCourt.get(c.id) ?? [])
+      .slice()
+      .sort((a, b) => a.divisionName.localeCompare(b.divisionName));
+    return {
+      id: c.id,
+      name: c.name,
+      divisionIds: pairs.map((p) => p.divisionId),
+      divisionNames: pairs.map((p) => p.divisionName),
+    };
+  });
 
   const tournamentRegistrations = await db
     .select({
@@ -66,8 +103,9 @@ export default async function TournamentDetailPage({ params }: Props) {
     })
     .from(registrations)
     .innerJoin(teams, eq(registrations.teamId, teams.id))
-    .innerJoin(divisions, eq(registrations.divisionId, divisions.id))
-    .where(eq(registrations.tournamentId, id));
+    .leftJoin(divisions, eq(registrations.divisionId, divisions.id))
+    .where(eq(registrations.tournamentId, id))
+    .orderBy(asc(registrations.registeredAt), asc(teams.name));
 
   const isOrganizer = tournament.organizerId === user.id;
 
@@ -119,13 +157,13 @@ export default async function TournamentDetailPage({ params }: Props) {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:justify-end">
-          {tournament.status === "registration_open" && !isOrganizer && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {tournament.status === "registration_open" && (
             <Link
               href={`/tournaments/${tournament.id}/register`}
-              className={buttonVariants({ className: "col-span-2 sm:col-span-1" })}
+              className={buttonVariants({ className: "w-full sm:w-auto" })}
             >
-              Register Team
+              {isOrganizer ? "Add / register teams" : "Register Team"}
             </Link>
           )}
           <Link
@@ -152,36 +190,51 @@ export default async function TournamentDetailPage({ params }: Props) {
       <Tabs defaultValue="divisions">
         <TabsList>
           <TabsTrigger value="divisions">
-            Divisions ({tournamentDivisions.length})
+            Divisions &amp; courts
           </TabsTrigger>
           <TabsTrigger value="registrations">
             Registrations ({tournamentRegistrations.length})
           </TabsTrigger>
-          <TabsTrigger value="courts">
-            Courts ({tournamentCourts.length})
-          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="divisions" className="mt-4">
-          <DivisionManager
-            tournamentId={id}
-            divisions={tournamentDivisions}
-            isOrganizer={isOrganizer}
-            isDraft={tournament.status === "draft"}
-          />
+        <TabsContent value="divisions" className="mt-4 space-y-10">
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold tracking-tight">Divisions</h2>
+            <DivisionManager
+              tournamentId={id}
+              divisions={tournamentDivisions}
+              tournamentCourts={tournamentCourts.map((c) => ({
+                id: c.id,
+                name: c.name,
+                divisionIds: c.divisionIds,
+              }))}
+              isOrganizer={isOrganizer}
+            />
+          </section>
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold tracking-tight">Courts</h2>
+            <p className="text-sm text-muted-foreground">
+              Used when auto-scheduling matches and on the live scoring view.
+            </p>
+            <CourtManager
+              tournamentId={id}
+              courts={tournamentCourts.map((c) => ({
+                id: c.id,
+                name: c.name,
+                divisionNames: c.divisionNames,
+              }))}
+              isOrganizer={isOrganizer}
+            />
+          </section>
         </TabsContent>
 
         <TabsContent value="registrations" className="mt-4">
           <RegistrationList
             registrations={tournamentRegistrations}
-            isOrganizer={isOrganizer}
-          />
-        </TabsContent>
-
-        <TabsContent value="courts" className="mt-4">
-          <CourtManager
-            tournamentId={id}
-            courts={tournamentCourts}
+            divisions={tournamentDivisions.map((d) => ({
+              id: d.id,
+              name: d.name,
+            }))}
             isOrganizer={isOrganizer}
           />
         </TabsContent>

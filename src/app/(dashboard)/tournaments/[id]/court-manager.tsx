@@ -4,13 +4,14 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Plus, X } from "lucide-react";
 import { addCourt, removeCourt } from "../actions";
 
 interface Court {
   id: string;
   name: string;
+  /** Division names this court is assigned to (alphabetical from server) */
+  divisionNames: string[];
 }
 
 export function CourtManager({
@@ -65,21 +66,31 @@ export function CourtManager({
         <>
           <div className="flex flex-wrap gap-2">
             {courts.map((court) => (
-              <Badge
+              <div
                 key={court.id}
-                variant="secondary"
-                className="text-sm py-1.5 px-3 gap-1"
+                className="inline-flex max-w-[min(100%,18rem)] items-start gap-1 rounded-md border border-border/70 bg-transparent px-2 py-1 text-xs text-foreground"
               >
-                {court.name}
+                <span className="min-w-0 flex-1 flex flex-col gap-px">
+                  <span className="font-medium leading-tight break-words">
+                    {court.name}
+                  </span>
+                  {court.divisionNames.length > 0 && (
+                    <span className="text-[0.65rem] font-normal leading-tight text-muted-foreground break-words">
+                      {court.divisionNames.join(", ")}
+                    </span>
+                  )}
+                </span>
                 {isOrganizer && (
                   <button
+                    type="button"
                     onClick={() => handleRemove(court.id)}
-                    className="ml-1 hover:text-destructive"
+                    className="-m-0.5 shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-destructive"
+                    aria-label={`Remove ${court.name}`}
                   >
                     <X className="h-3 w-3" />
                   </button>
                 )}
-              </Badge>
+              </div>
             ))}
           </div>
 

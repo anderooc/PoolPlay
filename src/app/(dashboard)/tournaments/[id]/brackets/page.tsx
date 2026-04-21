@@ -10,12 +10,14 @@ import {
   matches,
   sets,
   teams,
+  registrations,
 } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PoolView } from "./pool-view";
 import { BracketView } from "./bracket-view";
 import { GenerateControls } from "./generate-controls";
+import { PoolTeamAssignments } from "./pool-team-assignments";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -37,12 +39,30 @@ export default async function BracketsPage({ params }: Props) {
   const tournamentDivisions = await db
     .select()
     .from(divisions)
-    .where(eq(divisions.tournamentId, id));
+    .where(eq(divisions.tournamentId, id))
+    .orderBy(asc(divisions.name), asc(divisions.id));
 
   const isOrganizer = tournament.organizerId === user.id;
 
   const divisionData = await Promise.all(
     tournamentDivisions.map(async (div) => {
+      const eligibleTeams = await db
+        .select({
+          id: teams.id,
+          name: teams.name,
+          university: teams.university,
+        })
+        .from(registrations)
+        .innerJoin(teams, eq(registrations.teamId, teams.id))
+        .where(
+          and(
+            eq(registrations.tournamentId, id),
+            eq(registrations.divisionId, div.id),
+            eq(registrations.status, "confirmed")
+          )
+        )
+        .orderBy(asc(registrations.registeredAt), asc(teams.name));
+
       const divPools = await db
         .select()
         .from(pools)
@@ -59,7 +79,8 @@ export default async function BracketsPage({ params }: Props) {
             })
             .from(poolTeams)
             .innerJoin(teams, eq(poolTeams.teamId, teams.id))
-            .where(eq(poolTeams.poolId, pool.id));
+            .where(eq(poolTeams.poolId, pool.id))
+            .orderBy(asc(poolTeams.seed), asc(teams.name));
 
           const poolMatches = await db
             .select()
@@ -84,7 +105,12 @@ export default async function BracketsPage({ params }: Props) {
             })
           );
 
-          return { ...pool, teams: pTeams, matches: matchData };
+          return {
+            ...pool,
+            teams: pTeams,
+            matches: matchData,
+            matchCount: poolMatches.length,
+          };
         })
       );
 
@@ -141,7 +167,7 @@ export default async function BracketsPage({ params }: Props) {
         })
       );
 
-      return { ...div, pools: poolData, brackets: bracketData };
+      return { ...div, pools: poolData, brackets: bracketData, eligibleTeams };
     })
   );
 
@@ -174,6 +200,19 @@ export default async function BracketsPage({ params }: Props) {
                   divisionId={div.id}
                   divisionFormat={div.format}
                   hasPools={div.pools.length > 0}
+                />
+              )}
+
+              {isOrganizer && div.pools.length > 0 && (
+                <PoolTeamAssignments
+                  tournamentId={id}
+                  pools={div.pools.map((p) => ({
+                    id: p.id,
+                    name: p.name,
+                    teams: p.teams,
+                    matchCount: p.matchCount,
+                  }))}
+                  eligibleTeams={div.eligibleTeams}
                 />
               )}
 
