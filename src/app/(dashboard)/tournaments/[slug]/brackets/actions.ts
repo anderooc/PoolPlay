@@ -154,8 +154,8 @@ export async function generatePoolsForDivision(
     }
   }
 
-  revalidatePath(`/tournaments/${tournamentId}`);
-  revalidatePath(`/tournaments/${tournamentId}/brackets`);
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/brackets", "page");
   return { success: true };
 }
 
@@ -222,8 +222,8 @@ export async function generateBracketForDivision(
     });
   }
 
-  revalidatePath(`/tournaments/${tournamentId}`);
-  revalidatePath(`/tournaments/${tournamentId}/brackets`);
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/brackets", "page");
   return { success: true };
 }
 
@@ -335,7 +335,7 @@ export async function addTeamToPool(
     pool.divisionId
   );
 
-  revalidatePath(`/tournaments/${tournamentId}/brackets`);
+  revalidatePath("/tournaments/[slug]/brackets", "page");
   return { success: true };
 }
 
@@ -398,6 +398,6 @@ export async function removeTeamFromPool(
     pool.divisionId
   );
 
-  revalidatePath(`/tournaments/${tournamentId}/brackets`);
+  revalidatePath("/tournaments/[slug]/brackets", "page");
   return { success: true };
 }

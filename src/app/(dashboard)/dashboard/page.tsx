@@ -30,6 +30,7 @@ export default async function DashboardPage() {
       db
         .select({
           id: teams.id,
+          slug: teams.slug,
           name: teams.name,
           university: teams.university,
           role: teamMembers.role,
@@ -169,7 +170,7 @@ export default async function DashboardPage() {
                 {userTeams.map((team) => (
                   <Link
                     key={team.id}
-                    href={`/teams/${team.id}`}
+                    href={`/teams/${team.slug}`}
                     className="flex items-center justify-between rounded-md border p-3 transition-colors hover:bg-muted/40"
                   >
                     <div className="min-w-0">
@@ -212,7 +213,7 @@ export default async function DashboardPage() {
                 {recentTournaments.map((t) => (
                   <Link
                     key={t.id}
-                    href={`/tournaments/${t.id}`}
+                    href={`/tournaments/${t.slug}`}
                     className="flex items-center justify-between rounded-md border p-3 transition-colors hover:bg-muted/40"
                   >
                     <div className="min-w-0">

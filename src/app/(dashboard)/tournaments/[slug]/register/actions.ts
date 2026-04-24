@@ -94,7 +94,8 @@ export async function registerTeam(tournamentId: string, teamId: string) {
     teamId,
     tournamentId,
     divisionId: null as string | null,
-    status: "pending" as const,
+    // Host-added teams should bypass manual confirmation.
+    status: isHost ? ("confirmed" as const) : ("pending" as const),
   };
 
   try {
@@ -115,6 +116,6 @@ export async function registerTeam(tournamentId: string, teamId: string) {
     }
   }
 
-  revalidatePath(`/tournaments/${tournamentId}`);
+  revalidatePath("/tournaments/[slug]", "page");
   return { success: true };
 }

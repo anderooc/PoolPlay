@@ -10,16 +10,22 @@ import { AddMemberForm } from "./add-member-form";
 import { RosterRow } from "./roster-row";
 
 interface Props {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }
 
 export default async function TeamDetailPage({ params }: Props) {
-  const { id } = await params;
+  const { slug } = await params;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [team] = await db.select().from(teams).where(eq(teams.id, id)).limit(1);
+  const [team] = await db
+    .select()
+    .from(teams)
+    .where(eq(teams.slug, slug))
+    .limit(1);
   if (!team) notFound();
+
+  const id = team.id;
 
   const members = await db
     .select({

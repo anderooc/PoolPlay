@@ -17,6 +17,7 @@ export default async function TeamsPage() {
   const userTeams = await db
     .select({
       id: teams.id,
+      slug: teams.slug,
       name: teams.name,
       university: teams.university,
       season: teams.season,
@@ -61,7 +62,7 @@ export default async function TeamsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {userTeams.map((team) => (
-            <Link key={team.id} href={`/teams/${team.id}`}>
+            <Link key={team.id} href={`/teams/${team.slug}`}>
               <Card className="h-full cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2">

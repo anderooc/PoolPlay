@@ -9,6 +9,7 @@ import { MapPin, Search, ChevronDown, Trophy } from "lucide-react";
 
 interface Tournament {
   id: string;
+  slug: string;
   name: string;
   description: string | null;
   location: string;
@@ -93,7 +94,7 @@ function TournamentRow({
   linkPrefix: string;
 }) {
   return (
-    <Link href={`${linkPrefix}/${t.id}`} className="block">
+    <Link href={`${linkPrefix}/${t.slug}`} className="block">
       <div className="flex items-start gap-4 rounded-lg border bg-card px-4 py-3.5 transition-colors hover:bg-muted/40">
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">

@@ -15,12 +15,19 @@ import { registerTeam } from "./actions";
 
 interface Props {
   tournamentId: string;
+  /** URL-friendly identifier used for navigation back to the tournament page */
+  tournamentSlug: string;
   teams: { id: string; name: string; university: string }[];
   /** Tournament organizer — copy reflects host registration */
   asHost?: boolean;
 }
 
-export function RegisterForm({ tournamentId, teams, asHost = false }: Props) {
+export function RegisterForm({
+  tournamentId,
+  tournamentSlug,
+  teams,
+  asHost = false,
+}: Props) {
   const router = useRouter();
   const [teamId, setTeamId] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +47,7 @@ export function RegisterForm({ tournamentId, teams, asHost = false }: Props) {
       setError(result.error);
       setLoading(false);
     } else {
-      router.push(`/tournaments/${tournamentId}`);
+      router.push(`/tournaments/${tournamentSlug}`);
     }
   }
 

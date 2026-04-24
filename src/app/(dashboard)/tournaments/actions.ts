@@ -10,11 +10,15 @@ import {
   courtDivisions,
   users,
   registrations,
+  matches,
+  pools,
+  brackets,
 } from "@/lib/db/schema";
-import { eq, and, ne, inArray } from "drizzle-orm";
+import { eq, and, ne, inArray, or } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { createTournamentSchema, createDivisionSchema } from "@/lib/validators";
 import { checkContentFilter } from "@/lib/utils/content-filter";
+import { slugify, uniqueSlug } from "@/lib/utils/slug";
 import type { TournamentStatus } from "@/types";
 
 export async function createTournament(formData: FormData) {
@@ -41,11 +45,21 @@ export async function createTournament(formData: FormData) {
   );
   if (contentError) return { error: contentError };
 
+  const base = slugify(parsed.data.name, "tournament");
+  const existingSlugs = await db
+    .select({ slug: tournaments.slug })
+    .from(tournaments);
+  const slug = uniqueSlug(
+    base,
+    existingSlugs.map((t) => t.slug)
+  );
+
   const [tournament] = await db
     .insert(tournaments)
     .values({
       organizerId: user.id,
       name: parsed.data.name,
+      slug,
       description: parsed.data.description || null,
       startDate: parsed.data.startDate,
       endDate: parsed.data.endDate,
@@ -62,7 +76,152 @@ export async function createTournament(formData: FormData) {
       .where(eq(users.id, user.id));
   }
 
-  redirect(`/tournaments/${tournament.id}`);
+  redirect(`/tournaments/${tournament.slug}`);
+}
+
+export async function renameTournament(tournamentId: string, name: string) {
+  const user = await requireUser();
+
+  const parsed = createTournamentSchema
+    .pick({ name: true })
+    .safeParse({ name: name.trim() });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid name" };
+  }
+
+  const trimmed = parsed.data.name.trim();
+  if (!trimmed) {
+    return { error: "Tournament name is required" };
+  }
+
+  const contentError = checkContentFilter(trimmed);
+  if (contentError) return { error: contentError };
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || tournament.organizerId !== user.id) {
+    return { error: "Only the organizer can rename this tournament" };
+  }
+
+  if (trimmed === tournament.name.trim()) {
+    return { success: true as const, slug: tournament.slug };
+  }
+
+  const base = slugify(trimmed, "tournament");
+  const otherSlugs = await db
+    .select({ slug: tournaments.slug })
+    .from(tournaments)
+    .where(ne(tournaments.id, tournamentId));
+  const newSlug = uniqueSlug(
+    base,
+    otherSlugs.map((r) => r.slug)
+  );
+
+  await db
+    .update(tournaments)
+    .set({
+      name: trimmed,
+      slug: newSlug,
+      updatedAt: new Date(),
+    })
+    .where(eq(tournaments.id, tournamentId));
+
+  revalidatePath("/tournaments");
+  revalidatePath("/explore");
+  revalidatePath("/dashboard");
+  revalidatePath("/schedule");
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/brackets", "page");
+  revalidatePath("/tournaments/[slug]/scoring", "page");
+  revalidatePath("/tournaments/[slug]/register", "page");
+
+  return { success: true as const, slug: newSlug };
+}
+
+export async function deleteTournament(
+  tournamentId: string,
+  confirmationName: string
+) {
+  const user = await requireUser();
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || tournament.organizerId !== user.id) {
+    return { error: "Only the organizer can delete this tournament" };
+  }
+
+  if (tournament.name.trim() !== confirmationName.trim()) {
+    return {
+      error:
+        "Tournament name does not match — type it exactly as shown (including spaces).",
+    };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      const poolRows = await tx
+        .select({ id: pools.id })
+        .from(pools)
+        .innerJoin(divisions, eq(pools.divisionId, divisions.id))
+        .where(eq(divisions.tournamentId, tournamentId));
+
+      const bracketRows = await tx
+        .select({ id: brackets.id })
+        .from(brackets)
+        .innerJoin(divisions, eq(brackets.divisionId, divisions.id))
+        .where(eq(divisions.tournamentId, tournamentId));
+
+      const courtRows = await tx
+        .select({ id: courts.id })
+        .from(courts)
+        .where(eq(courts.tournamentId, tournamentId));
+
+      const poolIds = poolRows.map((r) => r.id);
+      const bracketIds = bracketRows.map((r) => r.id);
+      const courtIds = courtRows.map((r) => r.id);
+
+      const matchPredicates = [];
+      if (poolIds.length > 0) {
+        matchPredicates.push(inArray(matches.poolId, poolIds));
+      }
+      if (bracketIds.length > 0) {
+        matchPredicates.push(inArray(matches.bracketId, bracketIds));
+      }
+      if (courtIds.length > 0) {
+        matchPredicates.push(inArray(matches.courtId, courtIds));
+      }
+
+      if (matchPredicates.length === 1) {
+        await tx.delete(matches).where(matchPredicates[0]);
+      } else if (matchPredicates.length > 1) {
+        await tx.delete(matches).where(or(...matchPredicates));
+      }
+
+      await tx.delete(tournaments).where(eq(tournaments.id, tournamentId));
+    });
+  } catch {
+    return { error: "Could not delete tournament. Try again." };
+  }
+
+  revalidatePath("/tournaments");
+  revalidatePath("/explore");
+  revalidatePath("/dashboard");
+  revalidatePath("/schedule");
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/brackets", "page");
+  revalidatePath("/tournaments/[slug]/scoring", "page");
+  revalidatePath("/tournaments/[slug]/register", "page");
+
+  return { success: true as const };
 }
 
 export async function updateTournamentStatus(
@@ -97,8 +256,8 @@ export async function updateTournamentStatus(
     .set({ status, updatedAt: new Date() })
     .where(eq(tournaments.id, tournamentId));
 
-  revalidatePath(`/tournaments/${tournamentId}`);
-  revalidatePath(`/tournaments/${tournamentId}/brackets`);
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/brackets", "page");
   return { success: true };
 }
 
@@ -143,15 +302,22 @@ export async function addDivision(tournamentId: string, formData: FormData) {
     return { error: "A pool/division with this name already exists" };
   }
 
-  await db.insert(divisions).values({
-    tournamentId,
-    name: parsed.data.name.trim(),
-    format: parsed.data.format,
-    teamCap: parsed.data.teamCap ?? null,
-  });
+  const [inserted] = await db
+    .insert(divisions)
+    .values({
+      tournamentId,
+      name: parsed.data.name.trim(),
+      format: parsed.data.format,
+      teamCap: parsed.data.teamCap ?? null,
+    })
+    .returning({ id: divisions.id });
 
-  revalidatePath(`/tournaments/${tournamentId}`);
-  return { success: true };
+  if (!inserted) {
+    return { error: "Could not create division" };
+  }
+
+  revalidatePath("/tournaments/[slug]", "page");
+  return { success: true as const, id: inserted.id };
 }
 
 export async function removeDivision(tournamentId: string, divisionId: string) {
@@ -169,7 +335,7 @@ export async function removeDivision(tournamentId: string, divisionId: string) {
 
   await db.delete(divisions).where(eq(divisions.id, divisionId));
 
-  revalidatePath(`/tournaments/${tournamentId}`);
+  revalidatePath("/tournaments/[slug]", "page");
   return { success: true };
 }
 
@@ -205,10 +371,17 @@ export async function addCourt(tournamentId: string, formData: FormData) {
     return { error: "A court with this name already exists" };
   }
 
-  await db.insert(courts).values({ tournamentId, name });
+  const [inserted] = await db
+    .insert(courts)
+    .values({ tournamentId, name })
+    .returning({ id: courts.id });
 
-  revalidatePath(`/tournaments/${tournamentId}`);
-  return { success: true };
+  if (!inserted) {
+    return { error: "Could not create court" };
+  }
+
+  revalidatePath("/tournaments/[slug]", "page");
+  return { success: true as const, id: inserted.id };
 }
 
 export async function removeCourt(tournamentId: string, courtId: string) {
@@ -226,7 +399,7 @@ export async function removeCourt(tournamentId: string, courtId: string) {
 
   await db.delete(courts).where(eq(courts.id, courtId));
 
-  revalidatePath(`/tournaments/${tournamentId}`);
+  revalidatePath("/tournaments/[slug]", "page");
   return { success: true };
 }
 
@@ -259,7 +432,7 @@ export async function updateRegistrationStatus(
     .set({ status })
     .where(eq(registrations.id, registrationId));
 
-  revalidatePath(`/tournaments/${tournament.id}`);
+  revalidatePath("/tournaments/[slug]", "page");
   return { success: true };
 }
 
@@ -332,8 +505,8 @@ export async function updateDivision(
     })
     .where(eq(divisions.id, divisionId));
 
-  revalidatePath(`/tournaments/${tournamentId}`);
-  revalidatePath(`/tournaments/${tournamentId}/brackets`);
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/brackets", "page");
   return { success: true };
 }
 
@@ -399,7 +572,7 @@ export async function setCourtsForDivision(
     return { error: "Could not update court assignments" };
   }
 
-  revalidatePath(`/tournaments/${tournamentId}`);
+  revalidatePath("/tournaments/[slug]", "page");
   return { success: true };
 }
 
@@ -444,7 +617,7 @@ export async function setRegistrationDivision(
     .set({ divisionId })
     .where(eq(registrations.id, registrationId));
 
-  revalidatePath(`/tournaments/${reg.tournamentId}`);
-  revalidatePath(`/tournaments/${reg.tournamentId}/brackets`);
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/brackets", "page");
   return { success: true };
 }

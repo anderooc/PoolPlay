@@ -8,6 +8,7 @@ import { eq, and } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { createTeamSchema } from "@/lib/validators";
 import { checkContentFilter } from "@/lib/utils/content-filter";
+import { slugify, uniqueSlug } from "@/lib/utils/slug";
 
 export async function createTeam(formData: FormData) {
   const user = await requireUser();
@@ -44,10 +45,21 @@ export async function createTeam(formData: FormData) {
     return { error: "A team with this name already exists at this university" };
   }
 
+  const base = slugify(
+    `${parsed.data.name} ${parsed.data.university}`,
+    "team"
+  );
+  const existingSlugs = await db.select({ slug: teams.slug }).from(teams);
+  const slug = uniqueSlug(
+    base,
+    existingSlugs.map((t) => t.slug)
+  );
+
   const [team] = await db
     .insert(teams)
     .values({
       name: parsed.data.name,
+      slug,
       university: parsed.data.university,
       season: parsed.data.season || null,
     })
@@ -67,7 +79,7 @@ export async function createTeam(formData: FormData) {
       .where(eq(users.id, user.id));
   }
 
-  redirect(`/teams/${team.id}`);
+  redirect(`/teams/${team.slug}`);
 }
 
 export async function addTeamMember(teamId: string, formData: FormData) {
@@ -118,7 +130,7 @@ export async function addTeamMember(teamId: string, formData: FormData) {
     jerseyNumber: jerseyNumber ? parseInt(jerseyNumber as string, 10) : null,
   });
 
-  revalidatePath(`/teams/${teamId}`);
+  revalidatePath("/teams/[slug]", "page");
   return { success: true };
 }
 
@@ -138,7 +150,7 @@ export async function removeTeamMember(teamId: string, memberId: string) {
 
   await db.delete(teamMembers).where(eq(teamMembers.id, memberId));
 
-  revalidatePath(`/teams/${teamId}`);
+  revalidatePath("/teams/[slug]", "page");
   return { success: true };
 }
 
