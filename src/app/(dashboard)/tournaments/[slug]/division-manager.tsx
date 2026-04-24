@@ -30,6 +30,7 @@ import {
 } from "../actions";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Division {
   id: string;
@@ -98,6 +99,44 @@ export function DivisionManager({
   const [assignedCourtIds, setAssignedCourtIds] = useState<Set<string>>(
     () => new Set()
   );
+  const [removingDivisionId, setRemovingDivisionId] = useState<string | null>(
+    null
+  );
+  const [divisionToRemove, setDivisionToRemove] = useState<Division | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const [highlightDivisionId, setHighlightDivisionId] = useState<string | null>(
+    null
+  );
+  const [pendingAddedDivisionId, setPendingAddedDivisionId] = useState<string | null>(
+    null
+  );
+  const addDivisionToastIdRef = useRef<string | number | null>(null);
+
+  useEffect(() => {
+    if (!highlightDivisionId) return;
+    const found = divisions.some((d) => d.id === highlightDivisionId);
+    if (!found) return;
+    // Keep the highlight long enough for the enter animation + ring pulse to finish.
+    const t = window.setTimeout(() => setHighlightDivisionId(null), 1400);
+    return () => window.clearTimeout(t);
+  }, [divisions, highlightDivisionId]);
+
+  useEffect(() => {
+    if (!highlightDivisionId) return;
+    const t = window.setTimeout(() => setHighlightDivisionId(null), 8000);
+    return () => window.clearTimeout(t);
+  }, [highlightDivisionId]);
+
+  useEffect(() => {
+    if (pendingAddedDivisionId == null || addDivisionToastIdRef.current == null) {
+      return;
+    }
+    const isVisible = divisions.some((d) => d.id === pendingAddedDivisionId);
+    if (!isVisible) return;
+    toast.success("Division added", { id: addDivisionToastIdRef.current });
+    addDivisionToastIdRef.current = null;
+    setPendingAddedDivisionId(null);
+  }, [divisions, pendingAddedDivisionId]);
 
   useEffect(() => {
     if (!awaitingFreshProps || preSaveSnapshotRef.current == null) return;
@@ -122,6 +161,20 @@ export function DivisionManager({
     return () => window.clearTimeout(id);
   }, [awaitingFreshProps]);
 
+  useEffect(() => {
+    if (removingDivisionId == null) return;
+    const stillThere = divisions.some((d) => d.id === removingDivisionId);
+    if (!stillThere) {
+      queueMicrotask(() => setRemovingDivisionId(null));
+    }
+  }, [divisions, removingDivisionId]);
+
+  useEffect(() => {
+    if (removingDivisionId == null) return;
+    const id = window.setTimeout(() => setRemovingDivisionId(null), 12000);
+    return () => window.clearTimeout(id);
+  }, [removingDivisionId]);
+
   function openEditDialog(div: Division) {
     setEditing(div);
     setEditFormat(div.format);
@@ -139,12 +192,26 @@ export function DivisionManager({
     formData.set("format", divisionFormat);
     setLoading(true);
     setError(null);
+    addDivisionToastIdRef.current = toast.loading("Adding division...");
     const result = await addDivision(tournamentId, formData);
     if (result?.error) {
       setError(result.error);
-    } else {
+      setPendingAddedDivisionId(null);
+      if (addDivisionToastIdRef.current != null) {
+        toast.error("Could not add division", { id: addDivisionToastIdRef.current });
+        addDivisionToastIdRef.current = null;
+      }
+      setLoading(false);
+      return;
+    }
+    if ("success" in result && result.success && "id" in result) {
+      setHighlightDivisionId(result.id);
+      setPendingAddedDivisionId(result.id);
       setShowForm(false);
       setDivisionFormat("pool_to_bracket");
+      startTransition(() => {
+        router.refresh();
+      });
     }
     setLoading(false);
   }
@@ -188,19 +255,37 @@ export function DivisionManager({
     return divisions.find((d) => d.id === id)?.name ?? null;
   }
 
-  async function handleRemove(divisionId: string) {
-    if (
-      !confirm(
-        "Remove this division? Pools and brackets under it will be deleted."
-      )
-    ) {
+  function requestRemoveDivision(division: Division) {
+    if (removeBusy) return;
+    setDivisionToRemove(division);
+  }
+
+  async function confirmRemoveDivision() {
+    if (!divisionToRemove) return;
+    const divisionId = divisionToRemove.id;
+    setRemoveError(null);
+    setDivisionToRemove(null);
+    setRemovingDivisionId(divisionId);
+    const result = await removeDivision(tournamentId, divisionId);
+    if (result?.error) {
+      setRemoveError(result.error);
+      setRemovingDivisionId(null);
       return;
     }
-    await removeDivision(tournamentId, divisionId);
+    startTransition(() => {
+      router.refresh();
+    });
   }
+
+  const removeBusy = removingDivisionId !== null;
 
   return (
     <div className="space-y-4">
+      {removeError && (
+        <p className="text-sm text-destructive" role="alert">
+          {removeError}
+        </p>
+      )}
       {divisions.length === 0 && !showForm ? (
         <Card>
           <CardContent className="py-8 text-center">
@@ -211,6 +296,7 @@ export function DivisionManager({
               <Button
                 className="mt-3"
                 variant="outline"
+                disabled={removeBusy}
                 onClick={() => setShowForm(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -222,53 +308,100 @@ export function DivisionManager({
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {divisions.map((div) => (
-              <Card key={div.id}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="text-base">{div.name}</CardTitle>
-                    {isOrganizer && (
-                      <div className="flex shrink-0 gap-0.5">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => openEditDialog(div)}
-                          aria-label="Edit division"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => handleRemove(div.id)}
-                          aria-label="Remove division"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
+            {divisions.map((div) => {
+              const isRemoving = removingDivisionId === div.id;
+              const isHighlighted = highlightDivisionId === div.id;
+              return (
+                <Card
+                  key={div.id}
+                  data-pp-animate={isHighlighted ? "enter" : undefined}
+                  style={
+                    isHighlighted
+                      ? {
+                          animation:
+                            "ui-enter-soft 520ms cubic-bezier(0.22, 1, 0.36, 1) both",
+                        }
+                      : undefined
+                  }
+                  className={cn(
+                    "relative overflow-hidden transition-[box-shadow,transform] duration-300",
+                    isRemoving && "ring-1 ring-primary/25",
+                    isHighlighted &&
+                      "shadow-lg shadow-primary/20 ring-2 ring-primary/70"
+                  )}
+                >
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <CardTitle className="text-base">{div.name}</CardTitle>
+                      {isOrganizer && (
+                        <div className="flex shrink-0 gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            disabled={removeBusy}
+                            onClick={() => openEditDialog(div)}
+                            aria-label="Edit division"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            disabled={removeBusy}
+                            onClick={() => requestRemoveDivision(div)}
+                            aria-label="Remove division"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary">
+                        {formatLabel[div.format] ??
+                          div.format.replace(/_/g, " ")}
+                      </Badge>
+                      {div.teamCap != null && (
+                        <span className="text-xs text-muted-foreground">
+                          Max {div.teamCap} teams
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                  {isRemoving && (
+                    <div
+                      className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/75 p-4 backdrop-blur-[2px]"
+                      style={{ animation: "ui-fade-in 180ms ease-out both" }}
+                      aria-busy="true"
+                      aria-live="polite"
+                    >
+                      <Spinner size={28} />
+                      <p className="text-center text-sm font-medium text-foreground drop-shadow-sm">
+                        Removing division…
+                      </p>
+                      <div
+                        className="relative h-1 w-36 max-w-[85%] overflow-hidden rounded-full bg-muted/90 shadow-sm"
+                        aria-hidden
+                      >
+                        <div className="absolute inset-y-0 left-0 w-2/5 rounded-full bg-primary [animation:division-save-bar_1.05s_ease-in-out_infinite]" />
                       </div>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary">
-                      {formatLabel[div.format] ?? div.format.replace(/_/g, " ")}
-                    </Badge>
-                    {div.teamCap != null && (
-                      <span className="text-xs text-muted-foreground">
-                        Max {div.teamCap} teams
-                      </span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
           </div>
 
           {isOrganizer && !showForm && (
-            <Button variant="outline" onClick={() => setShowForm(true)}>
+            <Button
+              variant="outline"
+              disabled={removeBusy}
+              onClick={() => setShowForm(true)}
+            >
               <Plus className="mr-2 h-4 w-4" />
               Add Division
             </Button>
@@ -277,12 +410,41 @@ export function DivisionManager({
       )}
 
       {showForm && (
-        <Card>
+        <Card
+          className="relative overflow-hidden"
+          style={{
+            animation:
+              "ui-enter-soft 320ms cubic-bezier(0.22, 1, 0.36, 1) both",
+          }}
+        >
+          {loading && (
+            <div
+              className="absolute inset-0 z-10 flex cursor-wait flex-col items-center justify-center gap-3 bg-background/85 p-4 backdrop-blur-sm ring-1 ring-inset ring-border/40"
+              style={{ animation: "ui-fade-in 180ms ease-out both" }}
+              aria-busy="true"
+              aria-live="polite"
+            >
+              <Spinner size={32} />
+              <p className="text-center text-sm font-medium text-foreground drop-shadow-sm">
+                Adding division…
+              </p>
+              <div
+                className="relative h-1 w-36 max-w-[85%] overflow-hidden rounded-full bg-muted/90 shadow-sm"
+                aria-hidden
+              >
+                <div className="absolute inset-y-0 left-0 w-2/5 rounded-full bg-primary [animation:division-save-bar_1.05s_ease-in-out_infinite]" />
+              </div>
+            </div>
+          )}
           <CardHeader>
             <CardTitle className="text-base">New Division</CardTitle>
           </CardHeader>
           <CardContent>
             <form action={handleAdd} className="space-y-3">
+              <fieldset
+                disabled={loading}
+                className="min-w-0 space-y-3 border-0 p-0"
+              >
               <div className="space-y-1">
                 <Label htmlFor="div-name">Name</Label>
                 <Input
@@ -333,12 +495,28 @@ export function DivisionManager({
                 <p className="text-sm text-destructive">{error}</p>
               )}
               <div className="flex gap-2">
-                <Button type="submit" disabled={loading}>
-                  {loading ? "Adding..." : "Add Division"}
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  aria-busy={loading}
+                  aria-label={loading ? "Adding division" : undefined}
+                  className={cn(
+                    "shrink-0",
+                    loading
+                      ? "size-11 min-h-11 min-w-11 rounded-full p-0"
+                      : "min-w-[8.75rem]"
+                  )}
+                >
+                  {loading ? (
+                    <Spinner size={26} variant="onPrimary" />
+                  ) : (
+                    "Add Division"
+                  )}
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
+                  disabled={loading}
                   onClick={() => {
                     setShowForm(false);
                     setError(null);
@@ -347,6 +525,7 @@ export function DivisionManager({
                   Cancel
                 </Button>
               </div>
+              </fieldset>
             </form>
           </CardContent>
         </Card>
@@ -507,6 +686,7 @@ export function DivisionManager({
             {editSubmitting && (
               <div
                 className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 p-4"
+                style={{ animation: "ui-fade-in 180ms ease-out both" }}
                 aria-busy="true"
                 aria-live="polite"
               >
@@ -527,6 +707,48 @@ export function DivisionManager({
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={divisionToRemove !== null}
+        onOpenChange={(open) => {
+          if (!open && removingDivisionId == null) {
+            setDivisionToRemove(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove division?</DialogTitle>
+          </DialogHeader>
+          {divisionToRemove && (
+            <div className="space-y-2 text-sm">
+              <p>
+                This will remove <span className="font-medium">{divisionToRemove.name}</span>.
+              </p>
+              <p className="text-muted-foreground">
+                Pools and brackets under this division will also be deleted.
+              </p>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={removingDivisionId !== null}
+              onClick={() => setDivisionToRemove(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={removingDivisionId !== null}
+              onClick={() => void confirmRemoveDivision()}
+            >
+              Remove division
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

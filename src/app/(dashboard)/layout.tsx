@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { DashboardContentEnter } from "@/components/layout/dashboard-content-enter";
+import { RouteFade } from "@/components/layout/route-fade";
 import { Toaster } from "@/components/ui/sonner";
 
 export default function DashboardLayout({
@@ -15,7 +16,9 @@ export default function DashboardLayout({
       <Suspense fallback={null}>
         <DashboardContentEnter>
           <Sidebar />
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+          <main className="flex-1 overflow-y-auto p-4 md:p-6">
+            <RouteFade>{children}</RouteFade>
+          </main>
         </DashboardContentEnter>
       </Suspense>
       <Toaster />

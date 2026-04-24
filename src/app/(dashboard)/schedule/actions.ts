@@ -128,7 +128,7 @@ export async function autoScheduleTournament(
       .where(eq(matches.id, slot.matchId));
   }
 
-  revalidatePath(`/tournaments/${tournamentId}`);
+  revalidatePath("/tournaments/[slug]", "page");
   revalidatePath("/schedule");
   return { success: true, scheduled: schedule.length };
 }

@@ -68,6 +68,8 @@ export const users = pgTable("users", {
 export const teams = pgTable("teams", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
+  /** URL-friendly unique identifier derived from name */
+  slug: text("slug").notNull().unique(),
   university: text("university").notNull(),
   season: text("season"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -93,6 +95,8 @@ export const tournaments = pgTable("tournaments", {
     .references(() => users.id)
     .notNull(),
   name: text("name").notNull(),
+  /** URL-friendly unique identifier derived from name */
+  slug: text("slug").notNull().unique(),
   description: text("description"),
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),

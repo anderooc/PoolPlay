@@ -16,21 +16,23 @@ import { ScoringCard } from "./scoring-card";
 import { LiveScoreViewer } from "./live-score-viewer";
 
 interface Props {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }
 
 export default async function ScoringPage({ params }: Props) {
-  const { id } = await params;
+  const { slug } = await params;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const [tournament] = await db
     .select()
     .from(tournaments)
-    .where(eq(tournaments.id, id))
+    .where(eq(tournaments.slug, slug))
     .limit(1);
 
   if (!tournament) notFound();
+
+  const id = tournament.id;
 
   const isOrganizer = tournament.organizerId === user.id;
 
