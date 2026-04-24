@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -20,7 +21,13 @@ export async function getCurrentAuthProfile() {
   };
 }
 
-export async function getCurrentUser() {
+/**
+ * De-duplicates the auth-user + DB lookup within a single server request.
+ * Layouts, pages, and components that all call getCurrentUser() share one
+ * result instead of each triggering their own round-trips to Supabase Auth
+ * and the database.
+ */
+export const getCurrentUser = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user: authUser },
@@ -53,7 +60,7 @@ export async function getCurrentUser() {
     .returning();
 
   return newUser ?? null;
-}
+});
 
 export async function requireUser() {
   const user = await getCurrentUser();

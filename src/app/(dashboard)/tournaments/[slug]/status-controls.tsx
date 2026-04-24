@@ -108,11 +108,23 @@ export function StatusControls({
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {STATUS_OPTIONS.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
-            </SelectItem>
-          ))}
+          {STATUS_OPTIONS.map((o) => {
+            const isCurrent = o.value === displayStatus;
+            return (
+              <SelectItem
+                key={o.value}
+                value={o.value}
+                disabled={isCurrent}
+                className={cn(
+                  isCurrent &&
+                    "cursor-default border border-primary/30 bg-primary/10 font-semibold text-foreground opacity-100"
+                )}
+              >
+                {o.label}
+                {isCurrent ? " (current)" : ""}
+              </SelectItem>
+            );
+          })}
         </SelectContent>
       </Select>
       {blocking && (
