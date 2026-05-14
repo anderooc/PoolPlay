@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { contentFlags, users } from "@/lib/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import {
   Table,
   TableBody,
@@ -9,10 +9,28 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FlagRow } from "./flag-row";
+import { AdminTablePagination } from "../admin-table-pagination";
+import { ADMIN_TABLE_PAGE_SIZE } from "../constants";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminFlagsPage() {
+interface Props {
+  searchParams?: Promise<{ page?: string }>;
+}
+
+export default async function AdminFlagsPage({ searchParams }: Props) {
+  const sp = (await searchParams) ?? {};
+  const rawPage = parseInt(sp.page ?? "1", 10);
+  const requestedPage =
+    Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
+
+  const [{ value: total }] = await db
+    .select({ value: count() })
+    .from(contentFlags);
+
+  const totalPages = Math.max(1, Math.ceil(total / ADMIN_TABLE_PAGE_SIZE));
+  const page = Math.min(requestedPage, totalPages);
+
   const rows = await db
     .select({
       id: contentFlags.id,
@@ -28,7 +46,8 @@ export default async function AdminFlagsPage() {
     .from(contentFlags)
     .leftJoin(users, eq(contentFlags.userId, users.id))
     .orderBy(desc(contentFlags.createdAt))
-    .limit(200);
+    .limit(ADMIN_TABLE_PAGE_SIZE)
+    .offset((page - 1) * ADMIN_TABLE_PAGE_SIZE);
 
   return (
     <div className="space-y-4">
@@ -36,11 +55,14 @@ export default async function AdminFlagsPage() {
         <h2 className="text-lg font-semibold tracking-tight">Content flags</h2>
         <p className="text-sm text-muted-foreground">
           Recorded every time the content filter rejected user input. Resolve
-          entries you&apos;ve reviewed, or delete them to clear the log.
+          entries you&apos;ve reviewed, or delete them to clear the log.{" "}
+          <span className="text-muted-foreground/90">
+            ({ADMIN_TABLE_PAGE_SIZE} per page.)
+          </span>
         </p>
       </div>
 
-      {rows.length === 0 ? (
+      {total === 0 ? (
         <p className="rounded-md border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
           No flagged content yet.
         </p>
@@ -77,6 +99,12 @@ export default async function AdminFlagsPage() {
               ))}
             </TableBody>
           </Table>
+          <AdminTablePagination
+            basePath="/admin/flags"
+            page={page}
+            pageSize={ADMIN_TABLE_PAGE_SIZE}
+            total={total}
+          />
         </div>
       )}
     </div>
