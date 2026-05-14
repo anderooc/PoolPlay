@@ -4,6 +4,21 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
+/**
+ * Comma-separated list of emails that should be auto-promoted to the
+ * "admin" role on login. Lower-cased for case-insensitive comparison.
+ * Empty when the env var is unset.
+ */
+function adminBootstrapEmails(): Set<string> {
+  const raw = process.env.ADMIN_EMAILS ?? "";
+  return new Set(
+    raw
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
 export async function getCurrentAuthProfile() {
   const supabase = await createClient();
   const {
@@ -35,13 +50,29 @@ export const getCurrentUser = cache(async () => {
 
   if (!authUser) return null;
 
+  const bootstrapAdmins = adminBootstrapEmails();
+  const email = (authUser.email ?? "").toLowerCase();
+  const shouldBeAdmin = email.length > 0 && bootstrapAdmins.has(email);
+
   const [dbUser] = await db
     .select()
     .from(users)
     .where(eq(users.authId, authUser.id))
     .limit(1);
 
-  if (dbUser) return dbUser;
+  if (dbUser) {
+    // Auto-promote bootstrap admins on every login so revoking an env entry
+    // does not leak access (we don't auto-demote, that stays manual).
+    if (shouldBeAdmin && dbUser.role !== "admin") {
+      const [promoted] = await db
+        .update(users)
+        .set({ role: "admin", updatedAt: new Date() })
+        .where(eq(users.id, dbUser.id))
+        .returning();
+      return promoted ?? { ...dbUser, role: "admin" as const };
+    }
+    return dbUser;
+  }
 
   // Auth user exists but no DB row (signup succeeded in Supabase Auth
   // but the DB insert failed, e.g. due to a connection issue at the time).
@@ -54,7 +85,7 @@ export const getCurrentUser = cache(async () => {
       email: authUser.email ?? "",
       fullName: (meta.full_name as string) || authUser.email?.split("@")[0] || "User",
       university: (meta.university as string) || null,
-      role: "player",
+      role: shouldBeAdmin ? "admin" : "player",
     })
     .onConflictDoNothing({ target: users.authId })
     .returning();
@@ -66,6 +97,18 @@ export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) {
     throw new Error("Unauthorized");
+  }
+  return user;
+}
+
+export function isAdmin(user: { role: string } | null | undefined): boolean {
+  return user?.role === "admin";
+}
+
+export async function requireAdmin() {
+  const user = await requireUser();
+  if (!isAdmin(user)) {
+    throw new Error("Forbidden");
   }
   return user;
 }

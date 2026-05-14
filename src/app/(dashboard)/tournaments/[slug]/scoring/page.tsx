@@ -34,7 +34,7 @@ export default async function ScoringPage({ params }: Props) {
 
   const id = tournament.id;
 
-  const isOrganizer = tournament.organizerId === user.id;
+  const isOrganizer = tournament.organizerId === user.id || user.role === "admin";
 
   // Get all matches that belong to this tournament (through pools/brackets)
   const allMatches = await db

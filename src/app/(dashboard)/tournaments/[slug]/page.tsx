@@ -122,7 +122,7 @@ export default async function TournamentDetailPage({ params }: Props) {
     };
   });
 
-  const isOrganizer = tournament.organizerId === user.id;
+  const isOrganizer = tournament.organizerId === user.id || user.role === "admin";
 
   return (
     <div className="space-y-6">

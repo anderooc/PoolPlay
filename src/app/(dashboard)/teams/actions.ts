@@ -5,9 +5,9 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { teams, teamMembers, users } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireUser } from "@/lib/auth";
+import { requireUser, isAdmin } from "@/lib/auth";
 import { createTeamSchema } from "@/lib/validators";
-import { checkContentFilter } from "@/lib/utils/content-filter";
+import { flagBlockedContent } from "@/lib/admin/content-flags";
 import { slugify, uniqueSlug } from "@/lib/utils/slug";
 
 export async function createTeam(formData: FormData) {
@@ -23,11 +23,11 @@ export async function createTeam(formData: FormData) {
     return { error: parsed.error.issues[0].message };
   }
 
-  const teamContentError = checkContentFilter(
-    parsed.data.name,
-    parsed.data.university,
-    parsed.data.season
-  );
+  const teamContentError = await flagBlockedContent(user.id, [
+    { area: "team.name", text: parsed.data.name },
+    { area: "team.university", text: parsed.data.university },
+    { area: "team.season", text: parsed.data.season },
+  ]);
   if (teamContentError) return { error: teamContentError };
 
   const [existing] = await db
@@ -93,7 +93,7 @@ export async function addTeamMember(teamId: string, formData: FormData) {
       and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, user.id))
     );
 
-  if (!membership || membership.role !== "captain") {
+  if (!isAdmin(user) && (!membership || membership.role !== "captain")) {
     return { error: "Only captains can add members" };
   }
 
@@ -144,7 +144,7 @@ export async function removeTeamMember(teamId: string, memberId: string) {
       and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, user.id))
     );
 
-  if (!membership || membership.role !== "captain") {
+  if (!isAdmin(user) && (!membership || membership.role !== "captain")) {
     return { error: "Only captains can remove members" };
   }
 

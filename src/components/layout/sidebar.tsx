@@ -10,10 +10,11 @@ import { Button } from "@/components/ui/button";
 
 const SIDEBAR_COLLAPSED_KEY = "poolplay-sidebar-collapsed";
 
-export function Sidebar() {
+export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const visibleLinks = navLinks.filter((link) => !link.adminOnly || isAdmin);
 
   useEffect(() => {
     try {
@@ -44,7 +45,7 @@ export function Sidebar() {
       )}
     >
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
-        {navLinks.map((link) => {
+        {visibleLinks.map((link) => {
           const Icon = link.icon;
           const active = link.exact
             ? pathname === link.href

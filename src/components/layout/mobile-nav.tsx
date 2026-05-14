@@ -15,9 +15,10 @@ import { navLinks } from "./nav-links";
 import { PoolPlayMark } from "./poolplay-mark";
 import { useState } from "react";
 
-export function MobileNav() {
+export function MobileNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const visibleLinks = navLinks.filter((link) => !link.adminOnly || isAdmin);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -34,7 +35,7 @@ export function MobileNav() {
           <PoolPlayMark href="/dashboard" wordmarkClassName="text-lg font-bold" />
         </SheetTitle>
         <nav className="space-y-1 p-3">
-          {navLinks.map((link) => {
+          {visibleLinks.map((link) => {
             const Icon = link.icon;
             const active = link.exact
               ? pathname === link.href

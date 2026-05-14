@@ -1,10 +1,19 @@
-import { LayoutDashboard, Trophy, Users, Calendar, type LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard,
+  Trophy,
+  Users,
+  Calendar,
+  ShieldAlert,
+  type LucideIcon,
+} from "lucide-react";
 
 export interface NavLink {
   label: string;
   href: string;
   icon: LucideIcon;
   exact?: boolean;
+  /** Render only for admin users. */
+  adminOnly?: boolean;
 }
 
 export const navLinks: NavLink[] = [
@@ -12,4 +21,5 @@ export const navLinks: NavLink[] = [
   { label: "Tournaments", href: "/tournaments", icon: Trophy },
   { label: "Teams", href: "/teams", icon: Users },
   { label: "Schedule", href: "/schedule", icon: Calendar },
+  { label: "Admin", href: "/admin", icon: ShieldAlert, adminOnly: true },
 ];

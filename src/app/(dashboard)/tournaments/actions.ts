@@ -15,9 +15,9 @@ import {
   brackets,
 } from "@/lib/db/schema";
 import { eq, and, ne, inArray, or } from "drizzle-orm";
-import { requireUser } from "@/lib/auth";
+import { requireUser, isAdmin } from "@/lib/auth";
 import { createTournamentSchema, createDivisionSchema } from "@/lib/validators";
-import { checkContentFilter } from "@/lib/utils/content-filter";
+import { flagBlockedContent } from "@/lib/admin/content-flags";
 import { slugify, uniqueSlug } from "@/lib/utils/slug";
 import type { TournamentStatus } from "@/types";
 
@@ -37,12 +37,12 @@ export async function createTournament(formData: FormData) {
     return { error: parsed.error.issues[0].message };
   }
 
-  const contentError = checkContentFilter(
-    parsed.data.name,
-    parsed.data.description,
-    parsed.data.location,
-    parsed.data.address
-  );
+  const contentError = await flagBlockedContent(user.id, [
+    { area: "tournament.name", text: parsed.data.name },
+    { area: "tournament.description", text: parsed.data.description },
+    { area: "tournament.location", text: parsed.data.location },
+    { area: "tournament.address", text: parsed.data.address },
+  ]);
   if (contentError) return { error: contentError };
 
   const base = slugify(parsed.data.name, "tournament");
@@ -95,7 +95,9 @@ export async function renameTournament(tournamentId: string, name: string) {
     return { error: "Tournament name is required" };
   }
 
-  const contentError = checkContentFilter(trimmed);
+  const contentError = await flagBlockedContent(user.id, [
+    { area: "tournament.name", text: trimmed },
+  ]);
   if (contentError) return { error: contentError };
 
   const [tournament] = await db
@@ -104,7 +106,7 @@ export async function renameTournament(tournamentId: string, name: string) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
+  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
     return { error: "Only the organizer can rename this tournament" };
   }
 
@@ -155,7 +157,7 @@ export async function deleteTournament(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
+  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
     return { error: "Only the organizer can delete this tournament" };
   }
 
@@ -236,7 +238,7 @@ export async function updateTournamentStatus(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
+  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
     return { error: "Only the organizer can update tournament status" };
   }
 
@@ -270,7 +272,7 @@ export async function addDivision(tournamentId: string, formData: FormData) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
+  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
     return { error: "Only the organizer can add divisions" };
   }
 
@@ -286,7 +288,9 @@ export async function addDivision(tournamentId: string, formData: FormData) {
     return { error: parsed.error.issues[0].message };
   }
 
-  const divContentError = checkContentFilter(parsed.data.name);
+  const divContentError = await flagBlockedContent(user.id, [
+    { area: "division.name", text: parsed.data.name },
+  ]);
   if (divContentError) return { error: divContentError };
 
   const normalizedDivisionName = parsed.data.name.trim().toLowerCase();
@@ -329,7 +333,7 @@ export async function removeDivision(tournamentId: string, divisionId: string) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
+  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
     return { error: "Only the organizer can remove divisions" };
   }
 
@@ -348,7 +352,7 @@ export async function addCourt(tournamentId: string, formData: FormData) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
+  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
     return { error: "Only the organizer can add courts" };
   }
 
@@ -356,7 +360,9 @@ export async function addCourt(tournamentId: string, formData: FormData) {
   const name = typeof rawName === "string" ? rawName.trim() : "";
   if (!name) return { error: "Court name is required" };
 
-  const courtContentError = checkContentFilter(name);
+  const courtContentError = await flagBlockedContent(user.id, [
+    { area: "court.name", text: name },
+  ]);
   if (courtContentError) return { error: courtContentError };
 
   const existingCourts = await db
@@ -393,7 +399,7 @@ export async function removeCourt(tournamentId: string, courtId: string) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
+  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
     return { error: "Only the organizer can remove courts" };
   }
 
@@ -423,7 +429,7 @@ export async function updateRegistrationStatus(
     .where(eq(tournaments.id, reg.tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
+  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
     return { error: "Only the organizer can update registrations" };
   }
 
@@ -449,7 +455,7 @@ export async function updateDivision(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
+  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
     return { error: "Only the organizer can edit divisions" };
   }
 
@@ -475,7 +481,9 @@ export async function updateDivision(
     return { error: parsed.error.issues[0].message };
   }
 
-  const divContentError = checkContentFilter(parsed.data.name);
+  const divContentError = await flagBlockedContent(user.id, [
+    { area: "division.name", text: parsed.data.name },
+  ]);
   if (divContentError) return { error: divContentError };
 
   const normalizedName = parsed.data.name.trim().toLowerCase();
@@ -523,7 +531,7 @@ export async function setCourtsForDivision(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
+  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
     return { error: "Only the organizer can assign courts" };
   }
 
@@ -596,7 +604,7 @@ export async function setRegistrationDivision(
     .where(eq(tournaments.id, reg.tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
+  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
     return { error: "Only the organizer can assign divisions" };
   }
 

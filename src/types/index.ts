@@ -1,4 +1,4 @@
-export type UserRole = "player" | "captain" | "organizer";
+export type UserRole = "player" | "captain" | "organizer" | "admin";
 
 export type TournamentStatus =
   | "draft"

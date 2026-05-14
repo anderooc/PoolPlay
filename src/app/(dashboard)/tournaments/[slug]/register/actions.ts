@@ -10,7 +10,7 @@ import {
   divisions,
 } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
-import { requireUser } from "@/lib/auth";
+import { requireUser, isAdmin } from "@/lib/auth";
 
 /** Postgres NOT NULL violation — DB not migrated for nullable division_id yet */
 function isNotNullViolation(e: unknown): boolean {
@@ -41,7 +41,7 @@ export async function registerTeam(tournamentId: string, teamId: string) {
     return { error: "Tournament not found" };
   }
 
-  const isHost = tournament.organizerId === user.id;
+  const isHost = tournament.organizerId === user.id || isAdmin(user);
 
   if (!isHost) {
     const [membership] = await db

@@ -4,18 +4,22 @@ import { Header } from "@/components/layout/header";
 import { DashboardContentEnter } from "@/components/layout/dashboard-content-enter";
 import { RouteFade } from "@/components/layout/route-fade";
 import { Toaster } from "@/components/ui/sonner";
+import { getCurrentUser, isAdmin } from "@/lib/auth";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await getCurrentUser();
+  const admin = isAdmin(user);
+
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <Header />
+      <Header isAdmin={admin} />
       <Suspense fallback={null}>
         <DashboardContentEnter>
-          <Sidebar />
+          <Sidebar isAdmin={admin} />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <RouteFade>{children}</RouteFade>
           </main>

@@ -41,7 +41,8 @@ export default async function TeamDetailPage({ params }: Props) {
     .where(eq(teamMembers.teamId, id));
 
   const currentMembership = members.find((m) => m.userId === user.id);
-  const isCaptain = currentMembership?.role === "captain";
+  const isCaptain =
+    currentMembership?.role === "captain" || user.role === "admin";
 
   return (
     <div className="space-y-6">

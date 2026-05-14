@@ -44,7 +44,7 @@ export default async function BracketsPage({ params }: Props) {
     .where(eq(divisions.tournamentId, id))
     .orderBy(asc(divisions.name), asc(divisions.id));
 
-  const isOrganizer = tournament.organizerId === user.id;
+  const isOrganizer = tournament.organizerId === user.id || user.role === "admin";
 
   const divisionData = await Promise.all(
     tournamentDivisions.map(async (div) => {

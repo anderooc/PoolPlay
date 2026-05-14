@@ -1,0 +1,268 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { eq, inArray, ne, or } from "drizzle-orm";
+import { db } from "@/lib/db";
+import {
+  brackets,
+  contentFlags,
+  courts,
+  divisions,
+  matches,
+  pools,
+  teams,
+  tournaments,
+  users,
+} from "@/lib/db/schema";
+import { requireAdmin } from "@/lib/auth";
+import { slugify, uniqueSlug } from "@/lib/utils/slug";
+import { flagBlockedContent } from "@/lib/admin/content-flags";
+import type { UserRole, TournamentStatus } from "@/types";
+
+const VALID_ROLES: UserRole[] = ["player", "captain", "organizer", "admin"];
+
+export async function setUserRole(userId: string, role: UserRole) {
+  const admin = await requireAdmin();
+  if (!VALID_ROLES.includes(role)) {
+    return { error: "Invalid role" };
+  }
+
+  // Don't allow the only admin to demote themselves and lock everyone out.
+  if (userId === admin.id && role !== "admin") {
+    const otherAdmins = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.role, "admin"))
+      .limit(2);
+    if (otherAdmins.length <= 1) {
+      return { error: "You can't demote the only remaining admin." };
+    }
+  }
+
+  await db
+    .update(users)
+    .set({ role, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+
+  revalidatePath("/admin/users");
+  return { success: true as const };
+}
+
+export async function adminDeleteUser(userId: string) {
+  const admin = await requireAdmin();
+
+  if (userId === admin.id) {
+    return { error: "You can't delete your own account from the admin panel." };
+  }
+
+  try {
+    await db.delete(users).where(eq(users.id, userId));
+  } catch {
+    return {
+      error:
+        "Could not delete user — they may still own tournaments. Reassign or delete those first.",
+    };
+  }
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin");
+  return { success: true as const };
+}
+
+export async function adminRenameTournament(
+  tournamentId: string,
+  rawName: string
+) {
+  const admin = await requireAdmin();
+  const trimmed = (rawName ?? "").trim();
+  if (!trimmed) return { error: "Tournament name is required" };
+  if (trimmed.length > 120) return { error: "Tournament name is too long" };
+
+  const contentError = await flagBlockedContent(admin.id, [
+    { area: "tournament.name", text: trimmed },
+  ]);
+  if (contentError) return { error: contentError };
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+  if (!tournament) return { error: "Tournament not found" };
+
+  if (trimmed === tournament.name.trim()) {
+    return { success: true as const, slug: tournament.slug };
+  }
+
+  const base = slugify(trimmed, "tournament");
+  const otherSlugs = await db
+    .select({ slug: tournaments.slug })
+    .from(tournaments)
+    .where(ne(tournaments.id, tournamentId));
+  const newSlug = uniqueSlug(
+    base,
+    otherSlugs.map((r) => r.slug)
+  );
+
+  await db
+    .update(tournaments)
+    .set({ name: trimmed, slug: newSlug, updatedAt: new Date() })
+    .where(eq(tournaments.id, tournamentId));
+
+  revalidatePath("/admin/tournaments");
+  revalidatePath("/tournaments");
+  revalidatePath("/explore");
+  revalidatePath("/tournaments/[slug]", "page");
+
+  return { success: true as const, slug: newSlug };
+}
+
+export async function adminUpdateTournamentStatus(
+  tournamentId: string,
+  status: TournamentStatus
+) {
+  await requireAdmin();
+  const allowed: TournamentStatus[] = [
+    "draft",
+    "registration_open",
+    "registration_closed",
+    "in_progress",
+    "completed",
+  ];
+  if (!allowed.includes(status)) return { error: "Invalid status" };
+
+  await db
+    .update(tournaments)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(tournaments.id, tournamentId));
+
+  revalidatePath("/admin/tournaments");
+  revalidatePath("/tournaments/[slug]", "page");
+  return { success: true as const };
+}
+
+export async function adminDeleteTournament(tournamentId: string) {
+  await requireAdmin();
+
+  try {
+    await db.transaction(async (tx) => {
+      const poolRows = await tx
+        .select({ id: pools.id })
+        .from(pools)
+        .innerJoin(divisions, eq(pools.divisionId, divisions.id))
+        .where(eq(divisions.tournamentId, tournamentId));
+
+      const bracketRows = await tx
+        .select({ id: brackets.id })
+        .from(brackets)
+        .innerJoin(divisions, eq(brackets.divisionId, divisions.id))
+        .where(eq(divisions.tournamentId, tournamentId));
+
+      const courtRows = await tx
+        .select({ id: courts.id })
+        .from(courts)
+        .where(eq(courts.tournamentId, tournamentId));
+
+      const poolIds = poolRows.map((r) => r.id);
+      const bracketIds = bracketRows.map((r) => r.id);
+      const courtIds = courtRows.map((r) => r.id);
+
+      const matchPredicates = [];
+      if (poolIds.length > 0)
+        matchPredicates.push(inArray(matches.poolId, poolIds));
+      if (bracketIds.length > 0)
+        matchPredicates.push(inArray(matches.bracketId, bracketIds));
+      if (courtIds.length > 0)
+        matchPredicates.push(inArray(matches.courtId, courtIds));
+
+      if (matchPredicates.length === 1) {
+        await tx.delete(matches).where(matchPredicates[0]);
+      } else if (matchPredicates.length > 1) {
+        await tx.delete(matches).where(or(...matchPredicates));
+      }
+
+      await tx.delete(tournaments).where(eq(tournaments.id, tournamentId));
+    });
+  } catch {
+    return { error: "Could not delete tournament. Try again." };
+  }
+
+  revalidatePath("/admin/tournaments");
+  revalidatePath("/admin");
+  revalidatePath("/tournaments");
+  revalidatePath("/explore");
+  return { success: true as const };
+}
+
+export async function adminRenameTeam(teamId: string, rawName: string) {
+  const admin = await requireAdmin();
+  const trimmed = (rawName ?? "").trim();
+  if (!trimmed) return { error: "Team name is required" };
+  if (trimmed.length > 120) return { error: "Team name is too long" };
+
+  const contentError = await flagBlockedContent(admin.id, [
+    { area: "team.name", text: trimmed },
+  ]);
+  if (contentError) return { error: contentError };
+
+  const [team] = await db
+    .select()
+    .from(teams)
+    .where(eq(teams.id, teamId))
+    .limit(1);
+  if (!team) return { error: "Team not found" };
+
+  if (trimmed === team.name.trim()) {
+    return { success: true as const, slug: team.slug };
+  }
+
+  const base = slugify(`${trimmed} ${team.university}`, "team");
+  const otherSlugs = await db
+    .select({ slug: teams.slug })
+    .from(teams)
+    .where(ne(teams.id, teamId));
+  const newSlug = uniqueSlug(
+    base,
+    otherSlugs.map((r) => r.slug)
+  );
+
+  await db
+    .update(teams)
+    .set({ name: trimmed, slug: newSlug, updatedAt: new Date() })
+    .where(eq(teams.id, teamId));
+
+  revalidatePath("/admin/teams");
+  revalidatePath("/teams");
+  revalidatePath("/teams/[slug]", "page");
+  return { success: true as const, slug: newSlug };
+}
+
+export async function adminDeleteTeam(teamId: string) {
+  await requireAdmin();
+  try {
+    await db.delete(teams).where(eq(teams.id, teamId));
+  } catch {
+    return { error: "Could not delete team. Try again." };
+  }
+  revalidatePath("/admin/teams");
+  revalidatePath("/admin");
+  revalidatePath("/teams");
+  return { success: true as const };
+}
+
+export async function adminResolveFlag(flagId: string) {
+  await requireAdmin();
+  await db
+    .update(contentFlags)
+    .set({ resolvedAt: new Date() })
+    .where(eq(contentFlags.id, flagId));
+  revalidatePath("/admin/flags");
+  return { success: true as const };
+}
+
+export async function adminDeleteFlag(flagId: string) {
+  await requireAdmin();
+  await db.delete(contentFlags).where(eq(contentFlags.id, flagId));
+  revalidatePath("/admin/flags");
+  return { success: true as const };
+}
