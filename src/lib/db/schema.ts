@@ -14,6 +14,7 @@ export const userRoleEnum = pgEnum("user_role", [
   "player",
   "captain",
   "organizer",
+  "admin",
 ]);
 
 export const tournamentStatusEnum = pgEnum("tournament_status", [
@@ -216,6 +217,21 @@ export const sets = pgTable("sets", {
   setNumber: integer("set_number").notNull(),
   teamAScore: integer("team_a_score").default(0).notNull(),
   teamBScore: integer("team_b_score").default(0).notNull(),
+});
+
+/**
+ * Records text that tripped the content filter so admins can review false
+ * positives / actual abuse from the admin panel. The original `text` is
+ * stored verbatim because the offending word alone isn't enough context.
+ */
+export const contentFlags = pgTable("content_flags", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  area: text("area").notNull(),
+  text: text("text").notNull(),
+  blockedWord: text("blocked_word").notNull(),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // ── Relations ───────────────────────────────────────────────────────────────
