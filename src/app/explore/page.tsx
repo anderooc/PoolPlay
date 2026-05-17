@@ -17,7 +17,7 @@ export default async function ExplorePage() {
   const allTournaments = await db
     .select()
     .from(tournaments)
-    .orderBy(desc(tournaments.startDate));
+    .orderBy(desc(tournaments.date));
 
   return (
     <div className="flex min-h-screen flex-col">

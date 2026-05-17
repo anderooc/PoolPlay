@@ -48,8 +48,7 @@ export function TournamentPageHeading({
   initialName,
   description,
   location,
-  startDate,
-  endDate,
+  date,
   organizerName,
   status,
 }: {
@@ -58,8 +57,7 @@ export function TournamentPageHeading({
   initialName: string;
   description: string | null;
   location: string;
-  startDate: string;
-  endDate: string;
+  date: string;
   organizerName: string;
   status: string;
 }) {
@@ -76,15 +74,15 @@ export function TournamentPageHeading({
 
   // Date editing
   const [dateOpen, setDateOpen] = useState(false);
-  const [draftDate, setDraftDate] = useState(startDate);
+  const [draftDate, setDraftDate] = useState(date);
   const [dateSaving, setDateSaving] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!dateOpen) setDraftDate(startDate);
-  }, [dateOpen, startDate]);
+    if (!dateOpen) setDraftDate(date);
+  }, [dateOpen, date]);
 
-  const archived = isTournamentArchived(endDate);
+  const archived = isTournamentArchived(date);
 
   const [copyHint, setCopyHint] = useState<string | null>(null);
 
@@ -204,7 +202,7 @@ export function TournamentPageHeading({
   const nameMatches =
     confirmText.trim() === name.trim() && confirmText.trim() !== "";
 
-  const badgeLabel = statusBadgeLabel(status, endDate);
+  const badgeLabel = statusBadgeLabel(status, date);
   const badgeVariant: "default" | "secondary" | "outline" = archived
     ? "outline"
     : status === "in_progress"
@@ -290,8 +288,7 @@ export function TournamentPageHeading({
           </span>
           <span className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5" />
-            {startDate}
-            {startDate !== endDate && `\u00A0\u2013\u00A0${endDate}`}
+            {date}
           </span>
           <span className="flex items-center gap-1">
             <User className="h-3.5 w-3.5" />
@@ -413,7 +410,7 @@ export function TournamentPageHeading({
             <DialogDescription>
               {archived
                 ? "Pick a new date. Setting today or later un-archives the tournament and re-enables the status dropdown."
-                : "Pick the date this tournament happens. Both start and end date are set to this value."}
+                : "Pick the date this tournament happens."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">

@@ -9,11 +9,12 @@ import {
   registrations,
 } from "@/lib/db/schema";
 import { count, eq, gte, isNull, or, sql } from "drizzle-orm";
+import { todayISO } from "@/lib/tournament-status";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOverviewPage() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
 
   const [
     [userTotal],
@@ -34,7 +35,7 @@ export default async function AdminOverviewPage() {
         or(
           eq(tournaments.status, "in_progress"),
           eq(tournaments.status, "registration_open"),
-          gte(tournaments.endDate, today)
+          gte(tournaments.date, today)
         )
       ),
     db.select({ value: count() }).from(teams),

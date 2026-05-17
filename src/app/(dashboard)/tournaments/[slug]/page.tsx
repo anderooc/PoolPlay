@@ -17,6 +17,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { MapPin, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { BackLink } from "@/components/layout/back-link";
+import { isTournamentArchived } from "@/lib/tournament-status";
 import { TournamentPageHeading } from "./tournament-page-heading";
 import { DivisionManager } from "./division-manager";
 import { CourtManager } from "./court-manager";
@@ -135,8 +136,7 @@ export default async function TournamentDetailPage({ params }: Props) {
           initialName={tournament.name}
           description={tournament.description}
           location={tournament.location}
-          startDate={tournament.startDate}
-          endDate={tournament.endDate}
+          date={tournament.date}
           organizerName={organizer?.fullName ?? "Unknown organizer"}
           status={tournament.status}
         />
@@ -148,9 +148,7 @@ export default async function TournamentDetailPage({ params }: Props) {
                 {tournament.name}
               </h1>
               {(() => {
-                const archived = tournament.endDate < new Date()
-                  .toISOString()
-                  .slice(0, 10);
+                const archived = isTournamentArchived(tournament.date);
                 return (
                   <Badge
                     variant={
@@ -180,9 +178,7 @@ export default async function TournamentDetailPage({ params }: Props) {
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                {tournament.startDate}
-                {tournament.startDate !== tournament.endDate &&
-                  `\u00A0\u2013\u00A0${tournament.endDate}`}
+                {tournament.date}
               </span>
               <span className="flex items-center gap-1">
                 <User className="h-3.5 w-3.5" />

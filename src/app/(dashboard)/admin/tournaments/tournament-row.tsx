@@ -44,8 +44,7 @@ interface Props {
     name: string;
     slug: string;
     status: string;
-    startDate: string;
-    endDate: string;
+    date: string;
     location: string;
     organizerName: string | null;
     organizerEmail: string | null;
@@ -133,10 +132,7 @@ export function TournamentRow({ tournament }: Props) {
           <div className="text-xs text-muted-foreground">{tournament.location}</div>
         </TableCell>
         <TableCell className="text-muted-foreground">
-          {tournament.startDate}
-          {tournament.startDate !== tournament.endDate && (
-            <> &ndash; {tournament.endDate}</>
-          )}
+          {tournament.date}
         </TableCell>
         <TableCell className="text-muted-foreground">
           {tournament.organizerName ?? "—"}

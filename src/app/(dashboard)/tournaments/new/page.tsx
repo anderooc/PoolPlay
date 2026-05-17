@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { BackLink } from "@/components/layout/back-link";
 import { createTournament } from "../actions";
 
 export default function NewTournamentPage() {
@@ -29,25 +30,28 @@ export default function NewTournamentPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg">
-      <Card>
-        <CardHeader>
-          <CardTitle>Create Tournament</CardTitle>
-          <CardDescription>
-            Set up a new tournament. You can add divisions and courts after creation.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Tournament Name</Label>
-              <Input
-                id="name"
-                name="name"
-                placeholder="Spring Invitational 2026"
-                required
-              />
-            </div>
+    <div className="space-y-6">
+      <BackLink href="/tournaments">All tournaments</BackLink>
+
+      <div className="mx-auto max-w-lg">
+        <Card>
+          <CardHeader>
+            <CardTitle>Create Tournament</CardTitle>
+            <CardDescription>
+              Set up a new tournament. You can add divisions and courts after creation.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form action={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Tournament Name</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  placeholder="Spring Invitational 2026"
+                  required
+                />
+              </div>
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
@@ -57,16 +61,10 @@ export default function NewTournamentPage() {
                 rows={3}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="startDate">Start Date</Label>
-                <Input id="startDate" name="startDate" type="date" required />
+                <Label htmlFor="date">Date</Label>
+                <Input id="date" name="date" type="date" required />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="endDate">End Date</Label>
-                <Input id="endDate" name="endDate" type="date" required />
-              </div>
-            </div>
             <div className="space-y-2">
               <Label htmlFor="location">Location</Label>
               <Input
@@ -88,9 +86,10 @@ export default function NewTournamentPage() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Creating..." : "Create Tournament"}
             </Button>
-          </form>
-        </CardContent>
-      </Card>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

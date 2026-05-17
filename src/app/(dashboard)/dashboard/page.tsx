@@ -5,6 +5,7 @@ import { eq, desc, count, gte, or } from "drizzle-orm";
 import {
   isTournamentArchived,
   statusBadgeLabel,
+  todayISO,
 } from "@/lib/tournament-status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
@@ -27,7 +28,7 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
 
   const [userTeams, recentTournaments, activeTournamentCount] =
     await Promise.all([
@@ -54,7 +55,7 @@ export default async function DashboardPage() {
           or(
             eq(tournaments.status, "in_progress"),
             eq(tournaments.status, "registration_open"),
-            gte(tournaments.endDate, today)
+            gte(tournaments.date, today)
           )
         ),
     ]);
@@ -215,7 +216,7 @@ export default async function DashboardPage() {
             ) : (
               <div className="space-y-2">
                 {recentTournaments.map((t) => {
-                  const archived = isTournamentArchived(t.endDate);
+                  const archived = isTournamentArchived(t.date);
                   return (
                     <Link
                       key={t.id}
@@ -227,7 +228,7 @@ export default async function DashboardPage() {
                         <p className="truncate text-sm text-muted-foreground">
                           {t.location}
                           <span className="mx-1.5">&middot;</span>
-                          {t.startDate}
+                          {t.date}
                         </p>
                       </div>
                       <Badge
@@ -244,7 +245,7 @@ export default async function DashboardPage() {
                             : "ml-3 shrink-0"
                         }
                       >
-                        {statusBadgeLabel(t.status, t.endDate)}
+                        {statusBadgeLabel(t.status, t.date)}
                       </Badge>
                     </Link>
                   );

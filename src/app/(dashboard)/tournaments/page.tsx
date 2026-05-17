@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { tournaments } from "@/lib/db/schema";
-import { desc } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 import { buttonVariants } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
@@ -12,7 +12,7 @@ export default async function TournamentsPage() {
   const allTournaments = await db
     .select()
     .from(tournaments)
-    .orderBy(desc(tournaments.startDate));
+    .orderBy(asc(tournaments.date));
 
   return (
     <div className="space-y-6">

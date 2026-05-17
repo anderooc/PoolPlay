@@ -1,22 +1,29 @@
 /**
  * Shared helpers for tournament status display. "Archived" is a pure
- * date-based derived state: a tournament whose end date is strictly before
+ * date-based derived state: a tournament whose date is strictly before
  * today is treated as archived everywhere in the UI, regardless of its
  * underlying status enum value. Editing the date back to today/future
  * automatically un-archives it on the next render.
  */
 
-/** Today as a YYYY-MM-DD string (UTC). Matches `tournaments.endDate`. */
+/**
+ * Today as YYYY-MM-DD in the user's local timezone. Matches date inputs
+ * and `tournaments.date` (calendar dates, not UTC midnight).
+ */
 export function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
-/** Tournament is archived when its end date is in the past. */
+/** Archived only when the tournament date is strictly before today. */
 export function isTournamentArchived(
-  endDate: string,
+  tournamentDate: string,
   today: string = todayISO()
 ): boolean {
-  return endDate < today;
+  return tournamentDate < today;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -33,9 +40,9 @@ const STATUS_LABEL: Record<string, string> = {
  */
 export function statusBadgeLabel(
   status: string,
-  endDate: string,
+  tournamentDate: string,
   today: string = todayISO()
 ): string {
-  if (isTournamentArchived(endDate, today)) return "Archived";
+  if (isTournamentArchived(tournamentDate, today)) return "Archived";
   return STATUS_LABEL[status] ?? status.replace(/_/g, " ");
 }
