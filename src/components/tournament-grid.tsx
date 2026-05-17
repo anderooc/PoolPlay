@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useLayoutEffect } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { MapPin, Search, ChevronDown, Trophy } from "lucide-react";
+import { MapPin, Search, Trophy } from "lucide-react";
 import {
   isTournamentArchived,
   statusBadgeLabel,
+  todayISO,
 } from "@/lib/tournament-status";
 
 interface Tournament {
@@ -17,8 +18,7 @@ interface Tournament {
   name: string;
   description: string | null;
   location: string;
-  startDate: string;
-  endDate: string;
+  date: string;
   status: string;
 }
 
@@ -43,47 +43,25 @@ function formatDate(dateStr: string) {
   });
 }
 
-function groupByDate(list: Tournament[]): { date: string; tournaments: Tournament[] }[] {
+interface DateGroup {
+  date: string;
+  tournaments: Tournament[];
+}
+
+function groupByDate(list: Tournament[]): DateGroup[] {
   const map = new Map<string, Tournament[]>();
   for (const t of list) {
-    const existing = map.get(t.startDate);
+    const existing = map.get(t.date);
     if (existing) {
       existing.push(t);
     } else {
-      map.set(t.startDate, [t]);
+      map.set(t.date, [t]);
     }
   }
   return Array.from(map.entries()).map(([date, tournaments]) => ({
     date,
     tournaments,
   }));
-}
-
-function categorizeTournaments(list: Tournament[]) {
-  const today = new Date().toISOString().slice(0, 10);
-
-  const happeningNow: Tournament[] = [];
-  const upcoming: Tournament[] = [];
-  const archive: Tournament[] = [];
-
-  for (const t of list) {
-    if (
-      t.status === "in_progress" ||
-      (t.startDate <= today && t.endDate >= today && t.status !== "completed")
-    ) {
-      happeningNow.push(t);
-    } else if (t.endDate >= today && t.status !== "completed") {
-      upcoming.push(t);
-    } else {
-      archive.push(t);
-    }
-  }
-
-  happeningNow.sort((a, b) => a.startDate.localeCompare(b.startDate));
-  upcoming.sort((a, b) => a.startDate.localeCompare(b.startDate));
-  archive.sort((a, b) => b.startDate.localeCompare(a.startDate));
-
-  return { happeningNow, upcoming, archive };
 }
 
 function TournamentRow({
@@ -93,7 +71,7 @@ function TournamentRow({
   tournament: Tournament;
   linkPrefix: string;
 }) {
-  const archived = isTournamentArchived(t.endDate);
+  const archived = isTournamentArchived(t.date);
   return (
     <Link href={`${linkPrefix}/${t.slug}`} className="block">
       <div className="flex items-start gap-4 rounded-lg border bg-card px-4 py-3.5 transition-colors hover:bg-muted/40">
@@ -108,7 +86,7 @@ function TournamentRow({
                   : "shrink-0 text-xs"
               }
             >
-              {statusBadgeLabel(t.status, t.endDate)}
+              {statusBadgeLabel(t.status, t.date)}
             </Badge>
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
@@ -116,11 +94,6 @@ function TournamentRow({
               <MapPin className="h-3 w-3 shrink-0" />
               {t.location}
             </span>
-            {t.startDate !== t.endDate && (
-              <span className="tabular-nums">
-                {t.startDate}&nbsp;–&nbsp;{t.endDate}
-              </span>
-            )}
           </div>
           {t.description && (
             <p className="mt-1 line-clamp-1 text-sm text-muted-foreground/90">
@@ -133,84 +106,95 @@ function TournamentRow({
   );
 }
 
-function DateGroupedList({
+function anchorTag(date: string, today: string): string | null {
+  if (date === today) return "Today";
+  if (date > today) return "Up next";
+  return null;
+}
+
+/**
+ * One continuous chronological schedule. DOM order is oldest → newest, so
+ * archived tournaments live above the soonest current/upcoming one and
+ * become visible when the user scrolls up. On mount we scroll the dashboard
+ * `<main>` so the anchor (today, or the next future date) sits at the top
+ * of the viewport.
+ */
+function ChronologicalSchedule({
   tournaments,
   linkPrefix,
 }: {
   tournaments: Tournament[];
   linkPrefix: string;
 }) {
-  const groups = groupByDate(tournaments);
+  const today = todayISO();
+
+  const groups = useMemo(() => {
+    const sorted = [...tournaments].sort((a, b) =>
+      a.date.localeCompare(b.date)
+    );
+    return groupByDate(sorted);
+  }, [tournaments]);
+
+  // Anchor = first group whose date is today or in the future. If
+  // everything is in the past, anchor to the most recent past group so the
+  // user lands on something meaningful instead of the top of the archive.
+  const anchorIdx = useMemo(() => {
+    const idx = groups.findIndex((g) => g.date >= today);
+    if (idx !== -1) return idx;
+    return Math.max(groups.length - 1, 0);
+  }, [groups, today]);
+
+  const anchorRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const el = anchorRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "start", behavior: "auto" });
+    // Mount-only on purpose: re-scrolling while the user is filtering or
+    // browsing past events would yank the page out from under them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (groups.length === 0) return null;
 
   return (
     <div className="space-y-4">
-      {groups.map((group) => (
-        <div key={group.date}>
-          <h3 className="mb-2 text-sm font-medium text-foreground/70">
-            {formatDate(group.date)}
-          </h3>
-          <div className="space-y-2">
-            {group.tournaments.map((t) => (
-              <TournamentRow
-                key={t.id}
-                tournament={t}
-                linkPrefix={linkPrefix}
-              />
-            ))}
+      {groups.map((group, i) => {
+        const isAnchor = i === anchorIdx;
+        const tag = isAnchor ? anchorTag(group.date, today) : null;
+        return (
+          <div
+            key={group.date}
+            ref={isAnchor ? anchorRef : undefined}
+            className="scroll-mt-4"
+          >
+            <h3
+              className={`mb-2 flex items-center gap-2 text-sm ${
+                isAnchor
+                  ? "font-semibold text-foreground"
+                  : "font-medium text-foreground/70"
+              }`}
+            >
+              {tag && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                  {tag}
+                </span>
+              )}
+              {formatDate(group.date)}
+            </h3>
+            <div className="space-y-2">
+              {group.tournaments.map((t) => (
+                <TournamentRow
+                  key={t.id}
+                  tournament={t}
+                  linkPrefix={linkPrefix}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
-  );
-}
-
-function Section({
-  title,
-  tournaments,
-  linkPrefix,
-  emptyMessage,
-  collapsible = false,
-}: {
-  title: string;
-  tournaments: Tournament[];
-  linkPrefix: string;
-  emptyMessage?: string;
-  collapsible?: boolean;
-}) {
-  const [expanded, setExpanded] = useState(!collapsible);
-
-  if (tournaments.length === 0 && !emptyMessage) return null;
-
-  return (
-    <section className="space-y-3">
-      <button
-        type="button"
-        className={`flex w-full items-center gap-2 rounded-md py-1 text-left transition-colors ${
-          collapsible ? "cursor-pointer hover:bg-muted/40 px-2 -mx-2" : ""
-        }`}
-        onClick={() => collapsible && setExpanded((v) => !v)}
-        disabled={!collapsible}
-      >
-        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-        <Badge variant="secondary" className="text-xs">
-          {tournaments.length}
-        </Badge>
-        {collapsible && (
-          <ChevronDown
-            className={`h-4 w-4 text-muted-foreground ml-auto transition-transform ${
-              expanded ? "rotate-180" : ""
-            }`}
-          />
-        )}
-      </button>
-
-      {expanded &&
-        (tournaments.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">{emptyMessage}</p>
-        ) : (
-          <DateGroupedList tournaments={tournaments} linkPrefix={linkPrefix} />
-        ))}
-    </section>
   );
 }
 
@@ -233,11 +217,6 @@ export function TournamentGrid({
         t.description?.toLowerCase().includes(q)
     );
   }, [tournaments, query]);
-
-  const { happeningNow, upcoming, archive } = useMemo(
-    () => categorizeTournaments(filtered),
-    [filtered]
-  );
 
   return (
     <div className="space-y-6">
@@ -262,27 +241,10 @@ export function TournamentGrid({
           }
         />
       ) : (
-        <>
-          <Section
-            title="Happening Now"
-            tournaments={happeningNow}
-            linkPrefix={linkPrefix}
-          />
-          <Section
-            title="Upcoming"
-            tournaments={upcoming}
-            linkPrefix={linkPrefix}
-            emptyMessage="No upcoming tournaments."
-          />
-          {archive.length > 0 && (
-            <Section
-              title="Archive"
-              tournaments={archive}
-              linkPrefix={linkPrefix}
-              collapsible
-            />
-          )}
-        </>
+        <ChronologicalSchedule
+          tournaments={filtered}
+          linkPrefix={linkPrefix}
+        />
       )}
     </div>
   );
