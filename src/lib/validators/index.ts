@@ -27,8 +27,7 @@ export const createTeamSchema = z.object({
 export const createTournamentSchema = z.object({
   name: z.string().min(1, "Tournament name is required"),
   description: z.string().optional(),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().min(1, "End date is required"),
+  date: z.string().min(1, "Date is required"),
   location: z.string().min(1, "Location is required"),
   address: z.string().optional(),
 });

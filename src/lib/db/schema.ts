@@ -99,8 +99,7 @@ export const tournaments = pgTable("tournaments", {
   /** URL-friendly unique identifier derived from name */
   slug: text("slug").notNull().unique(),
   description: text("description"),
-  startDate: date("start_date").notNull(),
-  endDate: date("end_date").notNull(),
+  date: date("date").notNull(),
   location: text("location").notNull(),
   address: text("address"),
   status: tournamentStatusEnum("status").default("draft").notNull(),

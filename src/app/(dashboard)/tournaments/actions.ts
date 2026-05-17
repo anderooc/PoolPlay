@@ -30,8 +30,7 @@ export async function createTournament(formData: FormData) {
   const parsed = createTournamentSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description") || undefined,
-    startDate: formData.get("startDate"),
-    endDate: formData.get("endDate"),
+    date: formData.get("date"),
     location: formData.get("location"),
     address: formData.get("address") || undefined,
   });
@@ -64,8 +63,7 @@ export async function createTournament(formData: FormData) {
       name: parsed.data.name,
       slug,
       description: parsed.data.description || null,
-      startDate: parsed.data.startDate,
-      endDate: parsed.data.endDate,
+      date: parsed.data.date,
       location: parsed.data.location,
       address: parsed.data.address || null,
       status: "draft",
@@ -247,7 +245,7 @@ export async function updateTournamentStatus(
 
   // Past-date tournaments are archived; status is read-only until the
   // organizer pushes the date forward via updateTournamentDate.
-  if (isTournamentArchived(tournament.endDate)) {
+  if (isTournamentArchived(tournament.date)) {
     return {
       error:
         "This tournament is archived (past its date). Update the date first to change status.",
@@ -275,10 +273,7 @@ export async function updateTournamentStatus(
   return { success: true };
 }
 
-/**
- * Sets the tournament to a single day (startDate == endDate). Used by the
- * "Edit date" control in the tournament header dropdown.
- */
+/** Updates the tournament date ("Edit date" in the header dropdown). */
 export async function updateTournamentDate(
   tournamentId: string,
   date: string
@@ -300,13 +295,13 @@ export async function updateTournamentDate(
     return { error: "Only the organizer can change the tournament date" };
   }
 
-  if (tournament.startDate === trimmed && tournament.endDate === trimmed) {
+  if (tournament.date === trimmed) {
     return { success: true as const, date: trimmed };
   }
 
   await db
     .update(tournaments)
-    .set({ startDate: trimmed, endDate: trimmed, updatedAt: new Date() })
+    .set({ date: trimmed, updatedAt: new Date() })
     .where(eq(tournaments.id, tournamentId));
 
   revalidatePath("/tournaments");
