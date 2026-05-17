@@ -19,7 +19,10 @@ import { requireUser, isAdmin } from "@/lib/auth";
 import { createTournamentSchema, createDivisionSchema } from "@/lib/validators";
 import { flagBlockedContent } from "@/lib/admin/content-flags";
 import { slugify, uniqueSlug } from "@/lib/utils/slug";
+import { isTournamentArchived } from "@/lib/tournament-status";
 import type { TournamentStatus } from "@/types";
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function createTournament(formData: FormData) {
   const user = await requireUser();
@@ -242,6 +245,15 @@ export async function updateTournamentStatus(
     return { error: "Only the organizer can update tournament status" };
   }
 
+  // Past-date tournaments are archived; status is read-only until the
+  // organizer pushes the date forward via updateTournamentDate.
+  if (isTournamentArchived(tournament.endDate)) {
+    return {
+      error:
+        "This tournament is archived (past its date). Update the date first to change status.",
+    };
+  }
+
   const allowed: TournamentStatus[] = [
     "draft",
     "registration_open",
@@ -261,6 +273,51 @@ export async function updateTournamentStatus(
   revalidatePath("/tournaments/[slug]", "page");
   revalidatePath("/tournaments/[slug]/brackets", "page");
   return { success: true };
+}
+
+/**
+ * Sets the tournament to a single day (startDate == endDate). Used by the
+ * "Edit date" control in the tournament header dropdown.
+ */
+export async function updateTournamentDate(
+  tournamentId: string,
+  date: string
+) {
+  const user = await requireUser();
+
+  const trimmed = (date ?? "").trim();
+  if (!ISO_DATE_RE.test(trimmed)) {
+    return { error: "Pick a valid date" };
+  }
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
+    return { error: "Only the organizer can change the tournament date" };
+  }
+
+  if (tournament.startDate === trimmed && tournament.endDate === trimmed) {
+    return { success: true as const, date: trimmed };
+  }
+
+  await db
+    .update(tournaments)
+    .set({ startDate: trimmed, endDate: trimmed, updatedAt: new Date() })
+    .where(eq(tournaments.id, tournamentId));
+
+  revalidatePath("/tournaments");
+  revalidatePath("/explore");
+  revalidatePath("/dashboard");
+  revalidatePath("/schedule");
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/brackets", "page");
+  revalidatePath("/tournaments/[slug]/scoring", "page");
+
+  return { success: true as const, date: trimmed };
 }
 
 export async function addDivision(tournamentId: string, formData: FormData) {

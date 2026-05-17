@@ -2,6 +2,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { tournaments, teams, teamMembers } from "@/lib/db/schema";
 import { eq, desc, count, gte, or } from "drizzle-orm";
+import {
+  isTournamentArchived,
+  statusBadgeLabel,
+} from "@/lib/tournament-status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -210,30 +214,41 @@ export default async function DashboardPage() {
               />
             ) : (
               <div className="space-y-2">
-                {recentTournaments.map((t) => (
-                  <Link
-                    key={t.id}
-                    href={`/tournaments/${t.slug}`}
-                    className="flex items-center justify-between rounded-md border p-3 transition-colors hover:bg-muted/40"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{t.name}</p>
-                      <p className="truncate text-sm text-muted-foreground">
-                        {t.location}
-                        <span className="mx-1.5">&middot;</span>
-                        {t.startDate}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={
-                        t.status === "in_progress" ? "default" : "secondary"
-                      }
-                      className="ml-3 shrink-0"
+                {recentTournaments.map((t) => {
+                  const archived = isTournamentArchived(t.endDate);
+                  return (
+                    <Link
+                      key={t.id}
+                      href={`/tournaments/${t.slug}`}
+                      className="flex items-center justify-between rounded-md border p-3 transition-colors hover:bg-muted/40"
                     >
-                      {t.status.replace(/_/g, " ")}
-                    </Badge>
-                  </Link>
-                ))}
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{t.name}</p>
+                        <p className="truncate text-sm text-muted-foreground">
+                          {t.location}
+                          <span className="mx-1.5">&middot;</span>
+                          {t.startDate}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={
+                          archived
+                            ? "outline"
+                            : t.status === "in_progress"
+                              ? "default"
+                              : "secondary"
+                        }
+                        className={
+                          archived
+                            ? "ml-3 shrink-0 border-dashed border-muted-foreground/40 bg-muted/40 text-muted-foreground"
+                            : "ml-3 shrink-0"
+                        }
+                      >
+                        {statusBadgeLabel(t.status, t.endDate)}
+                      </Badge>
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </CardContent>

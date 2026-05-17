@@ -12,8 +12,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+import { Archive, Loader2 } from "lucide-react";
 
 const STATUS_OPTIONS: { value: TournamentStatus; label: string }[] = [
   { value: "draft", label: "Draft" },
@@ -26,12 +27,31 @@ const STATUS_OPTIONS: { value: TournamentStatus; label: string }[] = [
 export function StatusControls({
   tournamentId,
   currentStatus,
+  archived = false,
 }: {
   tournamentId: string;
   currentStatus: string;
+  /**
+   * Past-date tournaments are read-only. Renders a locked "Archived"
+   * indicator instead of the editable select.
+   */
+  archived?: boolean;
 }) {
   const router = useRouter();
   const [blocking, setBlocking] = useState(false);
+
+  if (archived) {
+    return (
+      <Badge
+        variant="secondary"
+        className="h-8 gap-1.5 rounded-lg border border-dashed border-muted-foreground/40 bg-muted/40 px-2.5 text-sm font-medium text-muted-foreground"
+        title="Tournament date is in the past. Change the date to edit status."
+      >
+        <Archive className="h-3.5 w-3.5" />
+        Archived
+      </Badge>
+    );
+  }
 
   const value = useMemo((): TournamentStatus => {
     const v = currentStatus as TournamentStatus;

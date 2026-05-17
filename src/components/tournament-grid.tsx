@@ -6,6 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MapPin, Search, ChevronDown, Trophy } from "lucide-react";
+import {
+  isTournamentArchived,
+  statusBadgeLabel,
+} from "@/lib/tournament-status";
 
 interface Tournament {
   id: string;
@@ -18,18 +22,14 @@ interface Tournament {
   status: string;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  registration_open: "Registration Open",
-  registration_closed: "Registration Closed",
-  in_progress: "In Progress",
-  completed: "Completed",
-};
-
-function statusVariant(status: string) {
-  if (status === "in_progress") return "default" as const;
-  if (status === "registration_open") return "default" as const;
-  return "secondary" as const;
+function statusVariant(
+  status: string,
+  archived: boolean
+): "default" | "secondary" | "outline" {
+  if (archived) return "outline";
+  if (status === "in_progress") return "default";
+  if (status === "registration_open") return "default";
+  return "secondary";
 }
 
 function formatDate(dateStr: string) {
@@ -93,6 +93,7 @@ function TournamentRow({
   tournament: Tournament;
   linkPrefix: string;
 }) {
+  const archived = isTournamentArchived(t.endDate);
   return (
     <Link href={`${linkPrefix}/${t.slug}`} className="block">
       <div className="flex items-start gap-4 rounded-lg border bg-card px-4 py-3.5 transition-colors hover:bg-muted/40">
@@ -100,10 +101,14 @@ function TournamentRow({
           <div className="flex items-start justify-between gap-3">
             <span className="font-medium leading-tight">{t.name}</span>
             <Badge
-              variant={statusVariant(t.status)}
-              className="shrink-0 text-xs"
+              variant={statusVariant(t.status, archived)}
+              className={
+                archived
+                  ? "shrink-0 border-dashed border-muted-foreground/40 bg-muted/40 text-xs text-muted-foreground"
+                  : "shrink-0 text-xs"
+              }
             >
-              {STATUS_LABEL[t.status] ?? t.status.replace(/_/g, " ")}
+              {statusBadgeLabel(t.status, t.endDate)}
             </Badge>
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">

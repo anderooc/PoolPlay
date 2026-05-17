@@ -147,14 +147,31 @@ export default async function TournamentDetailPage({ params }: Props) {
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
                 {tournament.name}
               </h1>
-              <Badge
-                variant={
-                  tournament.status === "in_progress" ? "default" : "secondary"
-                }
-                className="shrink-0"
-              >
-                {tournament.status.replace(/_/g, " ")}
-              </Badge>
+              {(() => {
+                const archived = tournament.endDate < new Date()
+                  .toISOString()
+                  .slice(0, 10);
+                return (
+                  <Badge
+                    variant={
+                      archived
+                        ? "outline"
+                        : tournament.status === "in_progress"
+                          ? "default"
+                          : "secondary"
+                    }
+                    className={
+                      archived
+                        ? "shrink-0 border-dashed border-muted-foreground/40 bg-muted/40 text-muted-foreground"
+                        : "shrink-0"
+                    }
+                  >
+                    {archived
+                      ? "Archived"
+                      : tournament.status.replace(/_/g, " ")}
+                  </Badge>
+                );
+              })()}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">

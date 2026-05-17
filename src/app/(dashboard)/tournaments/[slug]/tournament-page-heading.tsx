@@ -4,12 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  CalendarDays,
   Link2,
   MoreVertical,
   Pencil,
   Trash2,
 } from "lucide-react";
-import { renameTournament, deleteTournament } from "../actions";
+import {
+  renameTournament,
+  deleteTournament,
+  updateTournamentDate,
+} from "../actions";
+import { isTournamentArchived, statusBadgeLabel } from "@/lib/tournament-status";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -67,6 +73,18 @@ export function TournamentPageHeading({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const skipTitleBlurCommit = useRef(false);
   const titleCommitting = useRef(false);
+
+  // Date editing
+  const [dateOpen, setDateOpen] = useState(false);
+  const [draftDate, setDraftDate] = useState(startDate);
+  const [dateSaving, setDateSaving] = useState(false);
+  const [dateError, setDateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!dateOpen) setDraftDate(startDate);
+  }, [dateOpen, startDate]);
+
+  const archived = isTournamentArchived(endDate);
 
   const [copyHint, setCopyHint] = useState<string | null>(null);
 
@@ -186,8 +204,31 @@ export function TournamentPageHeading({
   const nameMatches =
     confirmText.trim() === name.trim() && confirmText.trim() !== "";
 
-  const badgeVariant =
-    status === "in_progress" ? ("default" as const) : ("secondary" as const);
+  const badgeLabel = statusBadgeLabel(status, endDate);
+  const badgeVariant: "default" | "secondary" | "outline" = archived
+    ? "outline"
+    : status === "in_progress"
+      ? "default"
+      : "secondary";
+
+  async function commitDate() {
+    const next = draftDate.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(next)) {
+      setDateError("Pick a valid date");
+      return;
+    }
+    setDateSaving(true);
+    setDateError(null);
+    const result = await updateTournamentDate(tournamentId, next);
+    if ("error" in result && result.error) {
+      setDateError(result.error);
+      setDateSaving(false);
+      return;
+    }
+    setDateOpen(false);
+    setDateSaving(false);
+    router.refresh();
+  }
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -231,8 +272,15 @@ export function TournamentPageHeading({
               {name}
             </h1>
           )}
-          <Badge variant={badgeVariant} className="shrink-0">
-            {status.replace(/_/g, " ")}
+          <Badge
+            variant={badgeVariant}
+            className={cn(
+              "shrink-0",
+              archived &&
+                "border-dashed border-muted-foreground/40 bg-muted/40 text-muted-foreground"
+            )}
+          >
+            {badgeLabel}
           </Badge>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -281,6 +329,7 @@ export function TournamentPageHeading({
         <StatusControls
           tournamentId={tournamentId}
           currentStatus={status}
+          archived={archived}
         />
         <div className="relative flex items-center">
           <DropdownMenu>
@@ -307,6 +356,13 @@ export function TournamentPageHeading({
                 >
                   <Pencil className="size-4" />
                   Rename tournament
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => setDateOpen(true)}
+                >
+                  <CalendarDays className="size-4" />
+                  Edit date
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer"
@@ -342,6 +398,65 @@ export function TournamentPageHeading({
           )}
         </div>
       </div>
+
+      <Dialog
+        open={dateOpen}
+        onOpenChange={(open) => {
+          if (dateSaving) return;
+          setDateOpen(open);
+          if (!open) setDateError(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-sm" showCloseButton={!dateSaving}>
+          <DialogHeader>
+            <DialogTitle>Edit tournament date</DialogTitle>
+            <DialogDescription>
+              {archived
+                ? "Pick a new date. Setting today or later un-archives the tournament and re-enables the status dropdown."
+                : "Pick the date this tournament happens. Both start and end date are set to this value."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="tournament-date">Date</Label>
+            <Input
+              id="tournament-date"
+              type="date"
+              value={draftDate}
+              onChange={(e) => setDraftDate(e.target.value)}
+              disabled={dateSaving}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void commitDate();
+                }
+              }}
+            />
+            {dateError && (
+              <p className="text-sm text-destructive" role="alert">
+                {dateError}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDateOpen(false)}
+              disabled={dateSaving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void commitDate()}
+              disabled={dateSaving || draftDate.trim().length === 0}
+            >
+              {dateSaving ? "Saving…" : "Save date"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={deleteOpen}
