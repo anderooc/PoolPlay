@@ -1,16 +1,59 @@
 "use client";
 
-import { useState, useMemo, useRef, useLayoutEffect } from "react";
+import {
+  useState,
+  useMemo,
+  useRef,
+  useCallback,
+  useLayoutEffect,
+  useEffect,
+} from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { MapPin, Search, Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DatePickerCalendar } from "@/components/date-picker";
+import { DateScrollWheel } from "@/components/date-scroll-wheel";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  formatISODateLabel,
+  parseISODate,
+  toISODate,
+} from "@/lib/date-iso";
+import { Calendar, MapPin, Search, Trophy } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   isTournamentArchived,
   statusBadgeLabel,
   todayISO,
 } from "@/lib/tournament-status";
+
+/**
+ * Distance from the top of the schedule container to the active date
+ * heading. Leaves room for the previous day's heading to peek above
+ * without crowding the top edge.
+ */
+const SCHEDULE_TOP_INSET = 96;
+
+/** Min height for the selected-day panel so empty and tournament days match. */
+const SELECTED_PANEL_MIN_H =
+  "min-h-[5.5rem] min-w-0 w-full max-w-full";
+
+/**
+ * Minimum cooldown (ms) between wheel/touch-driven date advances. Lower =
+ * snappier reaction to scroll input. Trackpads emit many small events per
+ * gesture, so we throttle to keep one wheel "kick" = one date.
+ */
+const ADVANCE_COOLDOWN_MS = 110;
+
+/** Vertical pixels of touch movement before a swipe advances the date. */
+const SWIPE_THRESHOLD_PX = 28;
 
 interface Tournament {
   id: string;
@@ -73,11 +116,13 @@ function TournamentRow({
 }) {
   const archived = isTournamentArchived(t.date);
   return (
-    <Link href={`${linkPrefix}/${t.slug}`} className="block">
-      <div className="flex items-start gap-4 rounded-lg border bg-card px-4 py-3.5 transition-colors hover:bg-muted/40">
+    <Link href={`${linkPrefix}/${t.slug}`} className="block min-w-0 max-w-full">
+      <div className="flex min-w-0 items-start gap-4 rounded-lg border bg-card px-4 py-3.5 transition-colors hover:bg-muted/40">
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
-            <span className="font-medium leading-tight">{t.name}</span>
+            <span className="min-w-0 truncate font-medium leading-tight">
+              {t.name}
+            </span>
             <Badge
               variant={statusVariant(t.status, archived)}
               className={
@@ -106,25 +151,23 @@ function TournamentRow({
   );
 }
 
-function anchorTag(date: string, today: string): string | null {
-  if (date === today) return "Today";
-  if (date > today) return "Up next";
-  return null;
-}
-
 /**
- * One continuous chronological schedule. DOM order is oldest → newest, so
- * archived tournaments live above the soonest current/upcoming one and
- * become visible when the user scrolls up. On mount we scroll the dashboard
- * `<main>` so the anchor (today, or the next future date) sits at the top
- * of the viewport.
+ * No-scroll date cycler. Today (or a synthesized empty today group) starts
+ * pinned at the top of the container. Wheel, touch, and arrow Up/Down cycle
+ * through dates one at a time — there is no actual scrollbar or free
+ * scrolling. The selected day's heading scales up and its tournament cards
+ * expand into view; non-selected days collapse to just their heading and
+ * dim, so the eye is always on the current selection.
  */
 function ChronologicalSchedule({
   tournaments,
   linkPrefix,
+  focusDate,
 }: {
   tournaments: Tournament[];
   linkPrefix: string;
+  /** Date the parent wants selected (e.g. from the calendar picker). */
+  focusDate: string | null;
 }) {
   const today = todayISO();
 
@@ -132,68 +175,280 @@ function ChronologicalSchedule({
     const sorted = [...tournaments].sort((a, b) =>
       a.date.localeCompare(b.date)
     );
-    return groupByDate(sorted);
-  }, [tournaments]);
+    const grouped = groupByDate(sorted);
 
-  // Anchor = first group whose date is today or in the future. If
-  // everything is in the past, anchor to the most recent past group so the
-  // user lands on something meaningful instead of the top of the archive.
-  const anchorIdx = useMemo(() => {
-    const idx = groups.findIndex((g) => g.date >= today);
-    if (idx !== -1) return idx;
-    return Math.max(groups.length - 1, 0);
-  }, [groups, today]);
+    // Always materialize today plus any externally requested focus date so
+    // they can be selected even when no tournaments exist for them.
+    const required = new Set<string>([today]);
+    if (focusDate) required.add(focusDate);
+    for (const date of required) {
+      if (grouped.some((g) => g.date === date)) continue;
+      const insertAt = grouped.findIndex((g) => g.date > date);
+      const empty: DateGroup = { date, tournaments: [] };
+      if (insertAt === -1) grouped.push(empty);
+      else grouped.splice(insertAt, 0, empty);
+    }
 
-  const anchorRef = useRef<HTMLDivElement | null>(null);
+    return grouped;
+  }, [tournaments, today, focusDate]);
 
-  useLayoutEffect(() => {
-    const el = anchorRef.current;
-    if (!el) return;
-    el.scrollIntoView({ block: "start", behavior: "auto" });
-    // Mount-only on purpose: re-scrolling while the user is filtering or
-    // browsing past events would yank the page out from under them.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const stackRef = useRef<HTMLDivElement | null>(null);
+  const sectionRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [ready, setReady] = useState(false);
+  const [wheelActivity, setWheelActivity] = useState(0);
+  const registerWheelActivity = useCallback(() => {
+    setWheelActivity((n) => n + 1);
   }, []);
+
+  // If the selected date disappears (filter, day rollover) fall back to
+  // today — which is always present because we synthesize it above.
+  const effectiveSelectedDate = useMemo(() => {
+    if (groups.some((g) => g.date === selectedDate)) return selectedDate;
+    return today;
+  }, [groups, selectedDate, today]);
+
+  /**
+   * Moves the stack so the selected section's heading sits at the top
+   * inset. First call sets the position without animation so today doesn't
+   * "fly in" from the top on mount; subsequent calls animate smoothly.
+   */
+  useLayoutEffect(() => {
+    const stack = stackRef.current;
+    const el = sectionRefs.current.get(effectiveSelectedDate);
+    if (!stack || !el) return;
+    const offset = SCHEDULE_TOP_INSET - el.offsetTop;
+
+    if (!ready) {
+      stack.style.transition = "none";
+      stack.style.transform = `translateY(${offset}px)`;
+      void stack.offsetHeight;
+      stack.style.transition =
+        "transform 320ms cubic-bezier(0.22, 1, 0.36, 1)";
+      setReady(true);
+    } else {
+      stack.style.transform = `translateY(${offset}px)`;
+    }
+  }, [
+    effectiveSelectedDate,
+    groups,
+    ready,
+    groups.find((g) => g.date === effectiveSelectedDate)?.tournaments.length,
+  ]);
+
+  // When the calendar day rolls over, snap selection back to today.
+  useEffect(() => {
+    setSelectedDate(today);
+  }, [today]);
+
+  // The parent's calendar picker drives the selection when set.
+  useEffect(() => {
+    if (focusDate) {
+      setSelectedDate(focusDate);
+      registerWheelActivity();
+    }
+  }, [focusDate, registerWheelActivity]);
+
+  // Wheel + touch cycle through dates. The container does not scroll —
+  // wheel events are intercepted and turned into one-step date advances.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    function advance(delta: number) {
+      registerWheelActivity();
+      setSelectedDate((curr) => {
+        const i = groups.findIndex((g) => g.date === curr);
+        const safeI =
+          i === -1 ? groups.findIndex((g) => g.date === today) : i;
+        const next = Math.max(
+          0,
+          Math.min(groups.length - 1, safeI + delta)
+        );
+        return groups[next]?.date ?? curr;
+      });
+    }
+
+    let cooldown = false;
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      if (cooldown) return;
+      if (Math.abs(e.deltaY) < 4) return;
+      cooldown = true;
+      window.setTimeout(() => {
+        cooldown = false;
+      }, ADVANCE_COOLDOWN_MS);
+      advance(e.deltaY > 0 ? 1 : -1);
+    }
+
+    let touchY = 0;
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length === 1) touchY = e.touches[0].clientY;
+    }
+    function onTouchMove(e: TouchEvent) {
+      if (e.touches.length !== 1) return;
+      const dy = touchY - e.touches[0].clientY;
+      if (Math.abs(dy) > SWIPE_THRESHOLD_PX) {
+        e.preventDefault();
+        advance(dy > 0 ? 1 : -1);
+        touchY = e.touches[0].clientY;
+      }
+    }
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+    };
+  }, [groups, today, registerWheelActivity]);
+
+  // Arrow Up/Down moves the selected date by one. Ignored while typing.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+      const target = e.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName;
+        if (
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          tag === "SELECT" ||
+          target.isContentEditable
+        ) {
+          return;
+        }
+      }
+      e.preventDefault();
+      registerWheelActivity();
+      // Drop focus so the calendar trigger (or other controls) don't keep
+      // showing a focus ring while cycling dates with the keyboard.
+      if (target && target !== document.body) {
+        target.blur();
+      }
+      setSelectedDate((curr) => {
+        const i = groups.findIndex((g) => g.date === curr);
+        const safeI =
+          i === -1 ? groups.findIndex((g) => g.date === today) : i;
+        const delta = e.key === "ArrowDown" ? 1 : -1;
+        const next = Math.max(
+          0,
+          Math.min(groups.length - 1, safeI + delta)
+        );
+        return groups[next]?.date ?? curr;
+      });
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [groups, today, registerWheelActivity]);
 
   if (groups.length === 0) return null;
 
+  const scheduleDates = groups.map((g) => g.date);
+
   return (
-    <div className="space-y-4">
-      {groups.map((group, i) => {
-        const isAnchor = i === anchorIdx;
-        const tag = isAnchor ? anchorTag(group.date, today) : null;
-        return (
-          <div
-            key={group.date}
-            ref={isAnchor ? anchorRef : undefined}
-            className="scroll-mt-4"
-          >
-            <h3
-              className={`mb-2 flex items-center gap-2 text-sm ${
-                isAnchor
-                  ? "font-semibold text-foreground"
-                  : "font-medium text-foreground/70"
-              }`}
-            >
-              {tag && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                  {tag}
-                </span>
-              )}
-              {formatDate(group.date)}
-            </h3>
-            <div className="space-y-2">
-              {group.tournaments.map((t) => (
-                <TournamentRow
-                  key={t.id}
-                  tournament={t}
-                  linkPrefix={linkPrefix}
-                />
-              ))}
-            </div>
+    <div
+      className="flex min-h-0 w-full min-w-0 flex-1 gap-3 overflow-x-hidden sm:gap-4"
+      style={{ visibility: ready ? "visible" : "hidden" }}
+    >
+      <div
+        ref={containerRef}
+        className="relative min-h-0 min-w-0 flex-1 select-none overflow-hidden outline-none"
+        aria-roledescription="date cycler"
+      >
+        <div ref={stackRef} className="will-change-transform">
+          <div className="space-y-3 pb-12 pt-2">
+          {groups.map((group) => {
+            const isSelected = group.date === effectiveSelectedDate;
+            const isCalendarToday = group.date === today;
+            const isEmpty = group.tournaments.length === 0;
+            return (
+              <section
+                key={group.date}
+                ref={(el) => {
+                  if (el) sectionRefs.current.set(group.date, el);
+                  else sectionRefs.current.delete(group.date);
+                }}
+                className={cn(
+                  "min-w-0 transition-opacity duration-300",
+                  isSelected ? "opacity-100" : "opacity-40"
+                )}
+              >
+                <h3
+                  className={cn(
+                    "flex min-h-9 min-w-0 items-center gap-2 truncate text-sm transition-colors duration-300",
+                    isSelected
+                      ? "font-semibold text-foreground"
+                      : "font-medium text-muted-foreground"
+                  )}
+                >
+                  {isCalendarToday && (
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors",
+                        isSelected
+                          ? "bg-primary/15 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      Today
+                    </span>
+                  )}
+                  <span className="truncate">{formatDate(group.date)}</span>
+                </h3>
+                {isSelected && (
+                  <div
+                    className={cn(
+                      "mt-2 w-full min-w-0 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200",
+                      SELECTED_PANEL_MIN_H
+                    )}
+                  >
+                    {isEmpty ? (
+                      <p
+                        className={cn(
+                          "flex w-full items-center rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 px-4 text-sm text-muted-foreground",
+                          SELECTED_PANEL_MIN_H
+                        )}
+                      >
+                        No tournaments scheduled.
+                      </p>
+                    ) : (
+                      <div className={cn("w-full space-y-2", SELECTED_PANEL_MIN_H)}>
+                        {group.tournaments.map((t) => (
+                          <TournamentRow
+                            key={t.id}
+                            tournament={t}
+                            linkPrefix={linkPrefix}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            );
+          })}
           </div>
-        );
-      })}
+        </div>
+      </div>
+
+      <aside
+        aria-label="Date navigation"
+        className="flex w-[9.5rem] shrink-0 flex-none flex-col justify-center self-stretch"
+      >
+        <DateScrollWheel
+          className="w-full -translate-y-6"
+          dates={scheduleDates}
+          selectedDate={effectiveSelectedDate}
+          onSelect={setSelectedDate}
+          today={today}
+          activityKey={wheelActivity}
+        />
+      </aside>
     </div>
   );
 }
@@ -206,6 +461,10 @@ export function TournamentGrid({
   linkPrefix?: string;
 }) {
   const [query, setQuery] = useState("");
+  const [pickedDate, setPickedDate] = useState<string | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const today = todayISO();
 
   const filtered = useMemo(() => {
     if (!query.trim()) return tournaments;
@@ -218,16 +477,112 @@ export function TournamentGrid({
     );
   }, [tournaments, query]);
 
+  /** Dates (YYYY-MM-DD) that actually have tournaments — used to dot the calendar. */
+  const datesWithTournaments = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of filtered) set.add(t.date);
+    return set;
+  }, [filtered]);
+
+  const hasTournamentDates = useMemo(
+    () =>
+      Array.from(datesWithTournaments).map((iso) => parseISODate(iso)),
+    [datesWithTournaments]
+  );
+
+  const tournamentDateIsos = useMemo(
+    () => tournaments.map((t) => t.date),
+    [tournaments]
+  );
+
+  useEffect(() => {
+    if (!calendarOpen) return;
+    setCalendarMonth(pickedDate ? parseISODate(pickedDate) : parseISODate(today));
+  }, [calendarOpen, pickedDate, today]);
+
+  function handleDateSelect(date: Date | undefined) {
+    if (!date) return;
+    const iso = toISODate(date);
+    setPickedDate(iso);
+    setCalendarOpen(false);
+    // Return focus to the page so the trigger doesn't keep a focus ring.
+    requestAnimationFrame(() => {
+      (document.activeElement as HTMLElement | null)?.blur();
+    });
+
+    if (!datesWithTournaments.has(iso)) {
+      const label = date.toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      });
+      toast(`No tournaments on ${label}.`, {
+        description: "Try another date from the calendar.",
+      });
+    }
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search tournaments..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="pl-9"
-        />
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-6">
+      <div className="flex items-center gap-3">
+        <div className="relative min-w-0 flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search tournaments..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className={cn("ml-auto shrink-0", pickedDate && "bg-muted")}
+                aria-label={
+                  pickedDate
+                    ? `Calendar, ${formatISODateLabel(pickedDate)} selected`
+                    : "Open calendar"
+                }
+              >
+                <Calendar className="h-4 w-4" />
+              </Button>
+            }
+          />
+          <PopoverContent className="w-auto p-1.5" align="end">
+            <DatePickerCalendar
+              selected={pickedDate ? parseISODate(pickedDate) : undefined}
+              onSelect={handleDateSelect}
+              rangeFromDates={tournamentDateIsos}
+              markedDates={hasTournamentDates}
+              month={calendarMonth}
+              onMonthChange={setCalendarMonth}
+              autoFocus
+            />
+            {pickedDate && (
+              <div className="flex justify-end border-t border-border/60 pt-1.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setPickedDate(null);
+                    setCalendarOpen(false);
+                    requestAnimationFrame(() => {
+                      (document.activeElement as HTMLElement | null)?.blur();
+                    });
+                  }}
+                >
+                  Clear
+                </Button>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
       </div>
 
       {filtered.length === 0 ? (
@@ -244,6 +599,7 @@ export function TournamentGrid({
         <ChronologicalSchedule
           tournaments={filtered}
           linkPrefix={linkPrefix}
+          focusDate={pickedDate}
         />
       )}
     </div>

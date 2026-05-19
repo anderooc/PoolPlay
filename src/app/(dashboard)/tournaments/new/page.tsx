@@ -13,11 +13,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { BackLink } from "@/components/layout/back-link";
+import { DatePickerField } from "@/components/date-picker";
+import { todayISO } from "@/lib/tournament-status";
 import { createTournament } from "../actions";
 
 export default function NewTournamentPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [date, setDate] = useState(todayISO);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -61,10 +64,15 @@ export default function NewTournamentPage() {
                 rows={3}
               />
             </div>
-              <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
-                <Input id="date" name="date" type="date" required />
-              </div>
+              <DatePickerField
+                id="date"
+                label="Date"
+                name="date"
+                value={date}
+                onChange={setDate}
+                required
+                rangeFromDates={[date]}
+              />
             <div className="space-y-2">
               <Label htmlFor="location">Location</Label>
               <Input

@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePickerField } from "@/components/date-picker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -413,28 +414,19 @@ export function TournamentPageHeading({
                 : "Pick the date this tournament happens."}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="tournament-date">Date</Label>
-            <Input
-              id="tournament-date"
-              type="date"
-              value={draftDate}
-              onChange={(e) => setDraftDate(e.target.value)}
-              disabled={dateSaving}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void commitDate();
-                }
-              }}
-            />
-            {dateError && (
-              <p className="text-sm text-destructive" role="alert">
-                {dateError}
-              </p>
-            )}
-          </div>
+          <DatePickerField
+            id="tournament-date"
+            label="Date"
+            value={draftDate}
+            onChange={setDraftDate}
+            disabled={dateSaving}
+            rangeFromDates={[draftDate]}
+          />
+          {dateError && (
+            <p className="text-sm text-destructive" role="alert">
+              {dateError}
+            </p>
+          )}
           <DialogFooter>
             <Button
               type="button"
