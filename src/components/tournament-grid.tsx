@@ -26,6 +26,10 @@ import {
   parseISODate,
   toISODate,
 } from "@/lib/date-iso";
+import {
+  TournamentListFilters,
+  countActiveTournamentFilters,
+} from "@/components/tournament-list-filters";
 import { Calendar, MapPin, Search, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -33,6 +37,7 @@ import {
   statusBadgeLabel,
   todayISO,
 } from "@/lib/tournament-status";
+import type { TeamGender, TeamRegion } from "@/types";
 
 /**
  * Distance from the top of the schedule container to the active date
@@ -63,6 +68,18 @@ interface Tournament {
   location: string;
   date: string;
   status: string;
+  gender: TeamGender;
+  region: TeamRegion;
+}
+
+function toggleSetValue<T extends string>(
+  set: Set<T>,
+  value: T
+): Set<T> {
+  const next = new Set(set);
+  if (next.has(value)) next.delete(value);
+  else next.add(value);
+  return next;
 }
 
 function statusVariant(
@@ -445,6 +462,14 @@ export function TournamentGrid({
   linkPrefix?: string;
 }) {
   const [query, setQuery] = useState("");
+  const [genderFilter, setGenderFilter] = useState<Set<TeamGender>>(
+    () => new Set()
+  );
+  const [regionFilter, setRegionFilter] = useState<Set<TeamRegion>>(
+    () => new Set()
+  );
+  const [hideArchived, setHideArchived] = useState(false);
+  const [registrationOpenOnly, setRegistrationOpenOnly] = useState(false);
   const [selectedDate, setSelectedDate] = useState(todayISO);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
@@ -454,16 +479,57 @@ export function TournamentGrid({
     setSelectedDate(today);
   }, [today]);
 
+  const hasActiveFilters =
+    countActiveTournamentFilters({
+      genderFilter,
+      regionFilter,
+      hideArchived,
+      registrationOpenOnly,
+    }) > 0;
+
   const filtered = useMemo(() => {
-    if (!query.trim()) return tournaments;
-    const q = query.toLowerCase();
-    return tournaments.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        t.location.toLowerCase().includes(q) ||
-        t.description?.toLowerCase().includes(q)
-    );
-  }, [tournaments, query]);
+    let list = tournaments;
+
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      list = list.filter(
+        (t) =>
+          t.name.toLowerCase().includes(q) ||
+          t.location.toLowerCase().includes(q) ||
+          t.description?.toLowerCase().includes(q)
+      );
+    }
+
+    if (hideArchived) {
+      list = list.filter((t) => !isTournamentArchived(t.date, today));
+    }
+
+    if (registrationOpenOnly) {
+      list = list.filter(
+        (t) =>
+          t.status === "registration_open" &&
+          !isTournamentArchived(t.date, today)
+      );
+    }
+
+    if (genderFilter.size > 0) {
+      list = list.filter((t) => genderFilter.has(t.gender));
+    }
+
+    if (regionFilter.size > 0) {
+      list = list.filter((t) => regionFilter.has(t.region));
+    }
+
+    return list;
+  }, [
+    tournaments,
+    query,
+    hideArchived,
+    registrationOpenOnly,
+    genderFilter,
+    regionFilter,
+    today,
+  ]);
 
   /** Dates (YYYY-MM-DD) that actually have tournaments — used to dot the calendar. */
   const datesWithTournaments = useMemo(() => {
@@ -527,6 +593,27 @@ export function TournamentGrid({
           />
         </div>
 
+        <TournamentListFilters
+          genderFilter={genderFilter}
+          regionFilter={regionFilter}
+          hideArchived={hideArchived}
+          registrationOpenOnly={registrationOpenOnly}
+          onToggleGender={(value) =>
+            setGenderFilter((prev) => toggleSetValue(prev, value))
+          }
+          onToggleRegion={(value) =>
+            setRegionFilter((prev) => toggleSetValue(prev, value))
+          }
+          onHideArchivedChange={setHideArchived}
+          onRegistrationOpenOnlyChange={setRegistrationOpenOnly}
+          onClear={() => {
+            setGenderFilter(new Set());
+            setRegionFilter(new Set());
+            setHideArchived(false);
+            setRegistrationOpenOnly(false);
+          }}
+        />
+
         <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
           <PopoverTrigger
             render={
@@ -535,7 +622,7 @@ export function TournamentGrid({
                 variant="outline"
                 size="icon"
                 className={cn(
-                  "ml-auto shrink-0",
+                  "shrink-0",
                   selectedDate !== today && "bg-muted"
                 )}
                 aria-label={`Calendar, ${formatISODateLabel(selectedDate)} selected`}
@@ -561,11 +648,21 @@ export function TournamentGrid({
       {filtered.length === 0 ? (
         <EmptyState
           icon={Trophy}
-          title={query.trim() ? "No matches" : "No tournaments yet"}
+          title={
+            tournaments.length === 0
+              ? "No tournaments yet"
+              : "No matches"
+          }
           description={
-            query.trim()
-              ? `Nothing matches "${query}". Try a different search.`
-              : "Check back soon for upcoming events."
+            tournaments.length === 0
+              ? "Check back soon for upcoming events."
+              : query.trim() && hasActiveFilters
+                ? `Nothing matches "${query}" with the selected filters.`
+                : query.trim()
+                  ? `Nothing matches "${query}". Try a different search.`
+                  : hasActiveFilters
+                    ? "No tournaments match your filters. Try clearing filters or showing past events."
+                    : "Check back soon for upcoming events."
           }
         />
       ) : (

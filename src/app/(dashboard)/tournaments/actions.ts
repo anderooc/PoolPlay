@@ -18,6 +18,7 @@ import { eq, and, ne, inArray, or } from "drizzle-orm";
 import { requireUser, isAdmin } from "@/lib/auth";
 import { createTournamentSchema, createDivisionSchema } from "@/lib/validators";
 import { flagBlockedContent } from "@/lib/admin/content-flags";
+import { getHostingTeamForUser } from "@/lib/teams/hosting";
 import { slugify, uniqueSlug } from "@/lib/utils/slug";
 import { isTournamentArchived } from "@/lib/tournament-status";
 import type { TournamentStatus } from "@/types";
@@ -28,6 +29,7 @@ export async function createTournament(formData: FormData) {
   const user = await requireUser();
 
   const parsed = createTournamentSchema.safeParse({
+    hostTeamId: formData.get("hostTeamId"),
     name: formData.get("name"),
     description: formData.get("description") || undefined,
     date: formData.get("date"),
@@ -47,6 +49,17 @@ export async function createTournament(formData: FormData) {
   ]);
   if (contentError) return { error: contentError };
 
+  const hostTeam = await getHostingTeamForUser(
+    parsed.data.hostTeamId,
+    user.id,
+    isAdmin(user)
+  );
+  if (!hostTeam) {
+    return {
+      error: "Select a team you captain to host this tournament",
+    };
+  }
+
   const base = slugify(parsed.data.name, "tournament");
   const existingSlugs = await db
     .select({ slug: tournaments.slug })
@@ -60,6 +73,9 @@ export async function createTournament(formData: FormData) {
     .insert(tournaments)
     .values({
       organizerId: user.id,
+      hostTeamId: hostTeam.id,
+      gender: hostTeam.gender,
+      region: hostTeam.region,
       name: parsed.data.name,
       slug,
       description: parsed.data.description || null,

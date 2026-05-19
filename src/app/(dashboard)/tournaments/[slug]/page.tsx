@@ -17,6 +17,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { MapPin, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { BackLink } from "@/components/layout/back-link";
+import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { isTournamentArchived } from "@/lib/tournament-status";
 import { TournamentPageHeading } from "./tournament-page-heading";
 import { DivisionManager } from "./division-manager";
@@ -185,6 +186,11 @@ export default async function TournamentDetailPage({ params }: Props) {
                 {organizer?.fullName ?? "Unknown organizer"}
               </span>
             </div>
+            <TeamAttributesBadges
+              gender={tournament.gender}
+              region={tournament.region}
+              className="mt-2"
+            />
             {tournament.description && (
               <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
                 {tournament.description}

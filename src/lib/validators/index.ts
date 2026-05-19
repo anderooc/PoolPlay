@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { TEAM_GENDERS, TEAM_REGIONS } from "@/lib/constants/team";
 import { isCollegeEmail } from "@/lib/utils/college-email";
 
 export const signUpSchema = z.object({
@@ -21,10 +22,13 @@ export const loginSchema = z.object({
 export const createTeamSchema = z.object({
   name: z.string().min(1, "Team name is required"),
   university: z.string().min(1, "University is required"),
+  gender: z.enum(TEAM_GENDERS, { message: "Select men's or women's" }),
+  region: z.enum(TEAM_REGIONS, { message: "Select a region" }),
   season: z.string().optional(),
 });
 
 export const createTournamentSchema = z.object({
+  hostTeamId: z.string().uuid("Select the hosting team"),
   name: z.string().min(1, "Tournament name is required"),
   description: z.string().optional(),
   date: z.string().min(1, "Date is required"),

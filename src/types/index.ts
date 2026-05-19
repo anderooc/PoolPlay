@@ -19,3 +19,16 @@ export type BracketType = "single_elimination" | "double_elimination";
 export type MatchStatus = "upcoming" | "in_progress" | "completed";
 
 export type TeamMemberRole = "captain" | "player";
+
+export type TeamGender = "mens" | "womens";
+
+export type TeamRegion =
+  | "north"
+  | "northeast"
+  | "east"
+  | "east_central"
+  | "central"
+  | "south"
+  | "southeast"
+  | "west"
+  | "northwest";

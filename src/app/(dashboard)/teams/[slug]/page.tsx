@@ -6,6 +6,7 @@ import { eq, and } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { AddMemberForm } from "./add-member-form";
 import { RosterRow } from "./roster-row";
 
@@ -52,6 +53,11 @@ export default async function TeamDetailPage({ params }: Props) {
           {team.university}
           {team.season && ` \u00B7 ${team.season}`}
         </p>
+        <TeamAttributesBadges
+          gender={team.gender}
+          region={team.region}
+          className="mt-2"
+        />
       </div>
 
       <Card>

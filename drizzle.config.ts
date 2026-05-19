@@ -48,6 +48,8 @@ export default defineConfig({
   schema: "./src/lib/db/schema.ts",
   out: "./src/lib/db/migrations",
   dialect: "postgresql",
+  // Supabase exposes auth/storage schemas with constraints drizzle-kit cannot parse.
+  schemaFilter: ["public"],
   dbCredentials: {
     url: databaseUrl,
   },

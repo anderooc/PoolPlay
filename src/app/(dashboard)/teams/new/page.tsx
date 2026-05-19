@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { TeamAttributeFields } from "@/components/team-attribute-fields";
 import { createTeam } from "../actions";
 
 export default function NewTeamPage() {
@@ -55,6 +56,7 @@ export default function NewTeamPage() {
                 required
               />
             </div>
+            <TeamAttributeFields />
             <div className="space-y-2">
               <Label htmlFor="season">Season (optional)</Label>
               <Input id="season" name="season" placeholder="Spring 2026" />

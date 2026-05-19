@@ -16,6 +16,8 @@ export async function createTeam(formData: FormData) {
   const parsed = createTeamSchema.safeParse({
     name: formData.get("name"),
     university: formData.get("university"),
+    gender: formData.get("gender"),
+    region: formData.get("region"),
     season: formData.get("season") || undefined,
   });
 
@@ -36,13 +38,17 @@ export async function createTeam(formData: FormData) {
     .where(
       and(
         eq(teams.name, parsed.data.name),
-        eq(teams.university, parsed.data.university)
+        eq(teams.university, parsed.data.university),
+        eq(teams.gender, parsed.data.gender)
       )
     )
     .limit(1);
 
   if (existing) {
-    return { error: "A team with this name already exists at this university" };
+    return {
+      error:
+        "A team with this name, university, and gender already exists",
+    };
   }
 
   const base = slugify(
@@ -61,6 +67,8 @@ export async function createTeam(formData: FormData) {
       name: parsed.data.name,
       slug,
       university: parsed.data.university,
+      gender: parsed.data.gender,
+      region: parsed.data.region,
       season: parsed.data.season || null,
     })
     .returning();

@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Plus, Users } from "lucide-react";
 import Link from "next/link";
@@ -21,6 +22,8 @@ export default async function TeamsPage() {
       name: teams.name,
       university: teams.university,
       season: teams.season,
+      gender: teams.gender,
+      region: teams.region,
       role: teamMembers.role,
     })
     .from(teamMembers)
@@ -78,6 +81,11 @@ export default async function TeamsPage() {
                   <p className="text-sm text-muted-foreground">
                     {team.university}
                   </p>
+                  <TeamAttributesBadges
+                    gender={team.gender}
+                    region={team.region}
+                    className="mt-2"
+                  />
                   {team.season && (
                     <p className="mt-1 text-sm text-muted-foreground/80">
                       {team.season}

@@ -53,6 +53,20 @@ export const teamMemberRoleEnum = pgEnum("team_member_role", [
   "player",
 ]);
 
+export const teamGenderEnum = pgEnum("team_gender", ["mens", "womens"]);
+
+export const teamRegionEnum = pgEnum("team_region", [
+  "north",
+  "northeast",
+  "east",
+  "east_central",
+  "central",
+  "south",
+  "southeast",
+  "west",
+  "northwest",
+]);
+
 // ── Tables ──────────────────────────────────────────────────────────────────
 
 export const users = pgTable("users", {
@@ -72,6 +86,8 @@ export const teams = pgTable("teams", {
   /** URL-friendly unique identifier derived from name */
   slug: text("slug").notNull().unique(),
   university: text("university").notNull(),
+  gender: teamGenderEnum("gender").notNull(),
+  region: teamRegionEnum("region").notNull(),
   season: text("season"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -95,6 +111,12 @@ export const tournaments = pgTable("tournaments", {
   organizerId: uuid("organizer_id")
     .references(() => users.id)
     .notNull(),
+  /** Team hosting the event; gender/region are copied from this team at creation. */
+  hostTeamId: uuid("host_team_id").references(() => teams.id, {
+    onDelete: "set null",
+  }),
+  gender: teamGenderEnum("gender").notNull(),
+  region: teamRegionEnum("region").notNull(),
   name: text("name").notNull(),
   /** URL-friendly unique identifier derived from name */
   slug: text("slug").notNull().unique(),
@@ -244,6 +266,7 @@ export const teamsRelations = relations(teams, ({ many }) => ({
   members: many(teamMembers),
   registrations: many(registrations),
   poolTeams: many(poolTeams),
+  hostedTournaments: many(tournaments),
 }));
 
 export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
@@ -255,6 +278,10 @@ export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
   organizer: one(users, {
     fields: [tournaments.organizerId],
     references: [users.id],
+  }),
+  hostTeam: one(teams, {
+    fields: [tournaments.hostTeamId],
+    references: [teams.id],
   }),
   divisions: many(divisions),
   registrations: many(registrations),
