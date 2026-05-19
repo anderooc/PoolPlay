@@ -162,12 +162,13 @@ function TournamentRow({
 function ChronologicalSchedule({
   tournaments,
   linkPrefix,
-  focusDate,
+  selectedDate,
+  onSelectedDateChange,
 }: {
   tournaments: Tournament[];
   linkPrefix: string;
-  /** Date the parent wants selected (e.g. from the calendar picker). */
-  focusDate: string | null;
+  selectedDate: string;
+  onSelectedDateChange: (date: string) => void;
 }) {
   const today = todayISO();
 
@@ -177,10 +178,9 @@ function ChronologicalSchedule({
     );
     const grouped = groupByDate(sorted);
 
-    // Always materialize today plus any externally requested focus date so
-    // they can be selected even when no tournaments exist for them.
-    const required = new Set<string>([today]);
-    if (focusDate) required.add(focusDate);
+    // Always materialize today plus the active selection so empty days can
+    // still be focused (e.g. from the calendar or synthesized today).
+    const required = new Set<string>([today, selectedDate]);
     for (const date of required) {
       if (grouped.some((g) => g.date === date)) continue;
       const insertAt = grouped.findIndex((g) => g.date > date);
@@ -190,12 +190,11 @@ function ChronologicalSchedule({
     }
 
     return grouped;
-  }, [tournaments, today, focusDate]);
+  }, [tournaments, today, selectedDate]);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Map<string, HTMLElement>>(new Map());
-  const [selectedDate, setSelectedDate] = useState(today);
   const [ready, setReady] = useState(false);
   const [wheelActivity, setWheelActivity] = useState(0);
   const registerWheelActivity = useCallback(() => {
@@ -237,19 +236,6 @@ function ChronologicalSchedule({
     groups.find((g) => g.date === effectiveSelectedDate)?.tournaments.length,
   ]);
 
-  // When the calendar day rolls over, snap selection back to today.
-  useEffect(() => {
-    setSelectedDate(today);
-  }, [today]);
-
-  // The parent's calendar picker drives the selection when set.
-  useEffect(() => {
-    if (focusDate) {
-      setSelectedDate(focusDate);
-      registerWheelActivity();
-    }
-  }, [focusDate, registerWheelActivity]);
-
   // Wheel + touch cycle through dates. The container does not scroll —
   // wheel events are intercepted and turned into one-step date advances.
   useEffect(() => {
@@ -258,16 +244,15 @@ function ChronologicalSchedule({
 
     function advance(delta: number) {
       registerWheelActivity();
-      setSelectedDate((curr) => {
-        const i = groups.findIndex((g) => g.date === curr);
-        const safeI =
-          i === -1 ? groups.findIndex((g) => g.date === today) : i;
-        const next = Math.max(
-          0,
-          Math.min(groups.length - 1, safeI + delta)
-        );
-        return groups[next]?.date ?? curr;
-      });
+      const i = groups.findIndex((g) => g.date === selectedDate);
+      const safeI =
+        i === -1 ? groups.findIndex((g) => g.date === today) : i;
+      const next = Math.max(
+        0,
+        Math.min(groups.length - 1, safeI + delta)
+      );
+      const nextDate = groups[next]?.date;
+      if (nextDate) onSelectedDateChange(nextDate);
     }
 
     let cooldown = false;
@@ -305,7 +290,7 @@ function ChronologicalSchedule({
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
     };
-  }, [groups, today, registerWheelActivity]);
+  }, [groups, today, selectedDate, onSelectedDateChange, registerWheelActivity]);
 
   // Arrow Up/Down moves the selected date by one. Ignored while typing.
   useEffect(() => {
@@ -330,21 +315,20 @@ function ChronologicalSchedule({
       if (target && target !== document.body) {
         target.blur();
       }
-      setSelectedDate((curr) => {
-        const i = groups.findIndex((g) => g.date === curr);
-        const safeI =
-          i === -1 ? groups.findIndex((g) => g.date === today) : i;
-        const delta = e.key === "ArrowDown" ? 1 : -1;
-        const next = Math.max(
-          0,
-          Math.min(groups.length - 1, safeI + delta)
-        );
-        return groups[next]?.date ?? curr;
-      });
+      const i = groups.findIndex((g) => g.date === selectedDate);
+      const safeI =
+        i === -1 ? groups.findIndex((g) => g.date === today) : i;
+      const delta = e.key === "ArrowDown" ? 1 : -1;
+      const next = Math.max(
+        0,
+        Math.min(groups.length - 1, safeI + delta)
+      );
+      const nextDate = groups[next]?.date;
+      if (nextDate) onSelectedDateChange(nextDate);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [groups, today, registerWheelActivity]);
+  }, [groups, today, selectedDate, onSelectedDateChange, registerWheelActivity]);
 
   if (groups.length === 0) return null;
 
@@ -444,7 +428,7 @@ function ChronologicalSchedule({
           className="w-full -translate-y-6"
           dates={scheduleDates}
           selectedDate={effectiveSelectedDate}
-          onSelect={setSelectedDate}
+          onSelect={onSelectedDateChange}
           today={today}
           activityKey={wheelActivity}
         />
@@ -461,10 +445,14 @@ export function TournamentGrid({
   linkPrefix?: string;
 }) {
   const [query, setQuery] = useState("");
-  const [pickedDate, setPickedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState(todayISO);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const today = todayISO();
+
+  useEffect(() => {
+    setSelectedDate(today);
+  }, [today]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return tournaments;
@@ -497,13 +485,13 @@ export function TournamentGrid({
 
   useEffect(() => {
     if (!calendarOpen) return;
-    setCalendarMonth(pickedDate ? parseISODate(pickedDate) : parseISODate(today));
-  }, [calendarOpen, pickedDate, today]);
+    setCalendarMonth(parseISODate(selectedDate));
+  }, [calendarOpen, selectedDate]);
 
   function handleDateSelect(date: Date | undefined) {
     if (!date) return;
     const iso = toISODate(date);
-    setPickedDate(iso);
+    setSelectedDate(iso);
     setCalendarOpen(false);
     // Return focus to the page so the trigger doesn't keep a focus ring.
     requestAnimationFrame(() => {
@@ -531,7 +519,11 @@ export function TournamentGrid({
             placeholder="Search tournaments..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="pl-9"
+            className={cn(
+              "h-10 rounded-md border-neutral-200 bg-white pl-9 shadow-sm",
+              "focus-visible:border-neutral-300 focus-visible:ring-2 focus-visible:ring-neutral-200/60 focus-visible:ring-offset-0",
+              "dark:border-neutral-200 dark:bg-white dark:focus-visible:border-neutral-300 dark:focus-visible:ring-neutral-200/60"
+            )}
           />
         </div>
 
@@ -542,12 +534,11 @@ export function TournamentGrid({
                 type="button"
                 variant="outline"
                 size="icon"
-                className={cn("ml-auto shrink-0", pickedDate && "bg-muted")}
-                aria-label={
-                  pickedDate
-                    ? `Calendar, ${formatISODateLabel(pickedDate)} selected`
-                    : "Open calendar"
-                }
+                className={cn(
+                  "ml-auto shrink-0",
+                  selectedDate !== today && "bg-muted"
+                )}
+                aria-label={`Calendar, ${formatISODateLabel(selectedDate)} selected`}
               >
                 <Calendar className="h-4 w-4" />
               </Button>
@@ -555,7 +546,7 @@ export function TournamentGrid({
           />
           <PopoverContent className="w-auto p-1.5" align="end">
             <DatePickerCalendar
-              selected={pickedDate ? parseISODate(pickedDate) : undefined}
+              selected={parseISODate(selectedDate)}
               onSelect={handleDateSelect}
               rangeFromDates={tournamentDateIsos}
               markedDates={hasTournamentDates}
@@ -563,24 +554,6 @@ export function TournamentGrid({
               onMonthChange={setCalendarMonth}
               autoFocus
             />
-            {pickedDate && (
-              <div className="flex justify-end border-t border-border/60 pt-1.5">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setPickedDate(null);
-                    setCalendarOpen(false);
-                    requestAnimationFrame(() => {
-                      (document.activeElement as HTMLElement | null)?.blur();
-                    });
-                  }}
-                >
-                  Clear
-                </Button>
-              </div>
-            )}
           </PopoverContent>
         </Popover>
       </div>
@@ -599,7 +572,8 @@ export function TournamentGrid({
         <ChronologicalSchedule
           tournaments={filtered}
           linkPrefix={linkPrefix}
-          focusDate={pickedDate}
+          selectedDate={selectedDate}
+          onSelectedDateChange={setSelectedDate}
         />
       )}
     </div>
