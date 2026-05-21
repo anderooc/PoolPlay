@@ -14,6 +14,7 @@ import {
 } from "@/lib/db/schema";
 import { eq, and, count, ne, asc } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
+import { canGeneratePoolsAndBrackets } from "@/lib/tournaments/permissions";
 import { generatePools, generatePoolMatches } from "@/lib/utils/pool";
 import { generateSingleEliminationBracket } from "@/lib/utils/bracket";
 
@@ -78,8 +79,11 @@ export async function generatePoolsForDivision(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
-    return { error: "Only the organizer can generate pools" };
+  if (!tournament || !canGeneratePoolsAndBrackets(tournament, user)) {
+    return {
+      error:
+        "Pools can only be generated after registration closes. Only the organizer can generate pools.",
+    };
   }
 
   const divRegs = await db
@@ -172,8 +176,11 @@ export async function generateBracketForDivision(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
-    return { error: "Only the organizer can generate brackets" };
+  if (!tournament || !canGeneratePoolsAndBrackets(tournament, user)) {
+    return {
+      error:
+        "Brackets can only be generated after registration closes. Only the organizer can generate brackets.",
+    };
   }
 
   const [division] = await db
@@ -256,8 +263,8 @@ export async function addTeamToPool(
     .where(eq(tournaments.id, division.tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
-    return { error: "Only the organizer can assign teams to pools" };
+  if (!tournament || !canGeneratePoolsAndBrackets(tournament, user)) {
+    return { error: "Only the organizer can assign teams to pools during setup." };
   }
 
   if (tournament.id !== tournamentId) {
@@ -368,8 +375,8 @@ export async function removeTeamFromPool(
     .where(eq(tournaments.id, division.tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
-    return { error: "Only the organizer can change pool assignments" };
+  if (!tournament || !canGeneratePoolsAndBrackets(tournament, user)) {
+    return { error: "Only the organizer can change pool assignments during setup." };
   }
 
   if (tournament.id !== tournamentId) {

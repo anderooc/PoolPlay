@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { tournaments } from "@/lib/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, ne } from "drizzle-orm";
 import { buttonVariants } from "@/components/ui/button";
 import { HeaderNav } from "@/components/layout/header-nav";
 import { PoolPlayMark } from "@/components/layout/poolplay-mark";
@@ -17,6 +17,7 @@ export default async function ExplorePage() {
   const allTournaments = await db
     .select()
     .from(tournaments)
+    .where(ne(tournaments.status, "draft"))
     .orderBy(desc(tournaments.date));
 
   return (
@@ -63,7 +64,7 @@ export default async function ExplorePage() {
 
           <TournamentGrid
             tournaments={allTournaments}
-            linkPrefix="/tournaments"
+            linkPrefix="/explore/tournaments"
           />
         </div>
       </main>

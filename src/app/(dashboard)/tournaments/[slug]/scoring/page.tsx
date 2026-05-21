@@ -7,13 +7,18 @@ import {
   sets,
   teams,
   courts,
-  pools,
 } from "@/lib/db/schema";
-import { eq, or, asc } from "drizzle-orm";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { eq, asc, inArray } from "drizzle-orm";
+import { BackLink } from "@/components/layout/back-link";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScoringCard } from "./scoring-card";
 import { LiveScoreViewer } from "./live-score-viewer";
+import {
+  canScoreMatches,
+  isTournamentOrganizer,
+} from "@/lib/tournaments/permissions";
+import { getTournamentMatchIds } from "@/lib/tournaments/match-query";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -33,16 +38,20 @@ export default async function ScoringPage({ params }: Props) {
   if (!tournament) notFound();
 
   const id = tournament.id;
+  const canScore = canScoreMatches(tournament, user);
+  const isOrganizer = isTournamentOrganizer(tournament, user);
 
-  const isOrganizer = tournament.organizerId === user.id || user.role === "admin";
+  const matchIds = await getTournamentMatchIds(id);
 
-  // Get all matches that belong to this tournament (through pools/brackets)
-  const allMatches = await db
-    .select()
-    .from(matches)
-    .orderBy(asc(matches.scheduledTime));
+  const allMatches =
+    matchIds.length === 0
+      ? []
+      : await db
+          .select()
+          .from(matches)
+          .where(inArray(matches.id, matchIds))
+          .orderBy(asc(matches.scheduledTime));
 
-  // Enrich with team names, court names, and sets
   const enrichedMatches = await Promise.all(
     allMatches.map(async (match) => {
       const teamA = match.teamAId
@@ -97,9 +106,15 @@ export default async function ScoringPage({ params }: Props) {
 
   return (
     <div className="space-y-6">
+      <BackLink href={`/tournaments/${slug}`}>Back to tournament</BackLink>
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Live Scoring</h1>
         <p className="text-muted-foreground">{tournament.name}</p>
+        {isOrganizer && !canScore && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Set the tournament status to In progress to enter scores.
+          </p>
+        )}
       </div>
 
       <Tabs defaultValue="live">
@@ -130,7 +145,7 @@ export default async function ScoringPage({ params }: Props) {
                 <ScoringCard
                   key={match.id}
                   match={match}
-                  canScore={isOrganizer}
+                  canScore={canScore}
                 />
               ))}
             </div>
@@ -150,7 +165,7 @@ export default async function ScoringPage({ params }: Props) {
                 <ScoringCard
                   key={match.id}
                   match={match}
-                  canScore={isOrganizer}
+                  canScore={canScore}
                 />
               ))}
             </div>
@@ -172,7 +187,7 @@ export default async function ScoringPage({ params }: Props) {
                 <ScoringCard
                   key={match.id}
                   match={match}
-                  canScore={false}
+                  canScore={canScore}
                 />
               ))}
             </div>

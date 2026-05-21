@@ -130,8 +130,8 @@ export function NewTournamentForm({
                 <Textarea
                   id="description"
                   name="description"
-                  placeholder="Details about the tournament..."
-                  rows={3}
+                  placeholder="Start time, entry fee for the first team, fee for each additional team, format, and other details teams need before registering..."
+                  rows={4}
                 />
               </div>
               <DatePickerField

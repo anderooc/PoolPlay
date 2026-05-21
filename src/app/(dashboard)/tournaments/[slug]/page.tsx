@@ -9,8 +9,12 @@ import {
   registrations,
   teams,
   users,
+  pools,
+  brackets,
+  matches,
+  teamMembers,
 } from "@/lib/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and, count, isNotNull, inArray } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buttonVariants } from "@/components/ui/button";
@@ -19,6 +23,16 @@ import Link from "next/link";
 import { BackLink } from "@/components/layout/back-link";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { isTournamentArchived } from "@/lib/tournament-status";
+import {
+  canEditRegistrations,
+  canEditTournamentSetup,
+  canGeneratePoolsAndBrackets,
+  canRegisterTeams,
+  canCheckInRegistrations,
+  hostChecklistSteps,
+  isTournamentOrganizer,
+} from "@/lib/tournaments/permissions";
+import { getTournamentMatchIds } from "@/lib/tournaments/match-query";
 import { TournamentPageHeading } from "./tournament-page-heading";
 import { DivisionManager } from "./division-manager";
 import { CourtManager } from "./court-manager";
@@ -124,7 +138,76 @@ export default async function TournamentDetailPage({ params }: Props) {
     };
   });
 
-  const isOrganizer = tournament.organizerId === user.id || user.role === "admin";
+  const isOrganizer = isTournamentOrganizer(tournament, user);
+  const canEditSetup =
+    isOrganizer && canEditTournamentSetup(tournament, user);
+  const canManageRegistrations =
+    isOrganizer && canEditRegistrations(tournament, user);
+  const canCheckIn =
+    isOrganizer && canCheckInRegistrations(tournament, user);
+  const canGenerateStructure =
+    isOrganizer && canGeneratePoolsAndBrackets(tournament, user);
+  const showRegisterLink = canRegisterTeams(tournament);
+
+  const [poolRow, bracketRow, captainTeamIds, matchIds] = await Promise.all([
+    db
+      .select({ id: pools.id })
+      .from(pools)
+      .innerJoin(divisions, eq(pools.divisionId, divisions.id))
+      .where(eq(divisions.tournamentId, id))
+      .limit(1),
+    db
+      .select({ id: brackets.id })
+      .from(brackets)
+      .innerJoin(divisions, eq(brackets.divisionId, divisions.id))
+      .where(eq(divisions.tournamentId, id))
+      .limit(1),
+    db
+      .select({ teamId: teamMembers.teamId })
+      .from(teamMembers)
+      .where(
+        and(
+          eq(teamMembers.userId, user.id),
+          eq(teamMembers.role, "captain")
+        )
+      ),
+    getTournamentMatchIds(id),
+  ]);
+
+  let hasScheduledMatches = false;
+  if (matchIds.length > 0) {
+    const [scheduled] = await db
+      .select({ value: count() })
+      .from(matches)
+      .where(
+        and(
+          inArray(matches.id, matchIds),
+          isNotNull(matches.scheduledTime)
+        )
+      );
+    hasScheduledMatches = (scheduled?.value ?? 0) > 0;
+  }
+
+  const pendingCount = tournamentRegistrations.filter(
+    (r) => r.status === "pending"
+  ).length;
+
+  const captainIds = new Set(captainTeamIds.map((r) => r.teamId));
+
+  const checklist = isOrganizer
+    ? hostChecklistSteps({
+        status: tournament.status,
+        description: tournament.description,
+        address: tournament.address,
+        divisionCount: tournamentDivisions.length,
+        courtCount: tournamentCourts.length,
+        registrationCount: tournamentRegistrations.length,
+        pendingCount,
+        hasPools: poolRow.length > 0,
+        hasBracket: bracketRow.length > 0,
+        hasScheduledMatches,
+      })
+    : [];
 
   return (
     <div className="space-y-6">
@@ -140,6 +223,8 @@ export default async function TournamentDetailPage({ params }: Props) {
           date={tournament.date}
           organizerName={organizer?.fullName ?? "Unknown organizer"}
           status={tournament.status}
+          showRegisterLink={showRegisterLink}
+          hostChecklistSteps={checklist}
         />
       ) : (
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -199,7 +284,7 @@ export default async function TournamentDetailPage({ params }: Props) {
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {tournament.status === "registration_open" && (
+            {showRegisterLink && (
               <Link
                 href={`/tournaments/${tournament.slug}/register`}
                 className={buttonVariants({ className: "w-full sm:w-auto" })}
@@ -244,7 +329,7 @@ export default async function TournamentDetailPage({ params }: Props) {
                 name: c.name,
                 divisionIds: c.divisionIds,
               }))}
-              isOrganizer={isOrganizer}
+              isOrganizer={canEditSetup}
             />
           </section>
           <section className="space-y-3">
@@ -259,19 +344,23 @@ export default async function TournamentDetailPage({ params }: Props) {
                 name: c.name,
                 divisionNames: c.divisionNames,
               }))}
-              isOrganizer={isOrganizer}
+              isOrganizer={canEditSetup}
             />
           </section>
         </TabsContent>
 
         <TabsContent value="registrations" className="mt-4">
           <RegistrationList
+            tournamentId={id}
             registrations={tournamentRegistrations}
             divisions={tournamentDivisions.map((d) => ({
               id: d.id,
               name: d.name,
             }))}
-            isOrganizer={isOrganizer}
+            canManageRegistrations={canManageRegistrations}
+            canCheckIn={canCheckIn}
+            canWithdraw={canRegisterTeams(tournament)}
+            captainTeamIds={captainIds}
           />
         </TabsContent>
       </Tabs>

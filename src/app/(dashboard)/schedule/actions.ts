@@ -14,6 +14,8 @@ import {
 import { eq, and, isNull, or, asc } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { requireUser } from "@/lib/auth";
+import { canScheduleMatches } from "@/lib/tournaments/permissions";
+import { getMatchTournamentId } from "@/lib/tournaments/match-query";
 import { autoScheduleMatchesWithCourtSets } from "@/lib/utils/scheduling";
 
 export async function autoScheduleTournament(
@@ -29,8 +31,11 @@ export async function autoScheduleTournament(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || tournament.organizerId !== user.id) {
-    return { error: "Only the organizer can schedule matches" };
+  if (!tournament || !canScheduleMatches(tournament, user)) {
+    return {
+      error:
+        "Matches can only be scheduled after registration closes. Only the organizer can schedule.",
+    };
   }
 
   const tournamentCourts = await db
@@ -138,7 +143,22 @@ export async function updateMatchSchedule(
   courtId: string,
   scheduledTime: string
 ) {
-  await requireUser();
+  const user = await requireUser();
+
+  const tournamentId = await getMatchTournamentId(matchId);
+  if (!tournamentId) {
+    return { error: "Match not found" };
+  }
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || !canScheduleMatches(tournament, user)) {
+    return { error: "Only the organizer can update match schedules during setup." };
+  }
 
   await db
     .update(matches)

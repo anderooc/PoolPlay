@@ -2,14 +2,39 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { matches, sets } from "@/lib/db/schema";
+import { matches, sets, tournaments } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { updateScoreSchema } from "@/lib/validators";
+import { canScoreMatches } from "@/lib/tournaments/permissions";
+import { getMatchTournamentId } from "@/lib/tournaments/match-query";
+
+async function assertCanScoreMatch(matchId: string) {
+  const user = await requireUser();
+  const tournamentId = await getMatchTournamentId(matchId);
+
+  if (!tournamentId) {
+    return { error: "Match not found" as const, user: null, tournament: null };
+  }
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || !canScoreMatches(tournament, user)) {
+    return {
+      error: "Only the organizer can score matches while the event is in progress." as const,
+      user: null,
+      tournament: null,
+    };
+  }
+
+  return { error: null, user, tournament };
+}
 
 export async function updateScore(formData: FormData) {
-  await requireUser();
-
   const parsed = updateScoreSchema.safeParse({
     matchId: formData.get("matchId"),
     setNumber: parseInt(formData.get("setNumber") as string, 10),
@@ -22,6 +47,9 @@ export async function updateScore(formData: FormData) {
   }
 
   const { matchId, setNumber, teamAScore, teamBScore } = parsed.data;
+
+  const gate = await assertCanScoreMatch(matchId);
+  if (gate.error) return { error: gate.error };
 
   const [existing] = await db
     .select()
@@ -43,7 +71,6 @@ export async function updateScore(formData: FormData) {
     });
   }
 
-  // Update match status to in_progress if it's upcoming
   const [match] = await db
     .select()
     .from(matches)
@@ -57,12 +84,13 @@ export async function updateScore(formData: FormData) {
       .where(eq(matches.id, matchId));
   }
 
-  revalidatePath(`/tournaments`);
+  revalidatePath(`/tournaments/[slug]/scoring`, "page");
   return { success: true };
 }
 
 export async function finalizeMatch(matchId: string, winnerId: string) {
-  await requireUser();
+  const gate = await assertCanScoreMatch(matchId);
+  if (gate.error) return { error: gate.error };
 
   await db
     .update(matches)
@@ -73,18 +101,19 @@ export async function finalizeMatch(matchId: string, winnerId: string) {
     })
     .where(eq(matches.id, matchId));
 
-  revalidatePath(`/tournaments`);
+  revalidatePath(`/tournaments/[slug]/scoring`, "page");
   return { success: true };
 }
 
 export async function startMatch(matchId: string) {
-  await requireUser();
+  const gate = await assertCanScoreMatch(matchId);
+  if (gate.error) return { error: gate.error };
 
   await db
     .update(matches)
     .set({ status: "in_progress", updatedAt: new Date() })
     .where(eq(matches.id, matchId));
 
-  revalidatePath(`/tournaments`);
+  revalidatePath(`/tournaments/[slug]/scoring`, "page");
   return { success: true };
 }

@@ -39,6 +39,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { StatusControls } from "./status-controls";
+import { TournamentHostChecklist } from "@/components/tournament-host-checklist";
+import type { HostChecklistStep } from "@/lib/tournaments/permissions";
 import { MapPin, Calendar, User } from "lucide-react";
 
 type DeleteStep = "intro" | "confirm";
@@ -52,6 +54,8 @@ export function TournamentPageHeading({
   date,
   organizerName,
   status,
+  showRegisterLink = false,
+  hostChecklistSteps = [],
 }: {
   tournamentId: string;
   initialSlug: string;
@@ -61,6 +65,8 @@ export function TournamentPageHeading({
   date: string;
   organizerName: string;
   status: string;
+  showRegisterLink?: boolean;
+  hostChecklistSteps?: HostChecklistStep[];
 }) {
   const router = useRouter();
   const [slug, setSlug] = useState(initialSlug);
@@ -304,7 +310,10 @@ export function TournamentPageHeading({
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {status === "registration_open" && (
+        {hostChecklistSteps.length > 0 ? (
+          <TournamentHostChecklist steps={hostChecklistSteps} />
+        ) : null}
+        {showRegisterLink && (
           <Link
             href={`/tournaments/${slug}/register`}
             className={buttonVariants({ className: "w-full sm:w-auto" })}

@@ -13,6 +13,10 @@ import {
   registrations,
 } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
+import {
+  canGeneratePoolsAndBrackets,
+  isTournamentOrganizer,
+} from "@/lib/tournaments/permissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PoolView } from "./pool-view";
 import { BracketView } from "./bracket-view";
@@ -44,7 +48,8 @@ export default async function BracketsPage({ params }: Props) {
     .where(eq(divisions.tournamentId, id))
     .orderBy(asc(divisions.name), asc(divisions.id));
 
-  const isOrganizer = tournament.organizerId === user.id || user.role === "admin";
+  const isOrganizer = isTournamentOrganizer(tournament, user);
+  const canGenerateStructure = canGeneratePoolsAndBrackets(tournament, user);
 
   const divisionData = await Promise.all(
     tournamentDivisions.map(async (div) => {
@@ -180,6 +185,11 @@ export default async function BracketsPage({ params }: Props) {
           Pools &amp; Brackets
         </h1>
         <p className="text-muted-foreground">{tournament.name}</p>
+        {isOrganizer && !canGenerateStructure && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Close registration to generate pools and brackets.
+          </p>
+        )}
       </div>
 
       {tournamentDivisions.length === 0 ? (
@@ -196,7 +206,7 @@ export default async function BracketsPage({ params }: Props) {
 
           {divisionData.map((div) => (
             <TabsContent key={div.id} value={div.id} className="mt-4 space-y-6">
-              {isOrganizer && (
+              {canGenerateStructure && (
                 <GenerateControls
                   tournamentId={id}
                   divisionId={div.id}
@@ -205,7 +215,7 @@ export default async function BracketsPage({ params }: Props) {
                 />
               )}
 
-              {isOrganizer && div.pools.length > 0 && (
+              {canGenerateStructure && div.pools.length > 0 && (
                 <PoolTeamAssignments
                   tournamentId={id}
                   pools={div.pools.map((p) => ({

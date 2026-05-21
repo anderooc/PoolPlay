@@ -11,8 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Check, Loader2 } from "lucide-react";
-import { setRegistrationDivision, updateRegistrationStatus } from "../actions";
+import { Check, Loader2, UserCheck, X } from "lucide-react";
+import {
+  setRegistrationDivision,
+  updateRegistrationStatus,
+} from "../actions";
+import { withdrawRegistration } from "./register/actions";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -37,13 +41,21 @@ type PendingChange = {
 };
 
 export function RegistrationList({
+  tournamentId,
   registrations,
   divisions,
-  isOrganizer,
+  canManageRegistrations,
+  canCheckIn,
+  canWithdraw,
+  captainTeamIds,
 }: {
+  tournamentId: string;
   registrations: Registration[];
   divisions: DivisionOption[];
-  isOrganizer: boolean;
+  canManageRegistrations: boolean;
+  canCheckIn: boolean;
+  canWithdraw: boolean;
+  captainTeamIds: Set<string>;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState<PendingChange | null>(null);
@@ -98,7 +110,6 @@ export function RegistrationList({
           return;
         }
         await router.refresh();
-        // Safety: clear after 8s if props never match
         safetyRef.current = setTimeout(() => {
           safetyRef.current = null;
           setPending((cur) => (cur?.regId === regId ? null : cur));
@@ -111,11 +122,19 @@ export function RegistrationList({
   );
 
   const handleStatusChange = useCallback(
-    async (regId: string, status: "confirmed" | "pending") => {
+    async (
+      regId: string,
+      status: "confirmed" | "pending" | "checked_in"
+    ) => {
       setPending({ regId, expectedDivisionId: null, expectedStatus: status });
       if (safetyRef.current) clearTimeout(safetyRef.current);
       try {
-        await updateRegistrationStatus(regId, status);
+        const result = await updateRegistrationStatus(regId, status);
+        if (result?.error) {
+          setErrorMap((m) => ({ ...m, [regId]: result.error! }));
+          setPending(null);
+          return;
+        }
         await router.refresh();
         safetyRef.current = setTimeout(() => {
           safetyRef.current = null;
@@ -126,6 +145,27 @@ export function RegistrationList({
       }
     },
     [router]
+  );
+
+  const handleWithdraw = useCallback(
+    async (teamId: string) => {
+      setErrorMap((m) => {
+        const next = { ...m };
+        delete next[teamId];
+        return next;
+      });
+      try {
+        const result = await withdrawRegistration(tournamentId, teamId);
+        if (result?.error) {
+          setErrorMap((m) => ({ ...m, [teamId]: result.error! }));
+          return;
+        }
+        await router.refresh();
+      } catch {
+        /* ignore */
+      }
+    },
+    [router, tournamentId]
   );
 
   if (registrations.length === 0) {
@@ -143,7 +183,11 @@ export function RegistrationList({
       {registrations.map((reg) => {
         const isBusy = pending?.regId === reg.id;
         const anyBusy = pending !== null;
-        const rowError = errorMap[reg.id] ?? null;
+        const rowError = errorMap[reg.id] ?? errorMap[reg.teamId] ?? null;
+        const canWithdrawRow =
+          canWithdraw &&
+          (canManageRegistrations || captainTeamIds.has(reg.teamId));
+
         return (
           <div
             key={reg.id}
@@ -165,7 +209,7 @@ export function RegistrationList({
               <p className="text-sm text-muted-foreground">
                 {reg.teamUniversity}
               </p>
-              {isOrganizer && divisions.length > 0 ? (
+              {canManageRegistrations && divisions.length > 0 ? (
                 <div className="mt-2 max-w-xs space-y-1">
                   <Label
                     htmlFor={`division-${reg.id}`}
@@ -218,12 +262,14 @@ export function RegistrationList({
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <Badge
                 variant={
-                  reg.status === "confirmed" ? "default" : "secondary"
+                  reg.status === "confirmed" || reg.status === "checked_in"
+                    ? "default"
+                    : "secondary"
                 }
               >
-                {reg.status}
+                {reg.status.replace(/_/g, " ")}
               </Badge>
-              {isOrganizer && reg.status === "pending" && (
+              {canManageRegistrations && reg.status === "pending" && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -232,6 +278,29 @@ export function RegistrationList({
                 >
                   <Check className="mr-1 h-3 w-3" />
                   Confirm
+                </Button>
+              )}
+              {canCheckIn &&
+                reg.status === "confirmed" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={anyBusy}
+                    onClick={() => handleStatusChange(reg.id, "checked_in")}
+                  >
+                    <UserCheck className="mr-1 h-3 w-3" />
+                    Check in
+                  </Button>
+                )}
+              {canWithdrawRow && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={anyBusy}
+                  onClick={() => handleWithdraw(reg.teamId)}
+                >
+                  <X className="mr-1 h-3 w-3" />
+                  Withdraw
                 </Button>
               )}
             </div>

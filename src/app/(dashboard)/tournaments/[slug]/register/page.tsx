@@ -3,6 +3,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { tournaments, teams, teamMembers, registrations } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
+import {
+  canRegisterTeams,
+  isTournamentOrganizer,
+} from "@/lib/tournaments/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BackLink } from "@/components/layout/back-link";
 import { RegisterForm } from "./register-form";
@@ -30,7 +34,7 @@ export default async function RegisterPage({ params }: Props) {
   const tournament = tournamentRow;
   const id = tournament.id;
 
-  if (tournament.status !== "registration_open") {
+  if (!canRegisterTeams(tournament)) {
     return (
       <div className="space-y-3">
         <BackLink href={`/tournaments/${tournament.slug}`}>
@@ -49,7 +53,7 @@ export default async function RegisterPage({ params }: Props) {
     );
   }
 
-  const isHost = tournament.organizerId === user.id;
+  const isHost = isTournamentOrganizer(tournament, user);
 
   // Run the existing-registrations lookup in parallel with the candidate
   // teams query so both complete in a single round-trip instead of two.

@@ -21,6 +21,12 @@ import { flagBlockedContent } from "@/lib/admin/content-flags";
 import { getHostingTeamForUser } from "@/lib/teams/hosting";
 import { slugify, uniqueSlug } from "@/lib/utils/slug";
 import { isTournamentArchived } from "@/lib/tournament-status";
+import {
+  canCheckInRegistrations,
+  canEditRegistrations,
+  canEditTournamentSetup,
+  isTournamentOrganizer,
+} from "@/lib/tournaments/permissions";
 import type { TournamentStatus } from "@/types";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -123,7 +129,7 @@ export async function renameTournament(tournamentId: string, name: string) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can rename this tournament" };
   }
 
@@ -174,7 +180,7 @@ export async function deleteTournament(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can delete this tournament" };
   }
 
@@ -255,7 +261,7 @@ export async function updateTournamentStatus(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can update tournament status" };
   }
 
@@ -307,7 +313,7 @@ export async function updateTournamentDate(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can change the tournament date" };
   }
 
@@ -340,8 +346,11 @@ export async function addDivision(tournamentId: string, formData: FormData) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
-    return { error: "Only the organizer can add divisions" };
+  if (!tournament || !canEditTournamentSetup(tournament, user)) {
+    return {
+      error:
+        "Divisions cannot be edited in the current tournament stage. Complete setup before the event starts.",
+    };
   }
 
   const parsed = createDivisionSchema.safeParse({
@@ -401,8 +410,8 @@ export async function removeDivision(tournamentId: string, divisionId: string) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
-    return { error: "Only the organizer can remove divisions" };
+  if (!tournament || !canEditTournamentSetup(tournament, user)) {
+    return { error: "Divisions cannot be removed in the current tournament stage." };
   }
 
   await db.delete(divisions).where(eq(divisions.id, divisionId));
@@ -420,8 +429,8 @@ export async function addCourt(tournamentId: string, formData: FormData) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
-    return { error: "Only the organizer can add courts" };
+  if (!tournament || !canEditTournamentSetup(tournament, user)) {
+    return { error: "Courts cannot be edited in the current tournament stage." };
   }
 
   const rawName = formData.get("name");
@@ -467,8 +476,8 @@ export async function removeCourt(tournamentId: string, courtId: string) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
-    return { error: "Only the organizer can remove courts" };
+  if (!tournament || !canEditTournamentSetup(tournament, user)) {
+    return { error: "Courts cannot be removed in the current tournament stage." };
   }
 
   await db.delete(courts).where(eq(courts.id, courtId));
@@ -479,7 +488,7 @@ export async function removeCourt(tournamentId: string, courtId: string) {
 
 export async function updateRegistrationStatus(
   registrationId: string,
-  status: "confirmed" | "pending"
+  status: "confirmed" | "pending" | "checked_in"
 ) {
   const user = await requireUser();
 
@@ -497,8 +506,20 @@ export async function updateRegistrationStatus(
     .where(eq(tournaments.id, reg.tournamentId))
     .limit(1);
 
-  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can update registrations" };
+  }
+
+  if (status === "checked_in") {
+    if (!canCheckInRegistrations(tournament, user)) {
+      return {
+        error: "Teams can only be checked in while the tournament is in progress.",
+      };
+    }
+  } else if (!canEditRegistrations(tournament, user)) {
+    return {
+      error: "Registrations cannot be updated in the current tournament stage.",
+    };
   }
 
   await db
@@ -523,8 +544,8 @@ export async function updateDivision(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
-    return { error: "Only the organizer can edit divisions" };
+  if (!tournament || !canEditTournamentSetup(tournament, user)) {
+    return { error: "Divisions cannot be edited in the current tournament stage." };
   }
 
   const [existingDiv] = await db
@@ -599,8 +620,8 @@ export async function setCourtsForDivision(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
-    return { error: "Only the organizer can assign courts" };
+  if (!tournament || !canEditTournamentSetup(tournament, user)) {
+    return { error: "Court assignments cannot be changed in the current tournament stage." };
   }
 
   const [div] = await db
@@ -672,8 +693,10 @@ export async function setRegistrationDivision(
     .where(eq(tournaments.id, reg.tournamentId))
     .limit(1);
 
-  if (!tournament || (tournament.organizerId !== user.id && !isAdmin(user))) {
-    return { error: "Only the organizer can assign divisions" };
+  if (!tournament || !canEditRegistrations(tournament, user)) {
+    return {
+      error: "Division assignments cannot be changed in the current tournament stage.",
+    };
   }
 
   if (divisionId) {

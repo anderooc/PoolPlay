@@ -11,6 +11,11 @@ import {
 } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
 import { requireUser, isAdmin } from "@/lib/auth";
+import {
+  canRegisterTeams,
+  canWithdrawRegistration,
+  isTournamentOrganizer,
+} from "@/lib/tournaments/permissions";
 
 /** Postgres NOT NULL violation — DB not migrated for nullable division_id yet */
 function isNotNullViolation(e: unknown): boolean {
@@ -41,7 +46,14 @@ export async function registerTeam(tournamentId: string, teamId: string) {
     return { error: "Tournament not found" };
   }
 
-  const isHost = tournament.organizerId === user.id || isAdmin(user);
+  if (!canRegisterTeams(tournament)) {
+    return {
+      error:
+        "Registration is not open for this tournament. Contact the host if you need to sign up.",
+    };
+  }
+
+  const isHost = isTournamentOrganizer(tournament, user);
 
   if (!isHost) {
     const [membership] = await db
@@ -117,5 +129,65 @@ export async function registerTeam(tournamentId: string, teamId: string) {
   }
 
   revalidatePath("/tournaments/[slug]", "page");
+  return { success: true };
+}
+
+export async function withdrawRegistration(
+  tournamentId: string,
+  teamId: string
+) {
+  const user = await requireUser();
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament) {
+    return { error: "Tournament not found" };
+  }
+
+  if (!canWithdrawRegistration(tournament)) {
+    return { error: "Registration can no longer be withdrawn for this event." };
+  }
+
+  const isHost = isTournamentOrganizer(tournament, user);
+
+  if (!isHost) {
+    const [membership] = await db
+      .select()
+      .from(teamMembers)
+      .where(
+        and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, user.id))
+      )
+      .limit(1);
+
+    if (!membership || membership.role !== "captain") {
+      return {
+        error: "Only team captains or the tournament host can withdraw a team",
+      };
+    }
+  }
+
+  const [reg] = await db
+    .select()
+    .from(registrations)
+    .where(
+      and(
+        eq(registrations.tournamentId, tournamentId),
+        eq(registrations.teamId, teamId)
+      )
+    )
+    .limit(1);
+
+  if (!reg) {
+    return { error: "This team is not registered for this tournament" };
+  }
+
+  await db.delete(registrations).where(eq(registrations.id, reg.id));
+
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/register", "page");
   return { success: true };
 }
