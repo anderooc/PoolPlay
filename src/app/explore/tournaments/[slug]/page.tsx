@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { HeaderNav } from "@/components/layout/header-nav";
 import { PoolPlayMark } from "@/components/layout/poolplay-mark";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { getCurrentAuthProfile } from "@/lib/auth";
@@ -46,13 +47,14 @@ export default async function ExploreTournamentPage({ params }: Props) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-40 border-b bg-white/85 backdrop-blur-sm">
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur-sm">
         <div className="container mx-auto flex h-14 items-center justify-between gap-4 px-4">
           <div className="flex min-w-0 items-center gap-4 sm:gap-6">
             <PoolPlayMark href="/" wordmarkClassName="text-lg" />
             <HeaderNav />
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1">
+            <ThemeToggle />
             {authProfile ? (
               <UserMenu
                 fullName={authProfile.fullName}

@@ -2,6 +2,7 @@ import { getCurrentAuthProfile } from "@/lib/auth";
 import { MobileNav } from "./mobile-nav";
 import { HeaderNav } from "./header-nav";
 import { PoolPlayMark } from "./poolplay-mark";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "./user-menu";
 
 export async function Header({ isAdmin = false }: { isAdmin?: boolean }) {
@@ -13,7 +14,10 @@ export async function Header({ isAdmin = false }: { isAdmin?: boolean }) {
       <MobileNav isAdmin={isAdmin} />
       <HeaderNav className="min-w-0" />
       <div className="flex-1" />
-      {user && <UserMenu fullName={user.fullName} email={user.email} />}
+      <div className="flex shrink-0 items-center gap-1">
+        <ThemeToggle />
+        {user && <UserMenu fullName={user.fullName} email={user.email} />}
+      </div>
     </header>
   );
 }

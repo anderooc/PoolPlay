@@ -2,6 +2,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { HeaderNav } from "@/components/layout/header-nav";
 import { PoolPlayMark } from "@/components/layout/poolplay-mark";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Trophy, Users, Calendar, Zap } from "lucide-react";
 import { getCurrentAuthProfile } from "@/lib/auth";
@@ -11,13 +12,14 @@ export default async function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-40 border-b bg-white/85 backdrop-blur-sm transition-[background-color,backdrop-filter] duration-300 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1">
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur-sm transition-[background-color,backdrop-filter] duration-300 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1">
         <div className="container mx-auto flex h-14 items-center justify-between gap-4 px-4 transition-[padding,gap] duration-300 ease-out">
           <div className="flex min-w-0 items-center gap-4 sm:gap-6">
             <PoolPlayMark href="/" wordmarkClassName="text-lg" />
             <HeaderNav />
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1">
+            <ThemeToggle />
             {user ? (
               <UserMenu fullName={user.fullName} email={user.email} />
             ) : (
@@ -39,7 +41,7 @@ export default async function HomePage() {
 
       <main className="flex-1">
         <section className="container mx-auto px-4 py-14 text-center sm:py-20">
-          <div className="mx-auto max-w-4xl rounded-3xl border bg-white/90 px-5 py-10 shadow-md shadow-secondary/5 sm:px-8 sm:py-12 md:px-10">
+          <div className="mx-auto max-w-4xl rounded-3xl border bg-card px-5 py-10 shadow-md shadow-secondary/5 sm:px-8 sm:py-12 md:px-10">
             <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl md:text-6xl">
               <PoolPlayMark
                 wordmarkClassName="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight"
@@ -101,7 +103,7 @@ export default async function HomePage() {
             ].map((feature, idx) => (
               <div
                 key={feature.title}
-                className="space-y-2 rounded-2xl border bg-white/85 p-5 transition-shadow hover:shadow-md"
+                className="space-y-2 rounded-2xl border bg-card p-5 transition-shadow hover:shadow-md"
               >
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-lg ${
