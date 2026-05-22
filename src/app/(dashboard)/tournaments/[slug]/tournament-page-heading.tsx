@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
+  FileText,
   Link2,
   MoreVertical,
   Pencil,
@@ -14,6 +15,7 @@ import {
   renameTournament,
   deleteTournament,
   updateTournamentDate,
+  updateTournamentListingDetails,
 } from "../actions";
 import { formatTournamentDateDisplay } from "@/lib/date-iso";
 import { isTournamentArchived, statusBadgeLabel } from "@/lib/tournament-status";
@@ -22,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { DatePickerField } from "@/components/date-picker";
 import {
   DropdownMenu,
@@ -52,6 +55,7 @@ export function TournamentPageHeading({
   initialName,
   description,
   location,
+  address,
   date,
   organizerName,
   status,
@@ -63,6 +67,7 @@ export function TournamentPageHeading({
   initialName: string;
   description: string | null;
   location: string;
+  address: string | null;
   date: string;
   organizerName: string;
   status: string;
@@ -80,11 +85,35 @@ export function TournamentPageHeading({
   const skipTitleBlurCommit = useRef(false);
   const titleCommitting = useRef(false);
 
-  // Date editing
+  const [listingDescription, setListingDescription] = useState(description);
+  const [listingLocation, setListingLocation] = useState(location);
+  const [listingAddress, setListingAddress] = useState(address ?? "");
+
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [draftDescription, setDraftDescription] = useState(description ?? "");
+  const [draftLocation, setDraftLocation] = useState(location);
+  const [draftAddress, setDraftAddress] = useState(address ?? "");
+  const [detailsSaving, setDetailsSaving] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+
   const [dateOpen, setDateOpen] = useState(false);
   const [draftDate, setDraftDate] = useState(date);
   const [dateSaving, setDateSaving] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setListingDescription(description);
+    setListingLocation(location);
+    setListingAddress(address ?? "");
+  }, [description, location, address]);
+
+  useEffect(() => {
+    if (!detailsOpen) return;
+    setDraftDescription(listingDescription ?? "");
+    setDraftLocation(listingLocation);
+    setDraftAddress(listingAddress);
+    setDetailsError(null);
+  }, [detailsOpen, listingDescription, listingLocation, listingAddress]);
 
   useEffect(() => {
     if (!dateOpen) setDraftDate(date);
@@ -217,6 +246,29 @@ export function TournamentPageHeading({
       ? "default"
       : "secondary";
 
+  async function commitListingDetails() {
+    setDetailsSaving(true);
+    setDetailsError(null);
+    const result = await updateTournamentListingDetails(tournamentId, {
+      description: draftDescription,
+      location: draftLocation,
+      address: draftAddress,
+    });
+    if ("error" in result && result.error) {
+      setDetailsError(result.error);
+      setDetailsSaving(false);
+      return;
+    }
+    if ("success" in result && result.success) {
+      setListingDescription(result.description);
+      setListingLocation(result.location);
+      setListingAddress(result.address ?? "");
+      setDetailsOpen(false);
+      router.refresh();
+    }
+    setDetailsSaving(false);
+  }
+
   async function commitDate() {
     const next = draftDate.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(next)) {
@@ -291,8 +343,11 @@ export function TournamentPageHeading({
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
           <span className="flex items-center gap-1">
-            <MapPin className="h-3.5 w-3.5" />
-            {location}
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            <span>
+              {listingLocation}
+              {listingAddress ? ` · ${listingAddress}` : null}
+            </span>
           </span>
           <span className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5" />
@@ -303,11 +358,6 @@ export function TournamentPageHeading({
             {organizerName}
           </span>
         </div>
-        {description && (
-          <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-            {description}
-          </p>
-        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -367,6 +417,13 @@ export function TournamentPageHeading({
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer"
+                  onClick={() => setDetailsOpen(true)}
+                >
+                  <FileText className="size-4" />
+                  Edit listing details
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
                   onClick={() => setDateOpen(true)}
                 >
                   <CalendarDays className="size-4" />
@@ -406,6 +463,83 @@ export function TournamentPageHeading({
           )}
         </div>
       </div>
+
+      <Dialog
+        open={detailsOpen}
+        onOpenChange={(open) => {
+          if (detailsSaving) return;
+          setDetailsOpen(open);
+          if (!open) setDetailsError(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg" showCloseButton={!detailsSaving}>
+          <DialogHeader>
+            <DialogTitle>Edit listing details</DialogTitle>
+            <DialogDescription>
+              Update the public description, venue, and address. Include entry
+              fees and start time in the description so teams know what to
+              expect.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="listing-description">Description</Label>
+              <Textarea
+                id="listing-description"
+                value={draftDescription}
+                onChange={(e) => setDraftDescription(e.target.value)}
+                disabled={detailsSaving}
+                rows={5}
+                placeholder="Start time, entry fee for the first team, fee for each additional team, format, and other details..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="listing-location">Location</Label>
+              <Input
+                id="listing-location"
+                value={draftLocation}
+                onChange={(e) => setDraftLocation(e.target.value)}
+                disabled={detailsSaving}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="listing-address">Address (optional)</Label>
+              <Input
+                id="listing-address"
+                value={draftAddress}
+                onChange={(e) => setDraftAddress(e.target.value)}
+                disabled={detailsSaving}
+                placeholder="Street address or facility name"
+              />
+            </div>
+          </div>
+          {detailsError && (
+            <p className="text-sm text-destructive" role="alert">
+              {detailsError}
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDetailsOpen(false)}
+              disabled={detailsSaving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void commitListingDetails()}
+              disabled={
+                detailsSaving || draftLocation.trim().length === 0
+              }
+            >
+              {detailsSaving ? "Saving…" : "Save details"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={dateOpen}

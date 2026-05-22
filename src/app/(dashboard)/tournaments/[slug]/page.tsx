@@ -221,6 +221,7 @@ export default async function TournamentDetailPage({ params }: Props) {
           initialName={tournament.name}
           description={tournament.description}
           location={tournament.location}
+          address={tournament.address}
           date={tournament.date}
           organizerName={organizer?.fullName ?? "Unknown organizer"}
           status={tournament.status}
@@ -277,11 +278,6 @@ export default async function TournamentDetailPage({ params }: Props) {
               region={tournament.region}
               className="mt-2"
             />
-            {tournament.description && (
-              <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-                {tournament.description}
-              </p>
-            )}
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-2">

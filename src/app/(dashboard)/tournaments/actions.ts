@@ -168,6 +168,74 @@ export async function renameTournament(tournamentId: string, name: string) {
   return { success: true as const, slug: newSlug };
 }
 
+export async function updateTournamentListingDetails(
+  tournamentId: string,
+  input: {
+    description: string;
+    location: string;
+    address: string;
+  }
+) {
+  const user = await requireUser();
+
+  const parsed = createTournamentSchema
+    .pick({ description: true, location: true, address: true })
+    .safeParse({
+      description: input.description.trim() || undefined,
+      location: input.location.trim(),
+      address: input.address.trim() || undefined,
+    });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid listing details" };
+  }
+
+  const contentError = await flagBlockedContent(user.id, [
+    { area: "tournament.description", text: parsed.data.description },
+    { area: "tournament.location", text: parsed.data.location },
+    { area: "tournament.address", text: parsed.data.address },
+  ]);
+  if (contentError) return { error: contentError };
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+    return { error: "Only the organizer can edit listing details" };
+  }
+
+  const description = parsed.data.description?.trim() || null;
+  const location = parsed.data.location.trim();
+  const address = parsed.data.address?.trim() || null;
+
+  await db
+    .update(tournaments)
+    .set({
+      description,
+      location,
+      address,
+      updatedAt: new Date(),
+    })
+    .where(eq(tournaments.id, tournamentId));
+
+  revalidatePath("/tournaments");
+  revalidatePath("/explore");
+  revalidatePath(`/explore/tournaments/${tournament.slug}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/register", "page");
+
+  return {
+    success: true as const,
+    description,
+    location,
+    address,
+  };
+}
+
 export async function deleteTournament(
   tournamentId: string,
   confirmationName: string
