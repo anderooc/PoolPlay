@@ -151,11 +151,6 @@ function TournamentRow({
               {t.location}
             </span>
           </div>
-          {t.description && (
-            <p className="mt-1 line-clamp-1 text-sm text-muted-foreground/90">
-              {t.description}
-            </p>
-          )}
         </div>
       </div>
     </Link>
