@@ -223,6 +223,8 @@ export default async function TournamentDetailPage({ params }: Props) {
           location={tournament.location}
           address={tournament.address}
           date={tournament.date}
+          gender={tournament.gender}
+          region={tournament.region}
           organizerName={organizer?.fullName ?? "Unknown organizer"}
           status={tournament.status}
           showRegisterLink={showRegisterLink}

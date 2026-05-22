@@ -12,6 +12,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { DatePickerCalendar } from "@/components/date-picker";
@@ -151,6 +152,11 @@ function TournamentRow({
               {t.location}
             </span>
           </div>
+          <TeamAttributesBadges
+            gender={t.gender}
+            region={t.region}
+            className="mt-1.5"
+          />
         </div>
       </div>
     </Link>

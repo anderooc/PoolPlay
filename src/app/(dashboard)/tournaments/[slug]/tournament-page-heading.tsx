@@ -44,7 +44,9 @@ import {
 } from "@/components/ui/dialog";
 import { StatusControls } from "./status-controls";
 import { TournamentHostChecklist } from "@/components/tournament-host-checklist";
+import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import type { HostChecklistStep } from "@/lib/tournaments/permissions";
+import type { TeamGender, TeamRegion } from "@/types";
 import { MapPin, Calendar, User } from "lucide-react";
 
 type DeleteStep = "intro" | "confirm";
@@ -57,6 +59,8 @@ export function TournamentPageHeading({
   location,
   address,
   date,
+  gender,
+  region,
   organizerName,
   status,
   showRegisterLink = false,
@@ -69,6 +73,8 @@ export function TournamentPageHeading({
   location: string;
   address: string | null;
   date: string;
+  gender: TeamGender;
+  region: TeamRegion;
   organizerName: string;
   status: string;
   showRegisterLink?: boolean;
@@ -358,6 +364,11 @@ export function TournamentPageHeading({
             {organizerName}
           </span>
         </div>
+        <TeamAttributesBadges
+          gender={gender}
+          region={region}
+          className="mt-2"
+        />
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
