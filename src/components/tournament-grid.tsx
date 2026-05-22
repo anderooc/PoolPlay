@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/popover";
 import {
   formatISODateLabel,
+  formatTournamentDateDisplay,
   parseISODate,
   toISODate,
 } from "@/lib/date-iso";
@@ -93,14 +94,7 @@ function statusVariant(
 }
 
 function formatDate(dateStr: string) {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return date.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatTournamentDateDisplay(dateStr, { weekday: true });
 }
 
 interface DateGroup {

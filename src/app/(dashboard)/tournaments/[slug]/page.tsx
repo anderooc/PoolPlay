@@ -22,6 +22,7 @@ import { MapPin, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { BackLink } from "@/components/layout/back-link";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
+import { formatTournamentDateDisplay } from "@/lib/date-iso";
 import { isTournamentArchived } from "@/lib/tournament-status";
 import {
   canEditRegistrations,
@@ -264,7 +265,7 @@ export default async function TournamentDetailPage({ params }: Props) {
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                {tournament.date}
+                {formatTournamentDateDisplay(tournament.date)}
               </span>
               <span className="flex items-center gap-1">
                 <User className="h-3.5 w-3.5" />

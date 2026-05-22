@@ -46,3 +46,16 @@ export function formatISODateLabel(
 ): string {
   return parseISODate(iso).toLocaleDateString(undefined, options);
 }
+
+/** UI display for tournament dates: month/day first, year last (e.g. May 20, 2026). */
+export function formatTournamentDateDisplay(
+  iso: string,
+  options: { weekday?: boolean } = {}
+): string {
+  return parseISODate(iso).toLocaleDateString("en-US", {
+    ...(options.weekday ? { weekday: "long" } : {}),
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}

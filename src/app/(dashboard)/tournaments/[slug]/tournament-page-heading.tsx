@@ -15,6 +15,7 @@ import {
   deleteTournament,
   updateTournamentDate,
 } from "../actions";
+import { formatTournamentDateDisplay } from "@/lib/date-iso";
 import { isTournamentArchived, statusBadgeLabel } from "@/lib/tournament-status";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -295,7 +296,7 @@ export function TournamentPageHeading({
           </span>
           <span className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5" />
-            {date}
+            {formatTournamentDateDisplay(date)}
           </span>
           <span className="flex items-center gap-1">
             <User className="h-3.5 w-3.5" />

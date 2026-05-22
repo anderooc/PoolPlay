@@ -11,6 +11,7 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { getCurrentAuthProfile } from "@/lib/auth";
 import { isTournamentPublishedForPublic } from "@/lib/tournaments/permissions";
+import { formatTournamentDateDisplay } from "@/lib/date-iso";
 import {
   isTournamentArchived,
   statusBadgeLabel,
@@ -99,7 +100,7 @@ export default async function ExploreTournamentPage({ params }: Props) {
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                {tournament.date}
+                {formatTournamentDateDisplay(tournament.date)}
               </span>
               <span className="flex items-center gap-1">
                 <User className="h-3.5 w-3.5" />
