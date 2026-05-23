@@ -1,6 +1,7 @@
+import { TEAM_GENDER_LABELS } from "@/lib/constants/team";
 import { isAdmin } from "@/lib/auth";
 import { isTournamentArchived } from "@/lib/tournament-status";
-import type { TournamentStatus } from "@/types";
+import type { TeamGender, TournamentStatus } from "@/types";
 
 /** Fields required for permission checks across server and client. */
 export type TournamentForPermissions = {
@@ -42,6 +43,19 @@ export function canRegisterTeams(
 ): boolean {
   if (isTournamentArchived(tournament.date)) return false;
   return tournament.status === "registration_open";
+}
+
+export function teamMatchesTournamentGender(
+  teamGender: TeamGender,
+  tournamentGender: TeamGender
+): boolean {
+  return teamGender === tournamentGender;
+}
+
+export function registrationGenderMismatchMessage(
+  tournamentGender: TeamGender
+): string {
+  return `Only ${TEAM_GENDER_LABELS[tournamentGender]} teams can register for this tournament.`;
 }
 
 export function canEditTournamentSetup(

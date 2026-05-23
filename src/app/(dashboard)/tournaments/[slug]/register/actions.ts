@@ -15,6 +15,8 @@ import {
   canRegisterTeams,
   canWithdrawRegistration,
   isTournamentOrganizer,
+  registrationGenderMismatchMessage,
+  teamMatchesTournamentGender,
 } from "@/lib/tournaments/permissions";
 
 /** Postgres NOT NULL violation — DB not migrated for nullable division_id yet */
@@ -53,6 +55,20 @@ export async function registerTeam(tournamentId: string, teamId: string) {
     };
   }
 
+  const [team] = await db
+    .select({ id: teams.id, gender: teams.gender })
+    .from(teams)
+    .where(eq(teams.id, teamId))
+    .limit(1);
+
+  if (!team) {
+    return { error: "Team not found" };
+  }
+
+  if (!teamMatchesTournamentGender(team.gender, tournament.gender)) {
+    return { error: registrationGenderMismatchMessage(tournament.gender) };
+  }
+
   const isHost = isTournamentOrganizer(tournament, user);
 
   if (!isHost) {
@@ -68,16 +84,6 @@ export async function registerTeam(tournamentId: string, teamId: string) {
         error:
           "Only team captains or the tournament host can register teams for this event",
       };
-    }
-  } else {
-    const [team] = await db
-      .select({ id: teams.id })
-      .from(teams)
-      .where(eq(teams.id, teamId))
-      .limit(1);
-
-    if (!team) {
-      return { error: "Team not found" };
     }
   }
 

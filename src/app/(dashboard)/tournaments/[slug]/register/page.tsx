@@ -3,10 +3,12 @@ import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { tournaments, teams, teamMembers, registrations } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
+import { formatTeamGender } from "@/lib/labels/team";
 import {
   canRegisterTeams,
   isTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
+import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BackLink } from "@/components/layout/back-link";
 import { RegisterForm } from "./register-form";
@@ -54,6 +56,7 @@ export default async function RegisterPage({ params }: Props) {
   }
 
   const isHost = isTournamentOrganizer(tournament, user);
+  const tournamentGenderLabel = formatTeamGender(tournament.gender);
 
   // Run the existing-registrations lookup in parallel with the candidate
   // teams query so both complete in a single round-trip instead of two.
@@ -70,6 +73,7 @@ export default async function RegisterPage({ params }: Props) {
             university: teams.university,
           })
           .from(teams)
+          .where(eq(teams.gender, tournament.gender))
           .orderBy(asc(teams.name))
       : db
           .select({
@@ -82,7 +86,8 @@ export default async function RegisterPage({ params }: Props) {
           .where(
             and(
               eq(teamMembers.userId, user.id),
-              eq(teamMembers.role, "captain")
+              eq(teamMembers.role, "captain"),
+              eq(teams.gender, tournament.gender)
             )
           ),
   ]);
@@ -93,8 +98,8 @@ export default async function RegisterPage({ params }: Props) {
   );
 
   const emptyMessage = isHost
-    ? "Every team is already registered for this tournament, or no teams exist in PoolPlay yet."
-    : "You don't have any teams eligible to register. Either all your teams are already registered, or you need to be a team captain. The tournament host can register teams on your behalf.";
+    ? `Every ${tournamentGenderLabel} team is already registered, or no matching teams exist in PoolPlay yet.`
+    : `You don't have any ${tournamentGenderLabel} teams eligible to register. Captain a matching team that isn't already signed up, or ask the host to add your team.`;
 
   return (
     <div className="space-y-3">
@@ -107,11 +112,20 @@ export default async function RegisterPage({ params }: Props) {
             <CardTitle>
               {isHost ? "Add teams to" : "Register for"} {tournament.name}
             </CardTitle>
-            {isHost && (
-              <p className="text-sm text-muted-foreground">
-                As host, you can register any team for this tournament. Division
-                and pool placement can be set later from the tournament page, and
+            <TeamAttributesBadges
+              gender={tournament.gender}
+              region={tournament.region}
+              className="mt-2"
+            />
+            {isHost ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Only {tournamentGenderLabel} teams can be added. Division and
+                pool placement can be set later from the tournament page, and
                 host-added teams are confirmed automatically.
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Only {tournamentGenderLabel} teams can register for this event.
               </p>
             )}
           </CardHeader>
