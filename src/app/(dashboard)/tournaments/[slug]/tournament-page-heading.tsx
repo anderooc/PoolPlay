@@ -569,7 +569,10 @@ export function TournamentPageHeading({
           if (!open) setDateError(null);
         }}
       >
-        <DialogContent className="sm:max-w-sm" showCloseButton={!dateSaving}>
+        <DialogContent
+          className="overflow-visible sm:max-w-sm"
+          showCloseButton={!dateSaving}
+        >
           <DialogHeader>
             <DialogTitle>Edit tournament date</DialogTitle>
             <DialogDescription>

@@ -1,15 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   formatISODateLabel,
   getCalendarMonthBounds,
@@ -117,6 +112,7 @@ export function DatePickerField({
   rangeFromDates = [],
   className,
 }: DatePickerFieldProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(() =>
     value ? parseISODate(value) : new Date()
@@ -135,6 +131,23 @@ export function DatePickerField({
     setMonth(value ? parseISODate(value) : new Date());
   }, [open, value]);
 
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: PointerEvent) {
+      if (containerRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
   function handleSelect(date: Date | undefined) {
     if (!date) return;
     onChange(toISODate(date));
@@ -150,38 +163,43 @@ export function DatePickerField({
         <input type="hidden" name={name} value={value} required={required} />
       )}
       {label && <Label htmlFor={id}>{label}</Label>}
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger
-          render={
-            <Button
-              id={id}
-              type="button"
-              variant="outline"
-              disabled={disabled}
-              className={cn(
-                "w-full justify-start font-normal",
-                !value && "text-muted-foreground"
-              )}
-            >
-              <CalendarIcon className="h-4 w-4" />
-              {displayLabel}
-            </Button>
-          }
-        />
-        <PopoverContent className="w-auto p-1.5" align="start">
-          <DatePickerCalendar
-            selected={value ? parseISODate(value) : undefined}
-            onSelect={handleSelect}
-            markedDates={markedDates}
-            rangeFromDates={
-              value ? [...rangeFromDates, value] : rangeFromDates
-            }
-            month={month}
-            onMonthChange={setMonth}
-            autoFocus
-          />
-        </PopoverContent>
-      </Popover>
+      <div ref={containerRef} className="relative">
+        <Button
+          id={id}
+          type="button"
+          variant="outline"
+          disabled={disabled}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          className={cn(
+            "w-full justify-start font-normal",
+            !value && "text-muted-foreground"
+          )}
+          onClick={() => setOpen((prev) => !prev)}
+        >
+          <CalendarIcon className="h-4 w-4" />
+          {displayLabel}
+        </Button>
+        {open && (
+          <div
+            className="absolute top-[calc(100%+4px)] left-0 z-50 w-auto rounded-lg border bg-popover p-1.5 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+            role="dialog"
+            aria-label="Choose date"
+          >
+            <DatePickerCalendar
+              selected={value ? parseISODate(value) : undefined}
+              onSelect={handleSelect}
+              markedDates={markedDates}
+              rangeFromDates={
+                value ? [...rangeFromDates, value] : rangeFromDates
+              }
+              month={month}
+              onMonthChange={setMonth}
+              autoFocus
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
