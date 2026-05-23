@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { BackLink } from "@/components/layout/back-link";
 import { TeamAttributeFields } from "@/components/team-attribute-fields";
 import { createTeam } from "../actions";
 
@@ -33,7 +34,9 @@ export default function NewTeamPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="space-y-3">
+      <BackLink href="/teams">All teams</BackLink>
+      <div className="mx-auto max-w-lg">
       <Card>
         <CardHeader>
           <CardTitle>Create Team</CardTitle>
@@ -64,6 +67,7 @@ export default function NewTeamPage() {
           </form>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

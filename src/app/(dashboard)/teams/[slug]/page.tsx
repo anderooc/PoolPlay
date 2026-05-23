@@ -6,9 +6,11 @@ import { eq, and } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { BackLink } from "@/components/layout/back-link";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { AddMemberForm } from "./add-member-form";
 import { RosterRow } from "./roster-row";
+import { TeamDeleteButton } from "./team-delete-button";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -47,14 +49,20 @@ export default async function TeamDetailPage({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{team.name}</h1>
-        <p className="text-muted-foreground">{team.university}</p>
-        <TeamAttributesBadges
-          gender={team.gender}
-          region={team.region}
-          className="mt-2"
-        />
+      <BackLink href="/teams">All teams</BackLink>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight">{team.name}</h1>
+          <p className="text-muted-foreground">{team.university}</p>
+          <TeamAttributesBadges
+            gender={team.gender}
+            region={team.region}
+            className="mt-2"
+          />
+        </div>
+        {isCaptain && (
+          <TeamDeleteButton teamId={id} teamName={team.name} />
+        )}
       </div>
 
       <Card>

@@ -159,6 +159,33 @@ export async function removeTeamMember(teamId: string, memberId: string) {
   return { success: true };
 }
 
+export async function deleteTeam(teamId: string) {
+  const user = await requireUser();
+
+  const [membership] = await db
+    .select()
+    .from(teamMembers)
+    .where(
+      and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, user.id))
+    )
+    .limit(1);
+
+  if (!isAdmin(user) && (!membership || membership.role !== "captain")) {
+    return { error: "Only team captains can delete this team" };
+  }
+
+  try {
+    await db.delete(teams).where(eq(teams.id, teamId));
+  } catch {
+    return { error: "Could not delete team. Try again." };
+  }
+
+  revalidatePath("/teams");
+  revalidatePath("/admin/teams");
+  revalidatePath("/admin");
+  return { success: true as const };
+}
+
 export async function updateJerseyNumber(
   memberId: string,
   jerseyNumber: number | null
