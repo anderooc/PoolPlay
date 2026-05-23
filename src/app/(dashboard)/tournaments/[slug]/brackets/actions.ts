@@ -14,9 +14,55 @@ import {
 } from "@/lib/db/schema";
 import { eq, and, count, ne, asc } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
-import { canGeneratePoolsAndBrackets } from "@/lib/tournaments/permissions";
+import type { UserForPermissions } from "@/lib/tournaments/permissions";
+import {
+  canAssignTeamsToPools,
+  canGeneratePoolsAndBrackets,
+  poolAssignmentBlockedMessage,
+} from "@/lib/tournaments/permissions";
 import { generatePools, generatePoolMatches } from "@/lib/utils/pool";
 import { generateSingleEliminationBracket } from "@/lib/utils/bracket";
+
+async function assertCanAssignTeamsToPools(
+  tournamentId: string,
+  user: UserForPermissions
+) {
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament) {
+    return { error: "Tournament not found" as const };
+  }
+
+  const [{ value: pendingCount }] = await db
+    .select({ value: count() })
+    .from(registrations)
+    .where(
+      and(
+        eq(registrations.tournamentId, tournamentId),
+        eq(registrations.status, "pending")
+      )
+    );
+
+  const pending = pendingCount ?? 0;
+
+  const blocked = poolAssignmentBlockedMessage(pending);
+  if (blocked) {
+    return { error: blocked };
+  }
+
+  if (!canAssignTeamsToPools(tournament, user, pending)) {
+    return {
+      error:
+        "Pools can only be assigned after registration closes. Only the organizer can assign pools.",
+    };
+  }
+
+  return { tournament };
+}
 
 /** Sets pool_teams.seed = 1..n sorted by division roster order (registration time, then team name). */
 async function reseedPoolTeamsByDivisionOrder(
@@ -73,17 +119,9 @@ export async function generatePoolsForDivision(
 ) {
   const user = await requireUser();
 
-  const [tournament] = await db
-    .select()
-    .from(tournaments)
-    .where(eq(tournaments.id, tournamentId))
-    .limit(1);
-
-  if (!tournament || !canGeneratePoolsAndBrackets(tournament, user)) {
-    return {
-      error:
-        "Pools can only be generated after registration closes. Only the organizer can generate pools.",
-    };
+  const gate = await assertCanAssignTeamsToPools(tournamentId, user);
+  if ("error" in gate) {
+    return { error: gate.error };
   }
 
   const divRegs = await db
@@ -257,18 +295,13 @@ export async function addTeamToPool(
 
   if (!division) return { error: "Division not found" };
 
-  const [tournament] = await db
-    .select()
-    .from(tournaments)
-    .where(eq(tournaments.id, division.tournamentId))
-    .limit(1);
-
-  if (!tournament || !canGeneratePoolsAndBrackets(tournament, user)) {
-    return { error: "Only the organizer can assign teams to pools during setup." };
+  if (division.tournamentId !== tournamentId) {
+    return { error: "Tournament mismatch" };
   }
 
-  if (tournament.id !== tournamentId) {
-    return { error: "Tournament mismatch" };
+  const gate = await assertCanAssignTeamsToPools(tournamentId, user);
+  if ("error" in gate) {
+    return { error: gate.error };
   }
 
   const [{ value: matchCount }] = await db
@@ -369,18 +402,13 @@ export async function removeTeamFromPool(
 
   if (!division) return { error: "Division not found" };
 
-  const [tournament] = await db
-    .select()
-    .from(tournaments)
-    .where(eq(tournaments.id, division.tournamentId))
-    .limit(1);
-
-  if (!tournament || !canGeneratePoolsAndBrackets(tournament, user)) {
-    return { error: "Only the organizer can change pool assignments during setup." };
+  if (division.tournamentId !== tournamentId) {
+    return { error: "Tournament mismatch" };
   }
 
-  if (tournament.id !== tournamentId) {
-    return { error: "Tournament mismatch" };
+  const gate = await assertCanAssignTeamsToPools(tournamentId, user);
+  if ("error" in gate) {
+    return { error: gate.error };
   }
 
   const [{ value: matchCount }] = await db

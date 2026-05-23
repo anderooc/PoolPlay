@@ -12,10 +12,12 @@ import {
   teams,
   registrations,
 } from "@/lib/db/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, count } from "drizzle-orm";
 import {
+  canAssignTeamsToPools,
   canGeneratePoolsAndBrackets,
   isTournamentOrganizer,
+  poolAssignmentBlockedMessage,
 } from "@/lib/tournaments/permissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PoolView } from "./pool-view";
@@ -50,6 +52,20 @@ export default async function BracketsPage({ params }: Props) {
 
   const isOrganizer = isTournamentOrganizer(tournament, user);
   const canGenerateStructure = canGeneratePoolsAndBrackets(tournament, user);
+
+  const [{ value: pendingRegistrationCount }] = await db
+    .select({ value: count() })
+    .from(registrations)
+    .where(
+      and(
+        eq(registrations.tournamentId, id),
+        eq(registrations.status, "pending")
+      )
+    );
+
+  const pendingCount = pendingRegistrationCount ?? 0;
+  const canAssignPools = canAssignTeamsToPools(tournament, user, pendingCount);
+  const poolAssignmentBlocked = poolAssignmentBlockedMessage(pendingCount);
 
   const divisionData = await Promise.all(
     tournamentDivisions.map(async (div) => {
@@ -190,6 +206,11 @@ export default async function BracketsPage({ params }: Props) {
             Close registration to generate pools and brackets.
           </p>
         )}
+        {isOrganizer && canGenerateStructure && poolAssignmentBlocked && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            {poolAssignmentBlocked}
+          </p>
+        )}
       </div>
 
       {tournamentDivisions.length === 0 ? (
@@ -212,10 +233,12 @@ export default async function BracketsPage({ params }: Props) {
                   divisionId={div.id}
                   divisionFormat={div.format}
                   hasPools={div.pools.length > 0}
+                  canAssignPools={canAssignPools}
+                  poolAssignmentBlocked={poolAssignmentBlocked}
                 />
               )}
 
-              {canGenerateStructure && div.pools.length > 0 && (
+              {canAssignPools && div.pools.length > 0 && (
                 <PoolTeamAssignments
                   tournamentId={id}
                   pools={div.pools.map((p) => ({

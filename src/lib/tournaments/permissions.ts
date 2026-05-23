@@ -93,6 +93,25 @@ export function canGeneratePoolsAndBrackets(
   return tournament.status === "registration_closed";
 }
 
+/** Manual pool placement and pool generation require confirmed registrations. */
+export function canAssignTeamsToPools(
+  tournament: TournamentForPermissions,
+  user: UserForPermissions,
+  pendingRegistrationCount: number
+): boolean {
+  if (!canGeneratePoolsAndBrackets(tournament, user)) return false;
+  return pendingRegistrationCount === 0;
+}
+
+export function poolAssignmentBlockedMessage(
+  pendingRegistrationCount: number
+): string | null {
+  if (pendingRegistrationCount > 0) {
+    return "Confirm all registered teams before assigning pools.";
+  }
+  return null;
+}
+
 export function canScheduleMatches(
   tournament: TournamentForPermissions,
   user: UserForPermissions
@@ -232,7 +251,7 @@ export function hostChecklistSteps(input: {
       id: "structure",
       label: "Assign divisions and generate pools",
       done: hasPools,
-      hint: "Close registration, assign divisions, then generate pools.",
+      hint: "Confirm teams, close registration, assign divisions, then generate pools.",
     },
     {
       id: "bracket",

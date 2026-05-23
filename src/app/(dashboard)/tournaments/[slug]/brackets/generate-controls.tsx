@@ -12,11 +12,15 @@ export function GenerateControls({
   divisionId,
   divisionFormat,
   hasPools,
+  canAssignPools,
+  poolAssignmentBlocked,
 }: {
   tournamentId: string;
   divisionId: string;
   divisionFormat: string;
   hasPools: boolean;
+  canAssignPools: boolean;
+  poolAssignmentBlocked: string | null;
 }) {
   const [poolCount, setPoolCount] = useState(4);
   const [loading, setLoading] = useState(false);
@@ -70,7 +74,11 @@ export function GenerateControls({
                 className="w-20"
               />
             </div>
-            <Button onClick={handleGeneratePools} disabled={loading}>
+            <Button
+              onClick={handleGeneratePools}
+              disabled={loading || !canAssignPools}
+              title={poolAssignmentBlocked ?? undefined}
+            >
               {loading ? "Generating..." : "Generate Pools"}
             </Button>
           </div>
@@ -81,6 +89,12 @@ export function GenerateControls({
           <Button onClick={handleGenerateBracket} disabled={loading}>
             {loading ? "Generating..." : "Generate Bracket"}
           </Button>
+        )}
+
+        {!canAssignPools && poolAssignmentBlocked && (
+          <p className="text-sm text-muted-foreground w-full">
+            {poolAssignmentBlocked}
+          </p>
         )}
 
         {error && <p className="text-sm text-destructive w-full">{error}</p>}
