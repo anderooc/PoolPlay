@@ -21,7 +21,6 @@ export default async function TeamsPage() {
       slug: teams.slug,
       name: teams.name,
       university: teams.university,
-      season: teams.season,
       gender: teams.gender,
       region: teams.region,
       role: teamMembers.role,
@@ -86,11 +85,6 @@ export default async function TeamsPage() {
                     region={team.region}
                     className="mt-2"
                   />
-                  {team.season && (
-                    <p className="mt-1 text-sm text-muted-foreground/80">
-                      {team.season}
-                    </p>
-                  )}
                 </CardContent>
               </Card>
             </Link>

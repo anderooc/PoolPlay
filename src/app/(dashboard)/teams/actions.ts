@@ -18,7 +18,6 @@ export async function createTeam(formData: FormData) {
     university: formData.get("university"),
     gender: formData.get("gender"),
     region: formData.get("region"),
-    season: formData.get("season") || undefined,
   });
 
   if (!parsed.success) {
@@ -28,7 +27,6 @@ export async function createTeam(formData: FormData) {
   const teamContentError = await flagBlockedContent(user.id, [
     { area: "team.name", text: parsed.data.name },
     { area: "team.university", text: parsed.data.university },
-    { area: "team.season", text: parsed.data.season },
   ]);
   if (teamContentError) return { error: teamContentError };
 
@@ -69,7 +67,6 @@ export async function createTeam(formData: FormData) {
       university: parsed.data.university,
       gender: parsed.data.gender,
       region: parsed.data.region,
-      season: parsed.data.season || null,
     })
     .returning();
 

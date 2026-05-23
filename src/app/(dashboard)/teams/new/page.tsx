@@ -57,10 +57,6 @@ export default function NewTeamPage() {
               />
             </div>
             <TeamAttributeFields />
-            <div className="space-y-2">
-              <Label htmlFor="season">Season (optional)</Label>
-              <Input id="season" name="season" placeholder="Spring 2026" />
-            </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Creating..." : "Create Team"}

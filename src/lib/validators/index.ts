@@ -24,7 +24,6 @@ export const createTeamSchema = z.object({
   university: z.string().min(1, "University is required"),
   gender: z.enum(TEAM_GENDERS, { message: "Select men's or women's" }),
   region: z.enum(TEAM_REGIONS, { message: "Select a region" }),
-  season: z.string().optional(),
 });
 
 export const createTournamentSchema = z.object({

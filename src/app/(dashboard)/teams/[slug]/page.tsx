@@ -49,10 +49,7 @@ export default async function TeamDetailPage({ params }: Props) {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{team.name}</h1>
-        <p className="text-muted-foreground">
-          {team.university}
-          {team.season && ` \u00B7 ${team.season}`}
-        </p>
+        <p className="text-muted-foreground">{team.university}</p>
         <TeamAttributesBadges
           gender={team.gender}
           region={team.region}

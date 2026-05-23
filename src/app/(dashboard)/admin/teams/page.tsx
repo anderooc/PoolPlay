@@ -37,7 +37,6 @@ export default async function AdminTeamsPage({ searchParams }: Props) {
       name: teams.name,
       slug: teams.slug,
       university: teams.university,
-      season: teams.season,
       memberCount: count(teamMembers.id),
     })
     .from(teams)
@@ -66,7 +65,6 @@ export default async function AdminTeamsPage({ searchParams }: Props) {
             <TableRow>
               <TableHead>Team</TableHead>
               <TableHead>University</TableHead>
-              <TableHead>Season</TableHead>
               <TableHead className="text-right">Members</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>

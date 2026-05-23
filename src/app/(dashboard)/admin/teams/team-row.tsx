@@ -24,7 +24,6 @@ interface Props {
     name: string;
     slug: string;
     university: string;
-    season: string | null;
     memberCount: number;
   };
 }
@@ -84,9 +83,6 @@ export function TeamRow({ team }: Props) {
           </Link>
         </TableCell>
         <TableCell className="text-muted-foreground">{team.university}</TableCell>
-        <TableCell className="text-muted-foreground">
-          {team.season ?? "—"}
-        </TableCell>
         <TableCell className="text-right tabular-nums">
           {team.memberCount}
         </TableCell>
