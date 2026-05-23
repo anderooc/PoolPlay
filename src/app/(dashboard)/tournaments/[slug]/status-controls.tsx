@@ -40,6 +40,16 @@ export function StatusControls({
   const router = useRouter();
   const [blocking, setBlocking] = useState(false);
 
+  const value = useMemo((): TournamentStatus => {
+    const v = currentStatus as TournamentStatus;
+    return STATUS_OPTIONS.some((o) => o.value === v) ? v : "draft";
+  }, [currentStatus]);
+
+  const [displayStatus, setOptimisticStatus] = useOptimistic(
+    value,
+    (_current, next: TournamentStatus) => next
+  );
+
   if (archived) {
     return (
       <Badge
@@ -52,16 +62,6 @@ export function StatusControls({
       </Badge>
     );
   }
-
-  const value = useMemo((): TournamentStatus => {
-    const v = currentStatus as TournamentStatus;
-    return STATUS_OPTIONS.some((o) => o.value === v) ? v : "draft";
-  }, [currentStatus]);
-
-  const [displayStatus, setOptimisticStatus] = useOptimistic(
-    value,
-    (_current, next: TournamentStatus) => next
-  );
 
   function onChange(next: TournamentStatus) {
     setBlocking(true);
