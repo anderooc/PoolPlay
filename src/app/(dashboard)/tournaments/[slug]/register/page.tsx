@@ -107,7 +107,7 @@ export default async function RegisterPage({ params }: Props) {
         Back to tournament
       </BackLink>
       <div className="mx-auto max-w-lg">
-        <Card>
+        <Card className="overflow-visible">
           <CardHeader>
             <CardTitle>
               {isHost ? "Add teams to" : "Register for"} {tournament.name}
@@ -119,17 +119,18 @@ export default async function RegisterPage({ params }: Props) {
             />
             {isHost ? (
               <p className="mt-2 text-sm text-muted-foreground">
-                Only {tournamentGenderLabel} teams can be added. Division and
-                pool placement can be set later from the tournament page, and
+                Select one or more {tournamentGenderLabel} teams to add. Division
+                and pool placement can be set later from the tournament page, and
                 host-added teams are confirmed automatically.
               </p>
             ) : (
               <p className="mt-2 text-sm text-muted-foreground">
-                Only {tournamentGenderLabel} teams can register for this event.
+                Select one or more {tournamentGenderLabel} teams to register for
+                this event.
               </p>
             )}
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-visible">
             {availableTeams.length === 0 ? (
               <p className="text-sm text-muted-foreground">{emptyMessage}</p>
             ) : (
