@@ -369,6 +369,15 @@ export function TournamentPageHeading({
           region={region}
           className="mt-2"
         />
+        {listingDescription ? (
+          <p className="mt-3 max-w-2xl whitespace-pre-wrap text-sm text-muted-foreground">
+            {listingDescription}
+          </p>
+        ) : (
+          <p className="mt-3 max-w-2xl text-sm italic text-muted-foreground/80">
+            No description yet. Use the menu to edit listing details.
+          </p>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">

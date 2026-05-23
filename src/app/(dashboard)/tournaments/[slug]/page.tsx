@@ -280,6 +280,11 @@ export default async function TournamentDetailPage({ params }: Props) {
               region={tournament.region}
               className="mt-2"
             />
+            {tournament.description && (
+              <p className="mt-3 max-w-2xl whitespace-pre-wrap text-sm text-muted-foreground">
+                {tournament.description}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-2">
