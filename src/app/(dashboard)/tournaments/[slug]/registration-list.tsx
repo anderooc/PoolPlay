@@ -300,7 +300,7 @@ export function RegistrationList({
                   onClick={() => handleWithdraw(reg.teamId)}
                 >
                   <X className="mr-1 h-3 w-3" />
-                  Withdraw
+                  {canManageRegistrations ? "Delete" : "Withdraw"}
                 </Button>
               )}
             </div>

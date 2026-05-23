@@ -55,7 +55,10 @@ export function RegisterForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label>Team</Label>
-        <Select value={teamId} onValueChange={(v) => setTeamId(v ?? "")}>
+        <Select
+          value={teamId || null}
+          onValueChange={(v) => setTeamId(v ?? "")}
+        >
           <SelectTrigger className="w-full">
             <SelectValue>
               {(value) => {
@@ -71,7 +74,7 @@ export function RegisterForm({
               }}
             </SelectValue>
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent side="bottom" alignItemWithTrigger={false}>
             {teams.map((team) => (
               <SelectItem
                 key={team.id}
