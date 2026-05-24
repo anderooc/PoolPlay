@@ -209,7 +209,8 @@ function ChronologicalSchedule({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Map<string, HTMLElement>>(new Map());
-  const layoutReadyRef = useRef(false);
+  const layoutInitializedRef = useRef(false);
+  const [layoutReady, setLayoutReady] = useState(false);
   const [wheelActivity, setWheelActivity] = useState(0);
   const registerWheelActivity = useCallback(() => {
     setWheelActivity((n) => n + 1);
@@ -236,13 +237,14 @@ function ChronologicalSchedule({
     if (!stack || !el) return;
     const offset = SCHEDULE_TOP_INSET - el.offsetTop;
 
-    if (!layoutReadyRef.current) {
+    if (!layoutInitializedRef.current) {
       stack.style.transition = "none";
       stack.style.transform = `translateY(${offset}px)`;
       void stack.offsetHeight;
       stack.style.transition =
         "transform 320ms cubic-bezier(0.22, 1, 0.36, 1)";
-      layoutReadyRef.current = true;
+      layoutInitializedRef.current = true;
+      queueMicrotask(() => setLayoutReady(true));
     } else {
       stack.style.transform = `translateY(${offset}px)`;
     }
@@ -349,7 +351,7 @@ function ChronologicalSchedule({
   return (
     <div
       className="flex min-h-0 w-full min-w-0 flex-1 gap-3 overflow-x-hidden sm:gap-4"
-      style={{ visibility: ready ? "visible" : "hidden" }}
+      style={{ visibility: layoutReady ? "visible" : "hidden" }}
     >
       <div
         ref={containerRef}
