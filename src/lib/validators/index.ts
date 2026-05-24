@@ -21,7 +21,6 @@ export const loginSchema = z.object({
 
 export const createTeamSchema = z.object({
   name: z.string().min(1, "Team name is required"),
-  university: z.string().min(1, "University is required"),
   gender: z.enum(TEAM_GENDERS, { message: "Select men's or women's" }),
   region: z.enum(TEAM_REGIONS, { message: "Select a region" }),
   schoolId: z.string().uuid().optional().nullable(),

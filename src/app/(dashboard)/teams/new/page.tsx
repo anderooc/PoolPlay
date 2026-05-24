@@ -22,7 +22,6 @@ export default async function NewTeamPage({ searchParams }: Props) {
       id: schools.id,
       slug: schools.slug,
       name: schools.name,
-      university: schools.university,
       gender: schools.gender,
       region: schools.region,
       role: schoolMembers.role,
@@ -45,7 +44,6 @@ export default async function NewTeamPage({ searchParams }: Props) {
         id: s.id,
         slug: s.slug,
         name: s.name,
-        university: s.university,
         gender: s.gender,
         region: s.region,
       }))}

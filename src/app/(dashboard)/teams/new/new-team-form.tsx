@@ -32,7 +32,6 @@ interface SchoolOption {
   id: string;
   slug: string;
   name: string;
-  university: string;
   gender: TeamGender;
   region: TeamRegion;
 }
@@ -79,8 +78,6 @@ export function NewTeamForm({
     }
   }
 
-  // For direct visits (no in-app history) fall back to the school page if
-  // they came in via `?schoolId=…`, otherwise the all-teams list.
   const backFallback = selectedSchool
     ? `/schools/${selectedSchool.slug}`
     : "/teams";
@@ -141,22 +138,6 @@ export function NewTeamForm({
                   placeholder="Club Volleyball A"
                   required
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="university">University</Label>
-                <Input
-                  id="university"
-                  name="university"
-                  placeholder="State University"
-                  required
-                  defaultValue={selectedSchool?.university ?? ""}
-                  key={selectedSchool?.university ?? "standalone"}
-                />
-                {selectedSchool && (
-                  <p className="text-xs text-muted-foreground">
-                    Pre-filled from {selectedSchool.name}. You can override.
-                  </p>
-                )}
               </div>
               {selectedSchool ? (
                 <div className="space-y-2">

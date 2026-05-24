@@ -45,7 +45,6 @@ export async function createTeam(formData: FormData) {
   const rawSchoolId = formData.get("schoolId");
   const parsed = createTeamSchema.safeParse({
     name: formData.get("name"),
-    university: formData.get("university"),
     gender: formData.get("gender"),
     region: formData.get("region"),
     schoolId:
@@ -58,17 +57,10 @@ export async function createTeam(formData: FormData) {
     return { error: parsed.error.issues[0].message };
   }
 
-  const teamContentError = await flagBlockedContent(user.id, [
-    { area: "team.name", text: parsed.data.name },
-    { area: "team.university", text: parsed.data.university },
-  ]);
-  if (teamContentError) return { error: teamContentError };
-
-  // If the user picked a school, they must be an officer-or-above (or admin).
-  // Teams under a school inherit the school's gender and region, so override
-  // whatever the client submitted to keep the values authoritative.
   let teamGender = parsed.data.gender;
   let teamRegion = parsed.data.region;
+  let teamUniversity: string | null = null;
+
   if (parsed.data.schoolId) {
     const role = await getSchoolRole(parsed.data.schoolId, user.id);
     const allowed =
@@ -81,7 +73,11 @@ export async function createTeam(formData: FormData) {
     }
 
     const [parentSchool] = await db
-      .select({ gender: schools.gender, region: schools.region })
+      .select({
+        gender: schools.gender,
+        region: schools.region,
+        university: schools.university,
+      })
       .from(schools)
       .where(eq(schools.id, parsed.data.schoolId))
       .limit(1);
@@ -90,7 +86,27 @@ export async function createTeam(formData: FormData) {
     }
     teamGender = parentSchool.gender;
     teamRegion = parentSchool.region;
+    teamUniversity = parentSchool.university;
+  } else {
+    const [profile] = await db
+      .select({ university: users.university })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1);
+    teamUniversity = profile?.university?.trim() ?? "";
+    if (!teamUniversity) {
+      return {
+        error:
+          "Link this team to a school, or add your university when you sign up.",
+      };
+    }
   }
+
+  const teamContentError = await flagBlockedContent(user.id, [
+    { area: "team.name", text: parsed.data.name },
+    { area: "team.university", text: teamUniversity },
+  ]);
+  if (teamContentError) return { error: teamContentError };
 
   const [existing] = await db
     .select({ id: teams.id })
@@ -98,7 +114,7 @@ export async function createTeam(formData: FormData) {
     .where(
       and(
         eq(teams.name, parsed.data.name),
-        eq(teams.university, parsed.data.university),
+        eq(teams.university, teamUniversity),
         eq(teams.gender, teamGender)
       )
     )
@@ -111,10 +127,7 @@ export async function createTeam(formData: FormData) {
     };
   }
 
-  const base = slugify(
-    `${parsed.data.name} ${parsed.data.university}`,
-    "team"
-  );
+  const base = slugify(`${parsed.data.name} ${teamUniversity}`, "team");
   const existingSlugs = await db.select({ slug: teams.slug }).from(teams);
   const slug = uniqueSlug(
     base,
@@ -126,7 +139,7 @@ export async function createTeam(formData: FormData) {
     .values({
       name: parsed.data.name,
       slug,
-      university: parsed.data.university,
+      university: teamUniversity,
       gender: teamGender,
       region: teamRegion,
       schoolId: parsed.data.schoolId ?? null,
