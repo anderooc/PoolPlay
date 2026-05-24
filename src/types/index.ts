@@ -20,6 +20,10 @@ export type MatchStatus = "upcoming" | "in_progress" | "completed";
 
 export type TeamMemberRole = "captain" | "player";
 
+export type SchoolMemberRole = "president" | "officer" | "member";
+
+export type SchoolVerificationStatus = "pending" | "verified" | "rejected";
+
 export type TeamGender = "mens" | "womens";
 
 export type TeamRegion =

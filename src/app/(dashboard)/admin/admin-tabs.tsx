@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Trophy, Group, Flag, Gauge } from "lucide-react";
+import { Users, Trophy, Group, Flag, Gauge, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AdminTabItem {
@@ -16,6 +16,7 @@ const adminNav: AdminTabItem[] = [
   { href: "/admin", label: "Overview", icon: Gauge, exact: true },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/tournaments", label: "Tournaments", icon: Trophy },
+  { href: "/admin/schools", label: "Schools", icon: Building2 },
   { href: "/admin/teams", label: "Teams", icon: Group },
   { href: "/admin/flags", label: "Content flags", icon: Flag },
 ];

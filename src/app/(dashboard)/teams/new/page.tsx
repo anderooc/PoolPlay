@@ -1,73 +1,55 @@
-"use client";
+import { redirect } from "next/navigation";
+import { and, asc, eq, ne } from "drizzle-orm";
+import { getCurrentUser } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { schoolMembers, schools } from "@/lib/db/schema";
+import { NewTeamForm } from "./new-team-form";
 
-import { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { BackLink } from "@/components/layout/back-link";
-import { TeamAttributeFields } from "@/components/team-attribute-fields";
-import { createTeam } from "../actions";
+interface Props {
+  searchParams?: Promise<{ schoolId?: string }>;
+}
 
-export default function NewTeamPage() {
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const submitted = useRef(false);
+export default async function NewTeamPage({ searchParams }: Props) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
 
-  async function handleSubmit(formData: FormData) {
-    if (submitted.current) return;
-    submitted.current = true;
-    setLoading(true);
-    setError(null);
-    const result = await createTeam(formData);
-    if (result?.error) {
-      setError(result.error);
-      setLoading(false);
-      submitted.current = false;
-    }
-  }
+  const sp = (await searchParams) ?? {};
+
+  // Schools where the current user is a president or officer — those are the
+  // only schools they can create teams under.
+  const manageableSchools = await db
+    .select({
+      id: schools.id,
+      slug: schools.slug,
+      name: schools.name,
+      university: schools.university,
+      gender: schools.gender,
+      region: schools.region,
+      role: schoolMembers.role,
+    })
+    .from(schools)
+    .innerJoin(schoolMembers, eq(schoolMembers.schoolId, schools.id))
+    .where(
+      and(
+        eq(schoolMembers.userId, user.id),
+        ne(schoolMembers.role, "member")
+      )
+    )
+    .orderBy(asc(schools.name));
+
+  const preselectedSchoolId = sp.schoolId ?? null;
 
   return (
-    <div className="space-y-3">
-      <BackLink href="/teams">All teams</BackLink>
-      <div className="mx-auto max-w-lg">
-      <Card>
-        <CardHeader>
-          <CardTitle>Create Team</CardTitle>
-          <CardDescription>
-            Set up a new club volleyball team. You&apos;ll be added as captain.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Team Name</Label>
-              <Input id="name" name="name" placeholder="Club Volleyball A" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="university">University</Label>
-              <Input
-                id="university"
-                name="university"
-                placeholder="State University"
-                required
-              />
-            </div>
-            <TeamAttributeFields />
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating..." : "Create Team"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-      </div>
-    </div>
+    <NewTeamForm
+      schools={manageableSchools.map((s) => ({
+        id: s.id,
+        slug: s.slug,
+        name: s.name,
+        university: s.university,
+        gender: s.gender,
+        region: s.region,
+      }))}
+      preselectedSchoolId={preselectedSchoolId}
+    />
   );
 }

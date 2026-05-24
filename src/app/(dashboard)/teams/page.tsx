@@ -1,13 +1,13 @@
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { teams, teamMembers } from "@/lib/db/schema";
+import { schools, teams, teamMembers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Plus, Users } from "lucide-react";
+import { Building2, Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -24,9 +24,12 @@ export default async function TeamsPage() {
       gender: teams.gender,
       region: teams.region,
       role: teamMembers.role,
+      schoolName: schools.name,
+      schoolSlug: schools.slug,
     })
     .from(teamMembers)
     .innerJoin(teams, eq(teamMembers.teamId, teams.id))
+    .leftJoin(schools, eq(teams.schoolId, schools.id))
     .where(eq(teamMembers.userId, user.id));
 
   return (
@@ -80,6 +83,12 @@ export default async function TeamsPage() {
                   <p className="text-sm text-muted-foreground">
                     {team.university}
                   </p>
+                  {team.schoolName && (
+                    <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <Building2 className="h-3 w-3" />
+                      {team.schoolName}
+                    </p>
+                  )}
                   <TeamAttributesBadges
                     gender={team.gender}
                     region={team.region}

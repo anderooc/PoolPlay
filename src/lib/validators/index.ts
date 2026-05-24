@@ -24,10 +24,46 @@ export const createTeamSchema = z.object({
   university: z.string().min(1, "University is required"),
   gender: z.enum(TEAM_GENDERS, { message: "Select men's or women's" }),
   region: z.enum(TEAM_REGIONS, { message: "Select a region" }),
+  schoolId: z.string().uuid().optional().nullable(),
+});
+
+export const createSchoolSchema = z.object({
+  name: z.string().min(1, "School name is required").max(120),
+  university: z.string().min(1, "University is required").max(120),
+  gender: z.enum(TEAM_GENDERS, { message: "Select men's or women's" }),
+  region: z.enum(TEAM_REGIONS, { message: "Select a region" }),
+  description: z.string().max(2000).optional().nullable(),
+  websiteUrl: z
+    .string()
+    .max(200)
+    .optional()
+    .nullable()
+    .transform((v) => (v && v.trim().length > 0 ? v.trim() : null)),
+  domainHint: z
+    .string()
+    .max(120)
+    .optional()
+    .nullable()
+    .transform((v) => (v && v.trim().length > 0 ? v.trim().toLowerCase() : null)),
+});
+
+export const updateSchoolSchema = createSchoolSchema.partial();
+
+export const addSchoolMemberSchema = z.object({
+  email: z.email("Enter a valid email"),
+  role: z.enum(["officer", "member"], {
+    message: "Choose officer or member",
+  }),
+  title: z
+    .string()
+    .max(60)
+    .optional()
+    .nullable()
+    .transform((v) => (v && v.trim().length > 0 ? v.trim() : null)),
 });
 
 export const createTournamentSchema = z.object({
-  hostTeamId: z.string().uuid("Select the hosting team"),
+  hostSchoolId: z.string().uuid("Select the hosting school"),
   name: z.string().min(1, "Tournament name is required"),
   description: z.string().optional(),
   date: z.string().min(1, "Date is required"),
@@ -54,3 +90,6 @@ export type CreateTeamInput = z.infer<typeof createTeamSchema>;
 export type CreateTournamentInput = z.infer<typeof createTournamentSchema>;
 export type CreateDivisionInput = z.infer<typeof createDivisionSchema>;
 export type UpdateScoreInput = z.infer<typeof updateScoreSchema>;
+export type CreateSchoolInput = z.infer<typeof createSchoolSchema>;
+export type UpdateSchoolInput = z.infer<typeof updateSchoolSchema>;
+export type AddSchoolMemberInput = z.infer<typeof addSchoolMemberSchema>;

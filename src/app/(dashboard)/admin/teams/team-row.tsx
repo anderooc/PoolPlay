@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
   Dialog,
@@ -38,7 +39,11 @@ export function TeamRow({ team }: Props) {
   const [renaming, startRename] = useTransition();
 
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
   const [deleting, startDelete] = useTransition();
+
+  const nameMatches =
+    confirmText.trim() === name.trim() && confirmText.trim() !== "";
 
   function commitRename() {
     startRename(async () => {
@@ -58,14 +63,16 @@ export function TeamRow({ team }: Props) {
   }
 
   function commitDelete() {
+    if (!nameMatches) return;
     startDelete(async () => {
-      const result = await adminDeleteTeam(team.id);
+      const result = await adminDeleteTeam(team.id, confirmText);
       if ("error" in result && result.error) {
         toast.error(result.error);
         return;
       }
       toast.success(`Deleted "${name}"`);
       setDeleteOpen(false);
+      setConfirmText("");
       router.refresh();
     });
   }
@@ -156,15 +163,40 @@ export function TeamRow({ team }: Props) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (deleting) return;
+          setDeleteOpen(open);
+          if (!open) setConfirmText("");
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Delete &ldquo;{name}&rdquo;?</DialogTitle>
             <DialogDescription>
               This removes the team, its roster memberships, and any
-              registrations it has in tournaments.
+              registrations it has in tournaments. Type the team name below to
+              confirm.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor={`delete-team-confirm-${team.id}`} className="sr-only">
+              Team name
+            </Label>
+            <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm font-medium">
+              {name}
+            </p>
+            <Input
+              id={`delete-team-confirm-${team.id}`}
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="Type the full team name"
+              disabled={deleting}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </div>
           <DialogFooter>
             <Button
               type="button"
@@ -178,7 +210,7 @@ export function TeamRow({ team }: Props) {
               type="button"
               variant="destructive"
               onClick={commitDelete}
-              disabled={deleting}
+              disabled={deleting || !nameMatches}
             >
               {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Delete permanently

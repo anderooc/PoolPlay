@@ -1,0 +1,312 @@
+import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import { asc, count, eq } from "drizzle-orm";
+import { getCurrentUser } from "@/lib/auth";
+import { db } from "@/lib/db";
+import {
+  schoolMembers,
+  schools,
+  teamMembers,
+  teams,
+  users,
+} from "@/lib/db/schema";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
+import { BackLink } from "@/components/layout/back-link";
+import { TeamAttributesBadges } from "@/components/team-attributes-badges";
+import {
+  Building2,
+  CheckCircle2,
+  ExternalLink,
+  Globe,
+  Plus,
+} from "lucide-react";
+import {
+  SCHOOL_VERIFICATION_STATUS_LABELS,
+} from "@/lib/constants/school";
+import { formatTeamGender, formatTeamRegion } from "@/lib/labels/team";
+import {
+  canManageSchool,
+  canManageSchoolRoster,
+  canSubmitForVerification,
+  canTransferPresidency,
+  emailMatchesDomain,
+  getVerificationEligibility,
+  isSchoolMember,
+  isSchoolPresident,
+} from "@/lib/schools/permissions";
+import { SchoolHeaderActions } from "./school-header-actions";
+import { SchoolRoster } from "./school-roster";
+import { VerificationControls } from "./verification-controls";
+
+interface Props {
+  params: Promise<{ slug: string }>;
+}
+
+export const dynamic = "force-dynamic";
+
+export default async function SchoolDetailPage({ params }: Props) {
+  const { slug } = await params;
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const [school] = await db
+    .select()
+    .from(schools)
+    .where(eq(schools.slug, slug))
+    .limit(1);
+  if (!school) notFound();
+
+  const [memberRows, teamRows, [{ value: memberCount }]] = await Promise.all([
+    db
+      .select({
+        membershipId: schoolMembers.id,
+        userId: users.id,
+        fullName: users.fullName,
+        email: users.email,
+        role: schoolMembers.role,
+        title: schoolMembers.title,
+        joinedAt: schoolMembers.joinedAt,
+      })
+      .from(schoolMembers)
+      .innerJoin(users, eq(schoolMembers.userId, users.id))
+      .where(eq(schoolMembers.schoolId, school.id))
+      .orderBy(asc(users.fullName)),
+    db
+      .select({
+        id: teams.id,
+        slug: teams.slug,
+        name: teams.name,
+        gender: teams.gender,
+        region: teams.region,
+        memberCount: count(teamMembers.id),
+      })
+      .from(teams)
+      .leftJoin(teamMembers, eq(teamMembers.teamId, teams.id))
+      .where(eq(teams.schoolId, school.id))
+      .groupBy(teams.id)
+      .orderBy(asc(teams.name)),
+    db
+      .select({ value: count() })
+      .from(schoolMembers)
+      .where(eq(schoolMembers.schoolId, school.id)),
+  ]);
+
+  const myMembership =
+    memberRows.find((m) => m.userId === user.id) ?? null;
+  const membershipForPermissions = myMembership
+    ? {
+        schoolId: school.id,
+        userId: user.id,
+        role: myMembership.role,
+      }
+    : null;
+
+  const officerCount = memberRows.filter((m) => m.role === "officer").length;
+  const president = memberRows.find((m) => m.role === "president");
+
+  const eligibility = getVerificationEligibility({
+    status: school.verificationStatus,
+    hasPresident: !!president,
+    officerCount,
+  });
+
+  const canManage = canManageSchool(membershipForPermissions, user);
+  const canRosterManage = canManageSchoolRoster(membershipForPermissions, user);
+  const canTransfer = canTransferPresidency(membershipForPermissions, user);
+  const canSubmit = canSubmitForVerification(
+    membershipForPermissions,
+    user,
+    eligibility
+  );
+
+  // Members of this school have one school — they don't need the "All
+  // schools" back link. Visitors / admins browsing other schools still see it.
+  const isMyOwnSchool = isSchoolMember(membershipForPermissions);
+  const canDeleteFromMenu = canManage;
+  const canLeaveFromMenu =
+    isMyOwnSchool && !isSchoolPresident(membershipForPermissions);
+
+  const verificationBadgeVariant =
+    school.verificationStatus === "verified"
+      ? "default"
+      : school.verificationStatus === "rejected"
+        ? "destructive"
+        : "secondary";
+
+  // The president-or-officer can also see the precomputed domain match,
+  // useful before submitting.
+  const myDomainMatches = emailMatchesDomain(user.email, school.domainHint);
+
+  return (
+    <div className="space-y-6">
+      {!isMyOwnSchool && <BackLink href="/schools">All schools</BackLink>}
+
+      <div className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
+              {school.name}
+            </h1>
+            <Badge
+              variant={verificationBadgeVariant}
+              className="gap-1 capitalize"
+            >
+              {school.verificationStatus === "verified" && (
+                <CheckCircle2 className="h-3 w-3" />
+              )}
+              {SCHOOL_VERIFICATION_STATUS_LABELS[school.verificationStatus]}
+            </Badge>
+          </div>
+
+          <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end sm:pt-1">
+            <div className="flex h-8 items-center justify-end gap-2 sm:h-9">
+              {school.verificationStatus !== "verified" &&
+                (canManage || canSubmit) && (
+                  <VerificationControls
+                    schoolId={school.id}
+                    canSubmit={canSubmit}
+                    blockedReason={eligibility.reason}
+                    status={school.verificationStatus}
+                  />
+                )}
+              <SchoolHeaderActions
+                schoolId={school.id}
+                schoolName={school.name}
+                canManage={canManage}
+                canDelete={canDeleteFromMenu}
+                canLeave={canLeaveFromMenu}
+                settingsDefaults={{
+                  name: school.name,
+                  university: school.university,
+                  gender: school.gender,
+                  region: school.region,
+                  description: school.description,
+                  websiteUrl: school.websiteUrl,
+                  domainHint: school.domainHint,
+                }}
+              />
+            </div>
+            {myDomainMatches && school.domainHint && (canManage || canSubmit) && (
+              <p className="text-xs text-emerald-600">
+                Your email matches @{school.domainHint}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <p className="text-muted-foreground">{school.university}</p>
+        <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">
+              {formatTeamGender(school.gender)}
+            </Badge>
+            <Badge variant="outline">
+              {formatTeamRegion(school.region)}
+            </Badge>
+            {school.domainHint && (
+              <Badge variant="outline" className="font-mono text-xs">
+                @{school.domainHint}
+              </Badge>
+            )}
+            {school.websiteUrl && (
+              <a
+                href={school.websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Globe className="h-3 w-3" />
+                Website
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
+        {school.description && (
+          <p className="max-w-2xl whitespace-pre-wrap text-sm text-muted-foreground">
+            {school.description}
+          </p>
+        )}
+      </div>
+
+      <Tabs defaultValue="roster">
+        <TabsList>
+          <TabsTrigger value="roster">
+            Roster ({memberCount})
+          </TabsTrigger>
+          <TabsTrigger value="teams">
+            Teams ({teamRows.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="roster" className="mt-4">
+          <SchoolRoster
+            schoolId={school.id}
+            members={memberRows.map((m) => ({
+              membershipId: m.membershipId,
+              userId: m.userId,
+              fullName: m.fullName,
+              email: m.email,
+              role: m.role,
+              title: m.title,
+            }))}
+            canManage={canRosterManage}
+            canTransferPresidencyAction={canTransfer}
+          />
+        </TabsContent>
+
+        <TabsContent value="teams" className="mt-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-muted-foreground">
+              Teams listed here pull their roster from the school&apos;s
+              master roster.
+            </p>
+            {canRosterManage && (
+              <Link
+                href={`/teams/new?schoolId=${school.id}`}
+                className={buttonVariants({ size: "sm" })}
+              >
+                <Plus className="mr-1 h-4 w-4" />
+                New team in this school
+              </Link>
+            )}
+          </div>
+
+          {teamRows.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <Building2 className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  No teams under this school yet.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {teamRows.map((team) => (
+                <Link key={team.id} href={`/teams/${team.slug}`}>
+                  <Card className="h-full cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">{team.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <TeamAttributesBadges
+                        gender={team.gender}
+                        region={team.region}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {team.memberCount} player
+                        {team.memberCount === 1 ? "" : "s"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

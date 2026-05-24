@@ -7,6 +7,8 @@ import {
   pgEnum,
   date,
   primaryKey,
+  boolean,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -53,6 +55,17 @@ export const teamMemberRoleEnum = pgEnum("team_member_role", [
   "player",
 ]);
 
+export const schoolMemberRoleEnum = pgEnum("school_member_role", [
+  "president",
+  "officer",
+  "member",
+]);
+
+export const schoolVerificationStatusEnum = pgEnum(
+  "school_verification_status",
+  ["pending", "verified", "rejected"]
+);
+
 export const teamGenderEnum = pgEnum("team_gender", ["mens", "womens"]);
 
 export const teamRegionEnum = pgEnum("team_region", [
@@ -80,12 +93,64 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const schools = pgTable("schools", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  /** URL-friendly unique identifier derived from name */
+  slug: text("slug").notNull().unique(),
+  university: text("university").notNull(),
+  /** A school represents one club program for one gender. Teams under it
+   * inherit the gender (and region) at creation time. */
+  gender: teamGenderEnum("gender").notNull(),
+  region: teamRegionEnum("region").notNull(),
+  description: text("description"),
+  websiteUrl: text("website_url"),
+  /** Expected institutional email domain, e.g. "ucla.edu". Used to auto-flag
+   * verification submissions where president/officers' emails match. */
+  domainHint: text("domain_hint"),
+  verificationStatus: schoolVerificationStatusEnum("verification_status")
+    .default("pending")
+    .notNull(),
+  /** True when at least one president/officer email matches domainHint at submit. */
+  domainMatched: boolean("domain_matched").default(false).notNull(),
+  verifiedAt: timestamp("verified_at"),
+  verifiedByUserId: uuid("verified_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const schoolMembers = pgTable(
+  "school_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    schoolId: uuid("school_id")
+      .references(() => schools.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    role: schoolMemberRoleEnum("role").default("member").notNull(),
+    /** Optional display title (e.g. "VP", "Treasurer"). */
+    title: text("title"),
+    joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("school_members_school_user_unique").on(t.schoolId, t.userId),
+  ]
+);
+
 export const teams = pgTable("teams", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   /** URL-friendly unique identifier derived from name */
   slug: text("slug").notNull().unique(),
   university: text("university").notNull(),
+  /** Optional parent school. Standalone teams stay null. */
+  schoolId: uuid("school_id").references(() => schools.id, {
+    onDelete: "set null",
+  }),
   gender: teamGenderEnum("gender").notNull(),
   region: teamRegionEnum("region").notNull(),
   season: text("season"),
@@ -111,8 +176,8 @@ export const tournaments = pgTable("tournaments", {
   organizerId: uuid("organizer_id")
     .references(() => users.id)
     .notNull(),
-  /** Team hosting the event; gender/region are copied from this team at creation. */
-  hostTeamId: uuid("host_team_id").references(() => teams.id, {
+  /** School hosting the event; gender/region are copied from this school at creation. */
+  hostSchoolId: uuid("host_school_id").references(() => schools.id, {
     onDelete: "set null",
   }),
   gender: teamGenderEnum("gender").notNull(),
@@ -259,14 +324,39 @@ export const contentFlags = pgTable("content_flags", {
 
 export const usersRelations = relations(users, ({ many }) => ({
   teamMembers: many(teamMembers),
+  schoolMemberships: many(schoolMembers),
   organizedTournaments: many(tournaments),
 }));
 
-export const teamsRelations = relations(teams, ({ many }) => ({
+export const schoolsRelations = relations(schools, ({ one, many }) => ({
+  members: many(schoolMembers),
+  teams: many(teams),
+  hostedTournaments: many(tournaments),
+  verifiedBy: one(users, {
+    fields: [schools.verifiedByUserId],
+    references: [users.id],
+  }),
+}));
+
+export const schoolMembersRelations = relations(schoolMembers, ({ one }) => ({
+  school: one(schools, {
+    fields: [schoolMembers.schoolId],
+    references: [schools.id],
+  }),
+  user: one(users, {
+    fields: [schoolMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+export const teamsRelations = relations(teams, ({ one, many }) => ({
   members: many(teamMembers),
   registrations: many(registrations),
   poolTeams: many(poolTeams),
-  hostedTournaments: many(tournaments),
+  school: one(schools, {
+    fields: [teams.schoolId],
+    references: [schools.id],
+  }),
 }));
 
 export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
@@ -279,9 +369,9 @@ export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
     fields: [tournaments.organizerId],
     references: [users.id],
   }),
-  hostTeam: one(teams, {
-    fields: [tournaments.hostTeamId],
-    references: [teams.id],
+  hostSchool: one(schools, {
+    fields: [tournaments.hostSchoolId],
+    references: [schools.id],
   }),
   divisions: many(divisions),
   registrations: many(registrations),

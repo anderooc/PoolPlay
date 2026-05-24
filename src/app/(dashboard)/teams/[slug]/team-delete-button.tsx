@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -24,16 +26,26 @@ export function TeamDeleteButton({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
   const [deleting, startDelete] = useTransition();
 
+  const nameMatches =
+    confirmText.trim() === teamName.trim() && confirmText.trim() !== "";
+
+  function resetDialog() {
+    setConfirmText("");
+  }
+
   function handleDelete() {
+    if (!nameMatches) return;
     startDelete(async () => {
-      const result = await deleteTeam(teamId);
+      const result = await deleteTeam(teamId, confirmText);
       if ("error" in result && result.error) {
         toast.error(result.error);
         return;
       }
       setOpen(false);
+      resetDialog();
       router.push("/teams");
       router.refresh();
     });
@@ -52,15 +64,45 @@ export function TeamDeleteButton({
         Delete team
       </Button>
 
-      <Dialog open={open} onOpenChange={(open) => !deleting && setOpen(open)}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (deleting) return;
+          setOpen(next);
+          if (!next) resetDialog();
+        }}
+      >
         <DialogContent className="sm:max-w-md" showCloseButton={!deleting}>
           <DialogHeader>
             <DialogTitle>Delete &ldquo;{teamName}&rdquo;?</DialogTitle>
             <DialogDescription>
               This permanently removes the team, its roster, and any tournament
-              registrations. This cannot be undone.
+              registrations. Type the team name below to confirm.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="delete-team-confirm" className="sr-only">
+              Team name
+            </Label>
+            <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm font-medium">
+              {teamName}
+            </p>
+            <Input
+              id="delete-team-confirm"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="Type the full team name"
+              disabled={deleting}
+              autoComplete="off"
+              spellCheck={false}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && nameMatches && !deleting) {
+                  e.preventDefault();
+                  handleDelete();
+                }
+              }}
+            />
+          </div>
           <DialogFooter>
             <Button
               type="button"
@@ -74,7 +116,7 @@ export function TeamDeleteButton({
               type="button"
               variant="destructive"
               onClick={handleDelete}
-              disabled={deleting}
+              disabled={deleting || !nameMatches}
             >
               {deleting && <Loader2 className="size-4 animate-spin" />}
               Delete permanently

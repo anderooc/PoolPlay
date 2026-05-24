@@ -10,6 +10,7 @@ import {
   divisions,
   matches,
   pools,
+  schools,
   teams,
   tournaments,
   users,
@@ -237,8 +238,26 @@ export async function adminRenameTeam(teamId: string, rawName: string) {
   return { success: true as const, slug: newSlug };
 }
 
-export async function adminDeleteTeam(teamId: string) {
+export async function adminDeleteTeam(
+  teamId: string,
+  confirmationName: string
+) {
   await requireAdmin();
+
+  const [team] = await db
+    .select({ name: teams.name })
+    .from(teams)
+    .where(eq(teams.id, teamId))
+    .limit(1);
+  if (!team) return { error: "Team not found" };
+
+  if (team.name.trim() !== confirmationName.trim()) {
+    return {
+      error:
+        "Team name does not match — type it exactly as shown (including spaces).",
+    };
+  }
+
   try {
     await db.delete(teams).where(eq(teams.id, teamId));
   } catch {
@@ -264,5 +283,95 @@ export async function adminDeleteFlag(flagId: string) {
   await requireAdmin();
   await db.delete(contentFlags).where(eq(contentFlags.id, flagId));
   revalidatePath("/admin/flags");
+  return { success: true as const };
+}
+
+export async function adminApproveSchool(schoolId: string) {
+  const admin = await requireAdmin();
+
+  const [school] = await db
+    .select()
+    .from(schools)
+    .where(eq(schools.id, schoolId))
+    .limit(1);
+  if (!school) return { error: "School not found" };
+
+  await db
+    .update(schools)
+    .set({
+      verificationStatus: "verified",
+      verifiedAt: new Date(),
+      verifiedByUserId: admin.id,
+      updatedAt: new Date(),
+    })
+    .where(eq(schools.id, schoolId));
+
+  revalidatePath("/admin/schools");
+  revalidatePath("/schools");
+  revalidatePath(`/schools/${school.slug}`);
+  return { success: true as const };
+}
+
+export async function adminRejectSchool(schoolId: string) {
+  const admin = await requireAdmin();
+
+  const [school] = await db
+    .select()
+    .from(schools)
+    .where(eq(schools.id, schoolId))
+    .limit(1);
+  if (!school) return { error: "School not found" };
+
+  await db
+    .update(schools)
+    .set({
+      verificationStatus: "rejected",
+      verifiedAt: null,
+      verifiedByUserId: admin.id,
+      updatedAt: new Date(),
+    })
+    .where(eq(schools.id, schoolId));
+
+  revalidatePath("/admin/schools");
+  revalidatePath("/schools");
+  revalidatePath(`/schools/${school.slug}`);
+  return { success: true as const };
+}
+
+export async function adminResetSchoolToPending(schoolId: string) {
+  await requireAdmin();
+  const [school] = await db
+    .select()
+    .from(schools)
+    .where(eq(schools.id, schoolId))
+    .limit(1);
+  if (!school) return { error: "School not found" };
+
+  await db
+    .update(schools)
+    .set({
+      verificationStatus: "pending",
+      verifiedAt: null,
+      verifiedByUserId: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(schools.id, schoolId));
+
+  revalidatePath("/admin/schools");
+  revalidatePath("/schools");
+  revalidatePath(`/schools/${school.slug}`);
+  return { success: true as const };
+}
+
+export async function adminDeleteSchool(schoolId: string) {
+  await requireAdmin();
+  try {
+    await db.delete(schools).where(eq(schools.id, schoolId));
+  } catch {
+    return { error: "Could not delete school. Try again." };
+  }
+  revalidatePath("/admin/schools");
+  revalidatePath("/admin");
+  revalidatePath("/schools");
   return { success: true as const };
 }
