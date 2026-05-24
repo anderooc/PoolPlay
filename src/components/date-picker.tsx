@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
@@ -54,8 +54,8 @@ export function DatePickerCalendar({
   const setMonth = onMonthChange ?? setInternalMonth;
 
   useEffect(() => {
-    if (monthProp !== undefined) return;
-    if (selected) setInternalMonth(selected);
+    if (monthProp !== undefined || !selected) return;
+    queueMicrotask(() => setInternalMonth(selected));
   }, [selected, monthProp]);
 
   return (
@@ -154,7 +154,7 @@ export function DatePickerField({
       })
     : "Pick a date";
 
-  function updatePanelPosition() {
+  const updatePanelPosition = useCallback(() => {
     const trigger = triggerRef.current;
     if (!trigger) return;
     const rect = trigger.getBoundingClientRect();
@@ -173,14 +173,18 @@ export function DatePickerField({
       top: Math.max(8, Math.min(top, window.innerHeight - panelHeight - 8)),
       left,
     });
-  }
+  }, [placement]);
 
   useLayoutEffect(() => {
     if (!open) return;
-    setMonth(value ? parseISODate(value) : new Date());
     updatePanelPosition();
     requestAnimationFrame(() => updatePanelPosition());
-  }, [open, value, placement]);
+  }, [open, value, placement, updatePanelPosition]);
+
+  function openPanel() {
+    setMonth(value ? parseISODate(value) : new Date());
+    setOpen(true);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -211,7 +215,7 @@ export function DatePickerField({
       window.removeEventListener("resize", onLayoutChange);
       window.removeEventListener("scroll", onLayoutChange, true);
     };
-  }, [open]);
+  }, [open, updatePanelPosition]);
 
   function handleSelect(date: Date | undefined) {
     if (!date) return;
@@ -266,7 +270,13 @@ export function DatePickerField({
           !value && "text-muted-foreground",
           open && "bg-muted text-foreground"
         )}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          if (open) {
+            setOpen(false);
+            return;
+          }
+          openPanel();
+        }}
       >
         <CalendarIcon className="h-4 w-4 shrink-0" />
         <span className="truncate">{displayLabel}</span>

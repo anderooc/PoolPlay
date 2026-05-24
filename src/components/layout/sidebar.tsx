@@ -17,12 +17,14 @@ export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const visibleLinks = navLinks.filter((link) => !link.adminOnly || isAdmin);
 
   useEffect(() => {
-    try {
-      setCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true");
-    } catch {
-      /* ignore */
-    }
-    setHydrated(true);
+    queueMicrotask(() => {
+      try {
+        setCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true");
+      } catch {
+        /* ignore */
+      }
+      setHydrated(true);
+    });
   }, []);
 
   function toggleCollapsed() {

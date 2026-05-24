@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { matches, teams, courts, tournaments, pools, brackets, divisions } from "@/lib/db/schema";
+import { matches, teams, courts, tournaments, pools } from "@/lib/db/schema";
 import { eq, isNotNull, asc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";

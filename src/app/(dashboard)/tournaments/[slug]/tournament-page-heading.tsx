@@ -112,22 +112,20 @@ export function TournamentPageHeading({
   const [dateError, setDateError] = useState<string | null>(null);
 
   useEffect(() => {
-    setListingDescription(description);
-    setListingLocation(location);
-    setListingAddress(address ?? "");
+    queueMicrotask(() => {
+      setListingDescription(description);
+      setListingLocation(location);
+      setListingAddress(address ?? "");
+    });
   }, [description, location, address]);
 
   useEffect(() => {
-    if (!detailsOpen) return;
-    setDraftDescription(listingDescription ?? "");
-    setDraftLocation(listingLocation);
-    setDraftAddress(listingAddress);
-    setDetailsError(null);
-  }, [detailsOpen, listingDescription, listingLocation, listingAddress]);
-
-  useEffect(() => {
-    if (!dateOpen) setDraftDate(date);
-  }, [dateOpen, date]);
+    queueMicrotask(() => {
+      setSlug(initialSlug);
+      setName(initialName);
+      if (!editingTitle) setDraftTitle(initialName);
+    });
+  }, [initialSlug, initialName, editingTitle]);
 
   const archived = isTournamentArchived(date);
 
@@ -138,12 +136,6 @@ export function TournamentPageHeading({
   const [confirmText, setConfirmText] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setSlug(initialSlug);
-    setName(initialName);
-    if (!editingTitle) setDraftTitle(initialName);
-  }, [initialSlug, initialName, editingTitle]);
 
   useEffect(() => {
     if (!editingTitle) return;
@@ -442,14 +434,24 @@ export function TournamentPageHeading({
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  onClick={() => setDetailsOpen(true)}
+                  onClick={() => {
+                    setDraftDescription(listingDescription ?? "");
+                    setDraftLocation(listingLocation);
+                    setDraftAddress(listingAddress);
+                    setDetailsError(null);
+                    setDetailsOpen(true);
+                  }}
                 >
                   <FileText className="size-4" />
                   Edit listing details
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  onClick={() => setDateOpen(true)}
+                  onClick={() => {
+                    setDraftDate(date);
+                    setDateError(null);
+                    setDateOpen(true);
+                  }}
                 >
                   <CalendarDays className="size-4" />
                   Edit date
@@ -493,8 +495,15 @@ export function TournamentPageHeading({
         open={detailsOpen}
         onOpenChange={(open) => {
           if (detailsSaving) return;
+          if (open) {
+            setDraftDescription(listingDescription ?? "");
+            setDraftLocation(listingLocation);
+            setDraftAddress(listingAddress);
+            setDetailsError(null);
+          } else {
+            setDetailsError(null);
+          }
           setDetailsOpen(open);
-          if (!open) setDetailsError(null);
         }}
       >
         <DialogContent className="sm:max-w-lg" showCloseButton={!detailsSaving}>
@@ -570,8 +579,13 @@ export function TournamentPageHeading({
         open={dateOpen}
         onOpenChange={(open) => {
           if (dateSaving) return;
+          if (open) {
+            setDraftDate(date);
+            setDateError(null);
+          } else {
+            setDateError(null);
+          }
           setDateOpen(open);
-          if (!open) setDateError(null);
         }}
       >
         <DialogContent

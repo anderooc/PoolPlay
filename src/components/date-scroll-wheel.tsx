@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { parseISODate } from "@/lib/date-iso";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,16 @@ const WHEEL_COOLDOWN_MS = 110;
 const FADE_IDLE_MS = 1100;
 const DRAG_STEP_PX = 12;
 const CLICK_SLOP_PX = 6;
+
+function subscribeReducedMotion(onStoreChange: () => void) {
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mq.addEventListener("change", onStoreChange);
+  return () => mq.removeEventListener("change", onStoreChange);
+}
+
+function getReducedMotionSnapshot() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
 
 function formatWheelLine(iso: string, today: string) {
   const d = parseISODate(iso);
@@ -57,7 +67,11 @@ export function DateScrollWheel({
     dragged: false,
   });
   const [visible, setVisible] = useState(false);
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const reduceMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    () => false
+  );
   const [isDragging, setIsDragging] = useState(false);
 
   const selectedIndex = dates.indexOf(selectedDate);
@@ -94,15 +108,7 @@ export function DateScrollWheel({
   );
 
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduceMotion(mq.matches);
-    const onChange = () => setReduceMotion(mq.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-
-  useEffect(() => {
-    if (activityKey > 0) show();
+    if (activityKey > 0) queueMicrotask(() => show());
   }, [activityKey, show]);
 
   useEffect(

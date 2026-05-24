@@ -135,7 +135,7 @@ export function DivisionManager({
     if (!isVisible) return;
     toast.success("Division added", { id: addDivisionToastIdRef.current });
     addDivisionToastIdRef.current = null;
-    setPendingAddedDivisionId(null);
+    queueMicrotask(() => setPendingAddedDivisionId(null));
   }, [divisions, pendingAddedDivisionId]);
 
   useEffect(() => {

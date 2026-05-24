@@ -209,7 +209,7 @@ function ChronologicalSchedule({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Map<string, HTMLElement>>(new Map());
-  const [ready, setReady] = useState(false);
+  const layoutReadyRef = useRef(false);
   const [wheelActivity, setWheelActivity] = useState(0);
   const registerWheelActivity = useCallback(() => {
     setWheelActivity((n) => n + 1);
@@ -222,6 +222,9 @@ function ChronologicalSchedule({
     return today;
   }, [groups, selectedDate, today]);
 
+  const selectedGroupTournamentCount =
+    groups.find((g) => g.date === effectiveSelectedDate)?.tournaments.length ?? 0;
+
   /**
    * Moves the stack so the selected section's heading sits at the top
    * inset. First call sets the position without animation so today doesn't
@@ -233,22 +236,17 @@ function ChronologicalSchedule({
     if (!stack || !el) return;
     const offset = SCHEDULE_TOP_INSET - el.offsetTop;
 
-    if (!ready) {
+    if (!layoutReadyRef.current) {
       stack.style.transition = "none";
       stack.style.transform = `translateY(${offset}px)`;
       void stack.offsetHeight;
       stack.style.transition =
         "transform 320ms cubic-bezier(0.22, 1, 0.36, 1)";
-      setReady(true);
+      layoutReadyRef.current = true;
     } else {
       stack.style.transform = `translateY(${offset}px)`;
     }
-  }, [
-    effectiveSelectedDate,
-    groups,
-    ready,
-    groups.find((g) => g.date === effectiveSelectedDate)?.tournaments.length,
-  ]);
+  }, [effectiveSelectedDate, groups, selectedGroupTournamentCount]);
 
   // Wheel + touch cycle through dates. The container does not scroll —
   // wheel events are intercepted and turned into one-step date advances.

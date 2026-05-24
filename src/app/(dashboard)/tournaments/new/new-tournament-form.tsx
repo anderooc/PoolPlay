@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -59,8 +60,8 @@ export function NewTournamentForm({
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Button render={<a href="/schools/new" />}>Create school</Button>
-            <Button variant="outline" render={<a href="/schools" />}>
+            <Button render={<Link href="/schools/new" />}>Create school</Button>
+            <Button variant="outline" render={<Link href="/schools" />}>
               Browse schools
             </Button>
           </CardContent>

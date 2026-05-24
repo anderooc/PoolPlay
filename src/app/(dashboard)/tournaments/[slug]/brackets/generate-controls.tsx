@@ -26,9 +26,6 @@ export function GenerateControls({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const showPoolGeneration =
-    divisionFormat === "pool_to_bracket" || !hasPools;
-
   async function handleGeneratePools() {
     setLoading(true);
     setError(null);
@@ -59,8 +56,7 @@ export function GenerateControls({
         <CardTitle className="text-base">Generate</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-wrap items-end gap-4">
-        {(divisionFormat === "pool_to_bracket" ||
-          divisionFormat === "pool_to_bracket") && (
+        {(divisionFormat === "pool_to_bracket" || !hasPools) && (
           <div className="flex items-end gap-2">
             <div className="space-y-1">
               <Label htmlFor="poolCount">Number of Pools</Label>

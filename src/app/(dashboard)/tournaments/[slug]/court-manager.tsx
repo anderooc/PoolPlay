@@ -60,7 +60,7 @@ export function CourtManager({
     if (!isVisible) return;
     toast.success("Court added", { id: addCourtToastIdRef.current });
     addCourtToastIdRef.current = null;
-    setPendingAddedCourtId(null);
+    queueMicrotask(() => setPendingAddedCourtId(null));
   }, [courts, pendingAddedCourtId]);
 
   async function handleAdd(formData: FormData) {

@@ -5,7 +5,7 @@ import {
   brackets,
   divisions,
 } from "@/lib/db/schema";
-import { eq, or, inArray } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 const divFromPool = alias(divisions, "match_div_pool");
