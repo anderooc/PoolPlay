@@ -1,8 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { tournaments, teams, teamMembers, registrations } from "@/lib/db/schema";
+import { teams, teamMembers, registrations } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
+import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import { formatTeamGender } from "@/lib/labels/team";
 import {
   canRegisterTeams,
@@ -20,20 +21,12 @@ interface Props {
 export default async function RegisterPage({ params }: Props) {
   const { slug } = await params;
 
-  const [user, tournamentRow] = await Promise.all([
-    getCurrentUser(),
-    db
-      .select()
-      .from(tournaments)
-      .where(eq(tournaments.slug, slug))
-      .limit(1)
-      .then((rows) => rows[0] ?? null),
-  ]);
-
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!tournamentRow) notFound();
 
-  const tournament = tournamentRow;
+  const tournament = await getTournamentBySlugIfVisible(slug, user);
+  if (!tournament) notFound();
+
   const id = tournament.id;
 
   if (!canRegisterTeams(tournament)) {

@@ -24,6 +24,23 @@ export function isTournamentOrganizer(
   return tournament.organizerId === user.id || isAdmin(user);
 }
 
+/** Draft tournaments are hidden from everyone except the organizer, admins, and
+ *  members of the hosting school. Non-draft tournaments are visible to all
+ *  authenticated users on the dashboard. */
+export function canViewTournament(
+  tournament: Pick<
+    TournamentForPermissions,
+    "status" | "organizerId" | "hostSchoolId"
+  >,
+  user: UserForPermissions,
+  isHostSchoolMember: boolean
+): boolean {
+  if (tournament.status !== "draft") return true;
+  if (isTournamentOrganizer(tournament, user)) return true;
+  if (isAdmin(user)) return true;
+  return isHostSchoolMember;
+}
+
 export function canManageTournament(
   tournament: TournamentForPermissions,
   user: UserForPermissions

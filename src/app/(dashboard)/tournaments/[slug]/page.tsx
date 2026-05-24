@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
-  tournaments,
   divisions,
   courts,
   courtDivisions,
@@ -28,14 +27,14 @@ import { isTournamentArchived } from "@/lib/tournament-status";
 import {
   canEditRegistrations,
   canEditTournamentSetup,
-  canGeneratePoolsAndBrackets,
-  canRegisterTeams,
   canCheckInRegistrations,
+  canRegisterTeams,
   hostChecklistSteps,
   isTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
 import { getTournamentMatchIds } from "@/lib/tournaments/match-query";
 import { getHostSchoolById } from "@/lib/tournaments/host-school";
+import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import { TournamentPageHeading } from "./tournament-page-heading";
 import { DivisionManager } from "./division-manager";
 import { CourtManager } from "./court-manager";
@@ -50,17 +49,10 @@ export default async function TournamentDetailPage({ params }: Props) {
 
   // Resolve the tournament + current user in parallel; both are needed
   // before the other queries can run, but they don't depend on each other.
-  const [user, tournamentRow] = await Promise.all([
-    getCurrentUser(),
-    db
-      .select()
-      .from(tournaments)
-      .where(eq(tournaments.slug, slug))
-      .limit(1)
-      .then((rows) => rows[0] ?? null),
-  ]);
-
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  const tournamentRow = await getTournamentBySlugIfVisible(slug, user);
   if (!tournamentRow) notFound();
 
   const tournament = tournamentRow;
@@ -148,11 +140,9 @@ export default async function TournamentDetailPage({ params }: Props) {
     isOrganizer && canEditRegistrations(tournament, user);
   const canCheckIn =
     isOrganizer && canCheckInRegistrations(tournament, user);
-  const canGenerateStructure =
-    isOrganizer && canGeneratePoolsAndBrackets(tournament, user);
   const showRegisterLink = canRegisterTeams(tournament);
 
-  const [poolRow, bracketRow, captainTeamIds, matchIds, hostSchool] =
+  const [poolRow, bracketRow, userTeamRows, captainTeamIds, matchIds, hostSchool] =
     await Promise.all([
     db
       .select({ id: pools.id })
@@ -166,6 +156,10 @@ export default async function TournamentDetailPage({ params }: Props) {
       .innerJoin(divisions, eq(brackets.divisionId, divisions.id))
       .where(eq(divisions.tournamentId, id))
       .limit(1),
+    db
+      .select({ teamId: teamMembers.teamId })
+      .from(teamMembers)
+      .where(eq(teamMembers.userId, user.id)),
     db
       .select({ teamId: teamMembers.teamId })
       .from(teamMembers)
@@ -193,24 +187,32 @@ export default async function TournamentDetailPage({ params }: Props) {
     hasScheduledMatches = (scheduled?.value ?? 0) > 0;
   }
 
-  const pendingCount = tournamentRegistrations.filter(
+  const allPendingTeams = tournamentRegistrations.filter(
     (r) => r.status === "pending"
-  ).length;
+  );
 
   const confirmedTeams = tournamentRegistrations.filter(
     (r) => r.status === "confirmed" || r.status === "checked_in"
   );
 
-  const pendingTeams = tournamentRegistrations.filter(
-    (r) => r.status === "pending"
-  );
+  const myTeamIds = new Set(userTeamRows.map((r) => r.teamId));
+  const captainIds = new Set(captainTeamIds.map((r) => r.teamId));
+
+  const pendingCount = allPendingTeams.length;
+
+  const pendingTeams = isOrganizer
+    ? allPendingTeams
+    : allPendingTeams.filter((r) => myTeamIds.has(r.teamId));
+
+  const showTeamsTab = isOrganizer;
+  const showPendingTab = isOrganizer || pendingTeams.length > 0;
+  const defaultTab =
+    !isOrganizer && pendingTeams.length > 0 ? "pending" : "divisions";
 
   const divisionOptions = tournamentDivisions.map((d) => ({
     id: d.id,
     name: d.name,
   }));
-
-  const captainIds = new Set(captainTeamIds.map((r) => r.teamId));
 
   const checklist = isOrganizer
     ? hostChecklistSteps({
@@ -331,25 +333,29 @@ export default async function TournamentDetailPage({ params }: Props) {
         </div>
       )}
 
-      <Tabs defaultValue="divisions">
+      <Tabs defaultValue={defaultTab}>
         <TabsList>
           <TabsTrigger value="divisions">
             Divisions &amp; courts
           </TabsTrigger>
-          <TabsTrigger value="teams">
-            Teams ({confirmedTeams.length})
-          </TabsTrigger>
-          <TabsTrigger value="pending" className="gap-2">
-            Pending
-            {pendingCount > 0 && (
-              <Badge
-                variant="default"
-                className="h-5 min-w-5 justify-center rounded-full px-1.5 text-xs tabular-nums"
-              >
-                {pendingCount}
-              </Badge>
-            )}
-          </TabsTrigger>
+          {showTeamsTab && (
+            <TabsTrigger value="teams">
+              Teams ({confirmedTeams.length})
+            </TabsTrigger>
+          )}
+          {showPendingTab && (
+            <TabsTrigger value="pending" className="gap-2">
+              {isOrganizer ? "Pending" : "Your application"}
+              {(isOrganizer ? pendingCount : pendingTeams.length) > 0 && (
+                <Badge
+                  variant="default"
+                  className="h-5 min-w-5 justify-center rounded-full px-1.5 text-xs tabular-nums"
+                >
+                  {isOrganizer ? pendingCount : pendingTeams.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="divisions" className="mt-4 space-y-10">
@@ -383,41 +389,51 @@ export default async function TournamentDetailPage({ params }: Props) {
           </section>
         </TabsContent>
 
-        <TabsContent value="teams" className="mt-4 space-y-3">
-          {canManageRegistrations && (
-            <p className="text-sm text-muted-foreground">
-              Assign confirmed teams to divisions before generating pools.
-            </p>
-          )}
-          <RegistrationList
-            tournamentId={id}
-            registrations={confirmedTeams}
-            divisions={divisionOptions}
-            listKind="teams"
-            canManageRegistrations={canManageRegistrations}
-            canCheckIn={canCheckIn}
-            canWithdraw={canRegisterTeams(tournament)}
-            captainTeamIds={captainIds}
-          />
-        </TabsContent>
+        {showTeamsTab && (
+          <TabsContent value="teams" className="mt-4 space-y-3">
+            {canManageRegistrations && (
+              <p className="text-sm text-muted-foreground">
+                Assign confirmed teams to divisions before generating pools.
+              </p>
+            )}
+            <RegistrationList
+              tournamentId={id}
+              registrations={confirmedTeams}
+              divisions={divisionOptions}
+              listKind="teams"
+              canManageRegistrations={canManageRegistrations}
+              canCheckIn={canCheckIn}
+              canWithdraw={canRegisterTeams(tournament)}
+              captainTeamIds={captainIds}
+            />
+          </TabsContent>
+        )}
 
-        <TabsContent value="pending" className="mt-4 space-y-3">
-          {canManageRegistrations && pendingCount > 0 && (
-            <p className="text-sm text-muted-foreground">
-              Review and confirm registrations before assigning divisions.
-            </p>
-          )}
-          <RegistrationList
-            tournamentId={id}
-            registrations={pendingTeams}
-            divisions={divisionOptions}
-            listKind="pending"
-            canManageRegistrations={canManageRegistrations}
-            canCheckIn={canCheckIn}
-            canWithdraw={canRegisterTeams(tournament)}
-            captainTeamIds={captainIds}
-          />
-        </TabsContent>
+        {showPendingTab && (
+          <TabsContent value="pending" className="mt-4 space-y-3">
+            {isOrganizer && canManageRegistrations && pendingCount > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Review and confirm registrations before assigning divisions.
+              </p>
+            )}
+            {!isOrganizer && (
+              <p className="text-sm text-muted-foreground">
+                Track your team&apos;s registration status for this tournament.
+              </p>
+            )}
+            <RegistrationList
+              tournamentId={id}
+              registrations={pendingTeams}
+              divisions={divisionOptions}
+              listKind="pending"
+              applicantView={!isOrganizer}
+              canManageRegistrations={canManageRegistrations}
+              canCheckIn={canCheckIn}
+              canWithdraw={canRegisterTeams(tournament)}
+              captainTeamIds={captainIds}
+            />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

@@ -4,14 +4,28 @@ import { asc } from "drizzle-orm";
 import { buttonVariants } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { TournamentGrid } from "@/components/tournament-grid";
 import { enrichTournamentsWithHostSchools } from "@/lib/tournaments/host-school";
+import {
+  filterVisibleTournaments,
+  getUserSchoolIds,
+} from "@/lib/tournaments/access";
 
 export const dynamic = "force-dynamic";
 
 export default async function TournamentsPage() {
-  const allTournaments = await enrichTournamentsWithHostSchools(
-    await db.select().from(tournaments).orderBy(asc(tournaments.date))
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const [allTournaments, userSchoolIds] = await Promise.all([
+    db.select().from(tournaments).orderBy(asc(tournaments.date)),
+    getUserSchoolIds(user.id),
+  ]);
+
+  const visibleTournaments = await enrichTournamentsWithHostSchools(
+    filterVisibleTournaments(allTournaments, user, userSchoolIds)
   );
 
   return (
@@ -34,7 +48,7 @@ export default async function TournamentsPage() {
         </Link>
       </div>
 
-      <TournamentGrid tournaments={allTournaments} />
+      <TournamentGrid tournaments={visibleTournaments} />
     </div>
   );
 }

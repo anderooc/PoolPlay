@@ -7,6 +7,10 @@ import {
   statusBadgeLabel,
   todayISO,
 } from "@/lib/tournament-status";
+import {
+  filterVisibleTournaments,
+  getUserSchoolIds,
+} from "@/lib/tournaments/access";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +34,7 @@ export default async function DashboardPage() {
 
   const today = todayISO();
 
-  const [userTeams, recentTournaments, activeTournamentCount] =
+  const [userTeams, recentTournamentRows, activeTournamentCount, userSchoolIds] =
     await Promise.all([
       db
         .select({
@@ -58,7 +62,14 @@ export default async function DashboardPage() {
             gte(tournaments.date, today)
           )
         ),
+      getUserSchoolIds(user.id),
     ]);
+
+  const recentTournaments = filterVisibleTournaments(
+    recentTournamentRows,
+    user,
+    userSchoolIds
+  );
 
   const firstName = user.fullName.split(" ")[0];
   const isNewUser = userTeams.length === 0 && recentTournaments.length === 0;

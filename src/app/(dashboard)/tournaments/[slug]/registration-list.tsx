@@ -42,11 +42,41 @@ type PendingChange = {
   expectedStatus: string | null;
 };
 
+function registrationStatusLabel(status: string): string {
+  switch (status) {
+    case "pending":
+      return "Pending approval";
+    case "confirmed":
+      return "Confirmed";
+    case "checked_in":
+      return "Checked in";
+    default:
+      return status.replace(/_/g, " ");
+  }
+}
+
+function isPendingChangeComplete(
+  pending: PendingChange,
+  registrations: Registration[]
+): boolean {
+  const reg = registrations.find((r) => r.id === pending.regId);
+  if (!reg) return true;
+  const divMatch =
+    pending.expectedDivisionId === undefined ||
+    pending.expectedDivisionId === null
+      ? true
+      : reg.divisionId === pending.expectedDivisionId;
+  const statusMatch =
+    pending.expectedStatus === null || reg.status === pending.expectedStatus;
+  return divMatch && statusMatch;
+}
+
 export function RegistrationList({
   tournamentId,
   registrations,
   divisions,
   listKind,
+  applicantView = false,
   canManageRegistrations,
   canCheckIn,
   canWithdraw,
@@ -57,6 +87,8 @@ export function RegistrationList({
   divisions: DivisionOption[];
   /** Confirmed roster vs awaiting approval. */
   listKind: ListKind;
+  /** Applicant-facing layout: status box on the right, no organizer controls. */
+  applicantView?: boolean;
   canManageRegistrations: boolean;
   canCheckIn: boolean;
   canWithdraw: boolean;
@@ -67,29 +99,10 @@ export function RegistrationList({
   const [errorMap, setErrorMap] = useState<Record<string, string>>({});
   const safetyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (!pending) return;
-    const reg = registrations.find((r) => r.id === pending.regId);
-    if (!reg) {
-      setPending(null);
-      return;
-    }
-    const divMatch =
-      pending.expectedDivisionId === undefined ||
-      pending.expectedDivisionId === null
-        ? true
-        : reg.divisionId === pending.expectedDivisionId;
-    const statusMatch =
-      pending.expectedStatus === null ||
-      reg.status === pending.expectedStatus;
-    if (divMatch && statusMatch) {
-      setPending(null);
-      if (safetyRef.current) {
-        clearTimeout(safetyRef.current);
-        safetyRef.current = null;
-      }
-    }
-  }, [registrations, pending]);
+  const activePending =
+    pending && !isPendingChangeComplete(pending, registrations)
+      ? pending
+      : null;
 
   useEffect(() => {
     return () => {
@@ -179,7 +192,9 @@ export function RegistrationList({
         <CardContent className="py-8 text-center">
           <p className="text-muted-foreground">
             {listKind === "pending"
-              ? "No teams awaiting approval."
+              ? applicantView
+                ? "No pending application for your team."
+                : "No teams awaiting approval."
               : "No confirmed teams yet."}
           </p>
         </CardContent>
@@ -193,8 +208,8 @@ export function RegistrationList({
   return (
     <div className="space-y-3">
       {registrations.map((reg) => {
-        const isBusy = pending?.regId === reg.id;
-        const anyBusy = pending !== null;
+        const isBusy = activePending?.regId === reg.id;
+        const anyBusy = activePending !== null;
         const rowError = errorMap[reg.id] ?? errorMap[reg.teamId] ?? null;
         const canWithdrawRow =
           canWithdraw &&
@@ -204,7 +219,8 @@ export function RegistrationList({
           <div
             key={reg.id}
             className={cn(
-              "relative flex flex-col gap-3 rounded-md border p-3 transition-opacity duration-150 sm:flex-row sm:items-start sm:justify-between",
+              "relative flex flex-col gap-3 rounded-md border p-3 transition-opacity duration-150 sm:flex-row sm:justify-between",
+              applicantView ? "sm:items-center" : "sm:items-start",
               isBusy && "opacity-60"
             )}
           >
@@ -271,16 +287,34 @@ export function RegistrationList({
                 </p>
               ) : null}
             </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <Badge
-                variant={
-                  reg.status === "confirmed" || reg.status === "checked_in"
-                    ? "default"
-                    : "secondary"
-                }
-              >
-                {reg.status.replace(/_/g, " ")}
-              </Badge>
+            <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+              {applicantView ? (
+                <div
+                  className={cn(
+                    "min-w-[9.5rem] rounded-md border px-4 py-3 text-center",
+                    reg.status === "pending"
+                      ? "border-amber-500/30 bg-amber-500/5"
+                      : "border-border bg-muted/30"
+                  )}
+                >
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Status
+                  </p>
+                  <p className="mt-1 text-sm font-semibold">
+                    {registrationStatusLabel(reg.status)}
+                  </p>
+                </div>
+              ) : (
+                <Badge
+                  variant={
+                    reg.status === "confirmed" || reg.status === "checked_in"
+                      ? "default"
+                      : "secondary"
+                  }
+                >
+                  {reg.status.replace(/_/g, " ")}
+                </Badge>
+              )}
               {listKind === "pending" &&
                 canManageRegistrations &&
                 reg.status === "pending" && (
@@ -317,6 +351,9 @@ export function RegistrationList({
                   <X className="mr-1 h-3 w-3" />
                   {canManageRegistrations ? "Delete" : "Withdraw"}
                 </Button>
+              )}
+              {rowError && applicantView && (
+                <p className="text-xs text-destructive">{rowError}</p>
               )}
             </div>
           </div>

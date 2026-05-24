@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
-  tournaments,
   divisions,
   pools,
   poolTeams,
@@ -13,6 +12,7 @@ import {
   registrations,
 } from "@/lib/db/schema";
 import { eq, and, asc, count } from "drizzle-orm";
+import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import {
   canAssignTeamsToPools,
   canGeneratePoolsAndBrackets,
@@ -34,12 +34,7 @@ export default async function BracketsPage({ params }: Props) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [tournament] = await db
-    .select()
-    .from(tournaments)
-    .where(eq(tournaments.slug, slug))
-    .limit(1);
-
+  const tournament = await getTournamentBySlugIfVisible(slug, user);
   if (!tournament) notFound();
 
   const id = tournament.id;
@@ -156,19 +151,6 @@ export default async function BracketsPage({ params }: Props) {
                 .filter(Boolean) as string[]
             ),
           ];
-
-          const bracketTeams =
-            allTeamIds.length > 0
-              ? await db
-                  .select({ id: teams.id, name: teams.name })
-                  .from(teams)
-                  .where(
-                    eq(
-                      teams.id,
-                      allTeamIds[0] // We need to get all teams, do individually
-                    )
-                  )
-              : [];
 
           // Get all bracket teams
           const teamMap = new Map<string, string>();

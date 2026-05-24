@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
-  tournaments,
   matches,
   sets,
   teams,
@@ -14,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScoringCard } from "./scoring-card";
 import { LiveScoreViewer } from "./live-score-viewer";
+import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import {
   canScoreMatches,
   isTournamentOrganizer,
@@ -29,12 +29,7 @@ export default async function ScoringPage({ params }: Props) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [tournament] = await db
-    .select()
-    .from(tournaments)
-    .where(eq(tournaments.slug, slug))
-    .limit(1);
-
+  const tournament = await getTournamentBySlugIfVisible(slug, user);
   if (!tournament) notFound();
 
   const id = tournament.id;
