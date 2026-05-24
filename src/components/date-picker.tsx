@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -97,9 +98,30 @@ type DatePickerFieldProps = {
   markedDates?: Date[];
   rangeFromDates?: string[];
   className?: string;
+  /** Where the calendar opens relative to the trigger. */
+  placement?: "top" | "bottom" | "auto";
 };
 
-/** Form field: labeled trigger opens the shared calendar in a popover. */
+const PANEL_GAP_PX = 4;
+/** Approximate height before the panel mounts; used for first paint only. */
+const PANEL_ESTIMATED_HEIGHT_PX = 320;
+
+function resolvePlacement(
+  placement: "top" | "bottom" | "auto",
+  triggerRect: DOMRect,
+  panelHeight: number
+): "top" | "bottom" {
+  if (placement === "top") return "top";
+  if (placement === "bottom") return "bottom";
+
+  const spaceBelow = window.innerHeight - triggerRect.bottom - PANEL_GAP_PX;
+  const spaceAbove = triggerRect.top - PANEL_GAP_PX;
+  if (spaceBelow >= panelHeight) return "bottom";
+  if (spaceAbove >= panelHeight) return "top";
+  return spaceAbove >= spaceBelow ? "top" : "bottom";
+}
+
+/** Form field: labeled trigger opens the shared calendar in a fixed portal. */
 export function DatePickerField({
   id,
   label,
@@ -111,9 +133,15 @@ export function DatePickerField({
   markedDates,
   rangeFromDates = [],
   className,
+  placement = "auto",
 }: DatePickerFieldProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const [month, setMonth] = useState(() =>
     value ? parseISODate(value) : new Date()
   );
@@ -126,25 +154,62 @@ export function DatePickerField({
       })
     : "Pick a date";
 
-  useEffect(() => {
+  function updatePanelPosition() {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const panelHeight =
+      panelRef.current?.offsetHeight || PANEL_ESTIMATED_HEIGHT_PX;
+    const side = resolvePlacement(placement, rect, panelHeight);
+    const top =
+      side === "top"
+        ? rect.top - panelHeight - PANEL_GAP_PX
+        : rect.bottom + PANEL_GAP_PX;
+
+    const maxLeft = Math.max(8, window.innerWidth - (panelRef.current?.offsetWidth ?? 280) - 8);
+    const left = Math.min(Math.max(8, rect.left), maxLeft);
+
+    setPanelStyle({
+      top: Math.max(8, Math.min(top, window.innerHeight - panelHeight - 8)),
+      left,
+    });
+  }
+
+  useLayoutEffect(() => {
     if (!open) return;
     setMonth(value ? parseISODate(value) : new Date());
-  }, [open, value]);
+    updatePanelPosition();
+    requestAnimationFrame(() => updatePanelPosition());
+  }, [open, value, placement]);
 
   useEffect(() => {
     if (!open) return;
+
     function onPointerDown(event: PointerEvent) {
-      if (containerRef.current?.contains(event.target as Node)) return;
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
       setOpen(false);
     }
+
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
     }
+
+    function onLayoutChange() {
+      updatePanelPosition();
+    }
+
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", onLayoutChange);
+    window.addEventListener("scroll", onLayoutChange, true);
+
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", onLayoutChange);
+      window.removeEventListener("scroll", onLayoutChange, true);
     };
   }, [open]);
 
@@ -153,38 +218,19 @@ export function DatePickerField({
     onChange(toISODate(date));
     setOpen(false);
     requestAnimationFrame(() => {
-      (document.activeElement as HTMLElement | null)?.blur();
+      triggerRef.current?.blur();
     });
   }
 
-  return (
-    <div className={cn("space-y-2", className)}>
-      {name && (
-        <input type="hidden" name={name} value={value} required={required} />
-      )}
-      {label && <Label htmlFor={id}>{label}</Label>}
-      <div ref={containerRef} className="relative">
-        <Button
-          id={id}
-          type="button"
-          variant="outline"
-          disabled={disabled}
-          aria-expanded={open}
-          aria-haspopup="dialog"
-          className={cn(
-            "w-full justify-start font-normal",
-            !value && "text-muted-foreground"
-          )}
-          onClick={() => setOpen((prev) => !prev)}
-        >
-          <CalendarIcon className="h-4 w-4" />
-          {displayLabel}
-        </Button>
-        {open && (
+  const calendarPanel =
+    open && panelStyle && typeof document !== "undefined"
+      ? createPortal(
           <div
-            className="absolute top-[calc(100%+4px)] left-0 z-50 w-auto rounded-lg border bg-popover p-1.5 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+            ref={panelRef}
             role="dialog"
             aria-label="Choose date"
+            className="fixed z-50 w-auto rounded-lg border bg-popover p-1.5 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+            style={{ top: panelStyle.top, left: panelStyle.left }}
           >
             <DatePickerCalendar
               selected={value ? parseISODate(value) : undefined}
@@ -195,11 +241,37 @@ export function DatePickerField({
               }
               month={month}
               onMonthChange={setMonth}
-              autoFocus
             />
-          </div>
+          </div>,
+          document.body
+        )
+      : null;
+
+  return (
+    <div className={cn("space-y-2", className)}>
+      {name && (
+        <input type="hidden" name={name} value={value} required={required} />
+      )}
+      {label && <Label htmlFor={id}>{label}</Label>}
+      <Button
+        ref={triggerRef}
+        id={id}
+        type="button"
+        variant="outline"
+        disabled={disabled}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        className={cn(
+          "h-8 w-full justify-start gap-2 font-normal",
+          !value && "text-muted-foreground",
+          open && "bg-muted text-foreground"
         )}
-      </div>
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <CalendarIcon className="h-4 w-4 shrink-0" />
+        <span className="truncate">{displayLabel}</span>
+      </Button>
+      {calendarPanel}
     </div>
   );
 }
