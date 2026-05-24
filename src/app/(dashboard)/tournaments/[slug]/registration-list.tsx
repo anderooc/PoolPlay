@@ -243,7 +243,7 @@ export function RegistrationList({
                     htmlFor={`division-${reg.id}`}
                     className="text-xs"
                   >
-                    Division
+                    Pool
                   </Label>
                   <Select
                     disabled={anyBusy}
@@ -257,7 +257,7 @@ export function RegistrationList({
                       id={`division-${reg.id}`}
                       className="w-full"
                     >
-                      <SelectValue placeholder="Assign division">
+                      <SelectValue placeholder="Assign pool">
                         {(v) => {
                           if (v === "__unassigned__" || v == null)
                             return "Unassigned";
@@ -282,7 +282,7 @@ export function RegistrationList({
               ) : listKind === "teams" ? (
                 <p className="mt-1 text-sm text-muted-foreground">
                   {reg.divisionName ?? (
-                    <span className="italic">Division not assigned yet</span>
+                    <span className="italic">Pool not assigned yet</span>
                   )}
                 </p>
               ) : null}

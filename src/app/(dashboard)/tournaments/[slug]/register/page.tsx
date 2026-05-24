@@ -112,8 +112,8 @@ export default async function RegisterPage({ params }: Props) {
             />
             {isHost ? (
               <p className="mt-2 text-sm text-muted-foreground">
-                Select one or more {tournamentGenderLabel} teams to add. Division
-                and pool placement can be set later from the tournament page, and
+                Select one or more {tournamentGenderLabel} teams to add. Pool
+                and group placement can be set later from the tournament page, and
                 host-added teams are confirmed automatically.
               </p>
             ) : (

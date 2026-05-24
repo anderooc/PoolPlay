@@ -42,12 +42,12 @@ interface Division {
 interface TournamentCourt {
   id: string;
   name: string;
-  /** Divisions this court is linked to (may be several) */
+  /** Pools this court is linked to (may be several) */
   divisionIds: string[];
 }
 
 const formatLabel: Record<string, string> = {
-  pool_to_bracket: "Pool Play to Bracket",
+  pool_to_bracket: "Group Play to Bracket",
   single_elimination: "Single Elimination",
   double_elimination: "Double Elimination",
 };
@@ -74,7 +74,7 @@ function snapshotTournamentData(
   });
 }
 
-export function DivisionManager({
+export function PoolManager({
   tournamentId,
   divisions,
   tournamentCourts,
@@ -133,7 +133,7 @@ export function DivisionManager({
     }
     const isVisible = divisions.some((d) => d.id === pendingAddedDivisionId);
     if (!isVisible) return;
-    toast.success("Division added", { id: addDivisionToastIdRef.current });
+    toast.success("Pool added", { id: addDivisionToastIdRef.current });
     addDivisionToastIdRef.current = null;
     queueMicrotask(() => setPendingAddedDivisionId(null));
   }, [divisions, pendingAddedDivisionId]);
@@ -192,13 +192,13 @@ export function DivisionManager({
     formData.set("format", divisionFormat);
     setLoading(true);
     setError(null);
-    addDivisionToastIdRef.current = toast.loading("Adding division...");
+    addDivisionToastIdRef.current = toast.loading("Adding pool...");
     const result = await addDivision(tournamentId, formData);
     if (result?.error) {
       setError(result.error);
       setPendingAddedDivisionId(null);
       if (addDivisionToastIdRef.current != null) {
-        toast.error("Could not add division", { id: addDivisionToastIdRef.current });
+        toast.error("Could not add pool", { id: addDivisionToastIdRef.current });
         addDivisionToastIdRef.current = null;
       }
       setLoading(false);
@@ -290,7 +290,7 @@ export function DivisionManager({
         <Card>
           <CardContent className="py-8 text-center">
             <p className="text-muted-foreground">
-              No divisions configured yet.
+              No pools configured yet.
             </p>
             {isOrganizer && (
               <Button
@@ -300,7 +300,7 @@ export function DivisionManager({
                 onClick={() => setShowForm(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Add Division
+                Add Pool
               </Button>
             )}
           </CardContent>
@@ -341,7 +341,7 @@ export function DivisionManager({
                             className="h-7 w-7"
                             disabled={removeBusy}
                             onClick={() => openEditDialog(div)}
-                            aria-label="Edit division"
+                            aria-label="Edit pool"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -351,7 +351,7 @@ export function DivisionManager({
                             className="h-7 w-7"
                             disabled={removeBusy}
                             onClick={() => requestRemoveDivision(div)}
-                            aria-label="Remove division"
+                            aria-label="Remove pool"
                           >
                             <X className="h-3.5 w-3.5" />
                           </Button>
@@ -381,7 +381,7 @@ export function DivisionManager({
                     >
                       <Spinner size={28} />
                       <p className="text-center text-sm font-medium text-foreground drop-shadow-sm">
-                        Removing division…
+                        Removing pool…
                       </p>
                       <div
                         className="relative h-1 w-36 max-w-[85%] overflow-hidden rounded-full bg-muted/90 shadow-sm"
@@ -403,7 +403,7 @@ export function DivisionManager({
               onClick={() => setShowForm(true)}
             >
               <Plus className="mr-2 h-4 w-4" />
-              Add Division
+              Add Pool
             </Button>
           )}
         </>
@@ -426,7 +426,7 @@ export function DivisionManager({
             >
               <Spinner size={32} />
               <p className="text-center text-sm font-medium text-foreground drop-shadow-sm">
-                Adding division…
+                Adding pool…
               </p>
               <div
                 className="relative h-1 w-36 max-w-[85%] overflow-hidden rounded-full bg-muted/90 shadow-sm"
@@ -437,7 +437,7 @@ export function DivisionManager({
             </div>
           )}
           <CardHeader>
-            <CardTitle className="text-base">New Division</CardTitle>
+            <CardTitle className="text-base">New Pool</CardTitle>
           </CardHeader>
           <CardContent>
             <form action={handleAdd} className="space-y-3">
@@ -469,7 +469,7 @@ export function DivisionManager({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pool_to_bracket">
-                      Pool Play to Bracket
+                      Group Play to Bracket
                     </SelectItem>
                     <SelectItem value="single_elimination">
                       Single Elimination
@@ -499,7 +499,7 @@ export function DivisionManager({
                   type="submit"
                   disabled={loading}
                   aria-busy={loading}
-                  aria-label={loading ? "Adding division" : undefined}
+                  aria-label={loading ? "Adding pool" : undefined}
                   className={cn(
                     "shrink-0",
                     loading
@@ -510,7 +510,7 @@ export function DivisionManager({
                   {loading ? (
                     <Spinner size={26} variant="onPrimary" />
                   ) : (
-                    "Add Division"
+                    "Add Pool"
                   )}
                 </Button>
                 <Button
@@ -556,7 +556,7 @@ export function DivisionManager({
               )}
             >
               <DialogHeader>
-                <DialogTitle>Edit division</DialogTitle>
+                <DialogTitle>Edit pool</DialogTitle>
               </DialogHeader>
               {editing && (
                 <form onSubmit={handleEditSubmit} className="space-y-3">
@@ -586,7 +586,7 @@ export function DivisionManager({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pool_to_bracket">
-                      Pool Play to Bracket
+                      Group Play to Bracket
                     </SelectItem>
                     <SelectItem value="single_elimination">
                       Single Elimination
@@ -611,10 +611,10 @@ export function DivisionManager({
               </div>
               {tournamentCourts.length > 0 && (
                 <fieldset className="space-y-2">
-                  <legend className="text-sm font-medium">Courts for this division</legend>
+                  <legend className="text-sm font-medium">Courts for this pool</legend>
                   <p className="text-xs text-muted-foreground">
-                    Shared courts have no division here or elsewhere. A court can
-                    belong to multiple divisions at once.
+                    Shared courts have no pool here or elsewhere. A court can
+                    belong to multiple pools at once.
                   </p>
                   <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border border-border p-3">
                     {tournamentCourts.map((court) => {
@@ -694,7 +694,7 @@ export function DivisionManager({
                   <Spinner size={32} />
                   <p className="max-w-[16rem] text-center text-sm font-medium text-foreground drop-shadow-sm">
                     {awaitingFreshProps
-                      ? "Syncing courts and divisions…"
+                      ? "Syncing courts and pools…"
                       : "Saving changes…"}
                   </p>
                   <div
@@ -719,7 +719,7 @@ export function DivisionManager({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Remove division?</DialogTitle>
+            <DialogTitle>Remove pool?</DialogTitle>
           </DialogHeader>
           {divisionToRemove && (
             <div className="space-y-2 text-sm">
@@ -727,7 +727,7 @@ export function DivisionManager({
                 This will remove <span className="font-medium">{divisionToRemove.name}</span>.
               </p>
               <p className="text-muted-foreground">
-                Pools and brackets under this division will also be deleted.
+                Groups and brackets under this pool will also be deleted.
               </p>
             </div>
           )}
@@ -746,7 +746,7 @@ export function DivisionManager({
               disabled={removingDivisionId !== null}
               onClick={() => void confirmRemoveDivision()}
             >
-              Remove division
+              Remove pool
             </Button>
           </DialogFooter>
         </DialogContent>

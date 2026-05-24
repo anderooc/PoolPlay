@@ -83,7 +83,7 @@ export default async function HomePage() {
               {
                 icon: Trophy,
                 title: "Tournament Management",
-                desc: "Create and manage tournaments with divisions, pools, and brackets.",
+                desc: "Create and manage tournaments with pools, groups, and brackets.",
               },
               {
                 icon: Users,

@@ -237,7 +237,7 @@ export function TournamentRow({ tournament }: Props) {
           <DialogHeader>
             <DialogTitle>Delete &ldquo;{name}&rdquo;?</DialogTitle>
             <DialogDescription>
-              This permanently removes divisions, courts, registrations, pools,
+              This permanently removes pools, courts, registrations, groups,
               brackets, scheduled matches, and scores. Teams in the system are
               not deleted.
             </DialogDescription>

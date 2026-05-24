@@ -116,7 +116,7 @@ export default async function DashboardPage() {
                   <Trophy className="h-5 w-5 text-primary" />
                   <span className="font-medium">Run a tournament</span>
                   <span className="text-xs text-muted-foreground">
-                    Configure divisions, courts, and brackets.
+                    Configure pools, courts, and brackets.
                   </span>
                   <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
                     Start

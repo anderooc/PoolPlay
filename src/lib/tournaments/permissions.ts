@@ -124,7 +124,7 @@ export function poolAssignmentBlockedMessage(
   pendingRegistrationCount: number
 ): string | null {
   if (pendingRegistrationCount > 0) {
-    return "Confirm all registered teams before assigning pools.";
+    return "Confirm all registered teams before assigning groups.";
   }
   return null;
 }
@@ -242,7 +242,7 @@ export function hostChecklistSteps(input: {
     },
     {
       id: "setup",
-      label: "Add divisions and courts",
+      label: "Add pools and courts",
       done: divisionCount > 0 && courtCount > 0,
       hint: "Configure competition structure before opening registration.",
     },
@@ -266,15 +266,15 @@ export function hostChecklistSteps(input: {
     },
     {
       id: "structure",
-      label: "Assign divisions and generate pools",
+      label: "Assign pools and generate groups",
       done: hasPools,
-      hint: "Confirm teams, close registration, assign divisions, then generate pools.",
+      hint: "Confirm teams, close registration, assign pools, then generate groups.",
     },
     {
       id: "bracket",
       label: "Generate brackets",
       done: hasBracket,
-      hint: "Create elimination brackets after pool play is set.",
+      hint: "Create elimination brackets after group play is set.",
     },
     {
       id: "schedule",

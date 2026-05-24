@@ -71,7 +71,7 @@ export const createTournamentSchema = z.object({
 });
 
 export const createDivisionSchema = z.object({
-  name: z.string().min(1, "Division name is required"),
+  name: z.string().min(1, "Pool name is required"),
   format: z.enum(["pool_to_bracket", "single_elimination", "double_elimination"]),
   teamCap: z.number().int().positive().optional(),
 });

@@ -14,7 +14,7 @@ import { toast } from "sonner";
 interface Court {
   id: string;
   name: string;
-  /** Division names this court is assigned to (alphabetical from server) */
+  /** Pool names this court is assigned to (alphabetical from server) */
   divisionNames: string[];
 }
 

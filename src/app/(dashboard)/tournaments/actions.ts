@@ -420,7 +420,7 @@ export async function addDivision(tournamentId: string, formData: FormData) {
   if (!tournament || !canEditTournamentSetup(tournament, user)) {
     return {
       error:
-        "Divisions cannot be edited in the current tournament stage. Complete setup before the event starts.",
+        "Pools cannot be edited in the current tournament stage. Complete setup before the event starts.",
     };
   }
 
@@ -451,7 +451,7 @@ export async function addDivision(tournamentId: string, formData: FormData) {
     (div) => div.name.trim().toLowerCase() === normalizedDivisionName
   );
   if (duplicateDivision) {
-    return { error: "A pool/division with this name already exists" };
+    return { error: "A pool with this name already exists" };
   }
 
   const [inserted] = await db
@@ -465,7 +465,7 @@ export async function addDivision(tournamentId: string, formData: FormData) {
     .returning({ id: divisions.id });
 
   if (!inserted) {
-    return { error: "Could not create division" };
+    return { error: "Could not create pool" };
   }
 
   revalidatePath("/tournaments/[slug]", "page");
@@ -482,7 +482,7 @@ export async function removeDivision(tournamentId: string, divisionId: string) {
     .limit(1);
 
   if (!tournament || !canEditTournamentSetup(tournament, user)) {
-    return { error: "Divisions cannot be removed in the current tournament stage." };
+    return { error: "Pools cannot be removed in the current tournament stage." };
   }
 
   await db.delete(divisions).where(eq(divisions.id, divisionId));
@@ -616,7 +616,7 @@ export async function updateDivision(
     .limit(1);
 
   if (!tournament || !canEditTournamentSetup(tournament, user)) {
-    return { error: "Divisions cannot be edited in the current tournament stage." };
+    return { error: "Pools cannot be edited in the current tournament stage." };
   }
 
   const [existingDiv] = await db
@@ -626,7 +626,7 @@ export async function updateDivision(
     .limit(1);
 
   if (!existingDiv || existingDiv.tournamentId !== tournamentId) {
-    return { error: "Division not found" };
+    return { error: "Pool not found" };
   }
 
   const parsed = createDivisionSchema.safeParse({
@@ -661,7 +661,7 @@ export async function updateDivision(
   if (
     others.some((d) => d.name.trim().toLowerCase() === normalizedName)
   ) {
-    return { error: "A pool/division with this name already exists" };
+    return { error: "A pool with this name already exists" };
   }
 
   await db
@@ -702,7 +702,7 @@ export async function setCourtsForDivision(
     .limit(1);
 
   if (!div || div.tournamentId !== tournamentId) {
-    return { error: "Division not found" };
+    return { error: "Pool not found" };
   }
 
   const uniqueIds = [...new Set(courtIds)];
@@ -766,7 +766,7 @@ export async function setRegistrationDivision(
 
   if (!tournament || !canEditRegistrations(tournament, user)) {
     return {
-      error: "Division assignments cannot be changed in the current tournament stage.",
+      error: "Pool assignments cannot be changed in the current tournament stage.",
     };
   }
 
@@ -778,7 +778,7 @@ export async function setRegistrationDivision(
       .limit(1);
 
     if (!div || div.tournamentId !== reg.tournamentId) {
-      return { error: "Invalid division for this tournament" };
+      return { error: "Invalid pool for this tournament" };
     }
   }
 

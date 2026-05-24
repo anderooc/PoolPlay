@@ -393,7 +393,7 @@ export function TournamentPageHeading({
           href={`/tournaments/${slug}/brackets`}
           className={buttonVariants({ variant: "outline" })}
         >
-          Pools &amp; Brackets
+          Groups &amp; Brackets
         </Link>
         <Link
           href={`/tournaments/${slug}/scoring`}
@@ -646,8 +646,8 @@ export function TournamentPageHeading({
               <DialogHeader>
                 <DialogTitle>Delete this tournament?</DialogTitle>
                 <DialogDescription>
-                  This permanently removes divisions, courts, registrations,
-                  pools, brackets, scheduled matches, and scores. Teams in the
+                  This permanently removes pools, courts, registrations,
+                  groups, brackets, scheduled matches, and scores. Teams in the
                   system are not deleted.
                 </DialogDescription>
               </DialogHeader>

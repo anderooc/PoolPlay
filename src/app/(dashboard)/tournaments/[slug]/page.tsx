@@ -36,7 +36,7 @@ import { getTournamentMatchIds } from "@/lib/tournaments/match-query";
 import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import { TournamentPageHeading } from "./tournament-page-heading";
-import { DivisionManager } from "./division-manager";
+import { PoolManager } from "./pool-manager";
 import { CourtManager } from "./court-manager";
 import { RegistrationList } from "./registration-list";
 
@@ -207,7 +207,7 @@ export default async function TournamentDetailPage({ params }: Props) {
   const showTeamsTab = isOrganizer;
   const showPendingTab = isOrganizer || pendingTeams.length > 0;
   const defaultTab =
-    !isOrganizer && pendingTeams.length > 0 ? "pending" : "divisions";
+    !isOrganizer && pendingTeams.length > 0 ? "pending" : "pools";
 
   const divisionOptions = tournamentDivisions.map((d) => ({
     id: d.id,
@@ -321,7 +321,7 @@ export default async function TournamentDetailPage({ params }: Props) {
               href={`/tournaments/${tournament.slug}/brackets`}
               className={buttonVariants({ variant: "outline" })}
             >
-              Pools &amp; Brackets
+              Groups &amp; Brackets
             </Link>
             <Link
               href={`/tournaments/${tournament.slug}/scoring`}
@@ -335,8 +335,8 @@ export default async function TournamentDetailPage({ params }: Props) {
 
       <Tabs defaultValue={defaultTab}>
         <TabsList>
-          <TabsTrigger value="divisions">
-            Divisions &amp; courts
+          <TabsTrigger value="pools">
+            Pools &amp; courts
           </TabsTrigger>
           {showTeamsTab && (
             <TabsTrigger value="teams">
@@ -358,10 +358,10 @@ export default async function TournamentDetailPage({ params }: Props) {
           )}
         </TabsList>
 
-        <TabsContent value="divisions" className="mt-4 space-y-10">
+        <TabsContent value="pools" className="mt-4 space-y-10">
           <section className="space-y-3">
-            <h2 className="text-lg font-semibold tracking-tight">Divisions</h2>
-            <DivisionManager
+            <h2 className="text-lg font-semibold tracking-tight">Pools</h2>
+            <PoolManager
               tournamentId={id}
               divisions={tournamentDivisions}
               tournamentCourts={tournamentCourts.map((c) => ({
@@ -393,7 +393,7 @@ export default async function TournamentDetailPage({ params }: Props) {
           <TabsContent value="teams" className="mt-4 space-y-3">
             {canManageRegistrations && (
               <p className="text-sm text-muted-foreground">
-                Assign confirmed teams to divisions before generating pools.
+                Assign confirmed teams to pools before generating groups.
               </p>
             )}
             <RegistrationList
@@ -413,7 +413,7 @@ export default async function TournamentDetailPage({ params }: Props) {
           <TabsContent value="pending" className="mt-4 space-y-3">
             {isOrganizer && canManageRegistrations && pendingCount > 0 && (
               <p className="text-sm text-muted-foreground">
-                Review and confirm registrations before assigning divisions.
+                Review and confirm registrations before assigning pools.
               </p>
             )}
             {!isOrganizer && (

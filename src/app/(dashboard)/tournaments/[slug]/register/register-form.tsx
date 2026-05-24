@@ -193,8 +193,8 @@ export function RegisterForm({
 
       <p className="text-xs text-muted-foreground">
         {asHost
-          ? "Assign divisions and pools later from the tournament dashboard."
-          : "Division and pool placement is set by the tournament organizer after you register."}
+          ? "Assign pools and groups later from the tournament dashboard."
+          : "Pool and group placement is set by the tournament organizer after you register."}
       </p>
 
       {error && <p className="text-sm text-destructive">{error}</p>}

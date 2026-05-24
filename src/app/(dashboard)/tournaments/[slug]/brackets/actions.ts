@@ -57,7 +57,7 @@ async function assertCanAssignTeamsToPools(
   if (!canAssignTeamsToPools(tournament, user, pending)) {
     return {
       error:
-        "Pools can only be assigned after registration closes. Only the organizer can assign pools.",
+        "Groups can only be assigned after registration closes. Only the organizer can assign groups.",
     };
   }
 
@@ -141,7 +141,7 @@ export async function generatePoolsForDivision(
     .orderBy(asc(registrations.registeredAt), asc(teams.name));
 
   if (divRegs.length < 2) {
-    return { error: "Need at least 2 confirmed teams to generate pools" };
+    return { error: "Need at least 2 confirmed teams to generate groups" };
   }
 
   const teamData = divRegs.map((r) => ({
@@ -227,7 +227,7 @@ export async function generateBracketForDivision(
     .where(eq(divisions.id, divisionId))
     .limit(1);
 
-  if (!division) return { error: "Division not found" };
+  if (!division) return { error: "Pool not found" };
 
   // Clear existing brackets
   const existingBrackets = await db
@@ -285,7 +285,7 @@ export async function addTeamToPool(
     .where(eq(pools.id, poolId))
     .limit(1);
 
-  if (!pool) return { error: "Pool not found" };
+  if (!pool) return { error: "Group not found" };
 
   const [division] = await db
     .select()
@@ -293,7 +293,7 @@ export async function addTeamToPool(
     .where(eq(divisions.id, pool.divisionId))
     .limit(1);
 
-  if (!division) return { error: "Division not found" };
+  if (!division) return { error: "Pool not found" };
 
   if (division.tournamentId !== tournamentId) {
     return { error: "Tournament mismatch" };
@@ -312,7 +312,7 @@ export async function addTeamToPool(
   if (matchCount > 0) {
     return {
       error:
-        "This pool has matches. Regenerate pools before changing team assignments.",
+        "This group has matches. Regenerate groups before changing team assignments.",
     };
   }
 
@@ -332,7 +332,7 @@ export async function addTeamToPool(
   if (!reg) {
     return {
       error:
-        "Team must be confirmed and assigned to this division before pool placement.",
+        "Team must be confirmed and assigned to this pool before group placement.",
     };
   }
 
@@ -343,7 +343,7 @@ export async function addTeamToPool(
     .limit(1);
 
   if (alreadyHere) {
-    return { error: "This team is already in this pool" };
+    return { error: "This team is already in this group" };
   }
 
   const [inOtherPool] = await db
@@ -360,7 +360,7 @@ export async function addTeamToPool(
     .limit(1);
 
   if (inOtherPool) {
-    return { error: "Team is already in another pool in this division" };
+    return { error: "Team is already in another group in this pool" };
   }
 
   await db.insert(poolTeams).values({
@@ -392,7 +392,7 @@ export async function removeTeamFromPool(
     .where(eq(pools.id, poolId))
     .limit(1);
 
-  if (!pool) return { error: "Pool not found" };
+  if (!pool) return { error: "Group not found" };
 
   const [division] = await db
     .select()
@@ -400,7 +400,7 @@ export async function removeTeamFromPool(
     .where(eq(divisions.id, pool.divisionId))
     .limit(1);
 
-  if (!division) return { error: "Division not found" };
+  if (!division) return { error: "Pool not found" };
 
   if (division.tournamentId !== tournamentId) {
     return { error: "Tournament mismatch" };
@@ -419,7 +419,7 @@ export async function removeTeamFromPool(
   if (matchCount > 0) {
     return {
       error:
-        "This pool has matches. Regenerate pools before removing teams.",
+        "This group has matches. Regenerate groups before removing teams.",
     };
   }
 

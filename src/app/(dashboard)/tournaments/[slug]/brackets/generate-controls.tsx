@@ -59,7 +59,7 @@ export function GenerateControls({
         {(divisionFormat === "pool_to_bracket" || !hasPools) && (
           <div className="flex items-end gap-2">
             <div className="space-y-1">
-              <Label htmlFor="poolCount">Number of Pools</Label>
+              <Label htmlFor="poolCount">Number of Groups</Label>
               <Input
                 id="poolCount"
                 type="number"
@@ -75,7 +75,7 @@ export function GenerateControls({
               disabled={loading || !canAssignPools}
               title={poolAssignmentBlocked ?? undefined}
             >
-              {loading ? "Generating..." : "Generate Pools"}
+              {loading ? "Generating..." : "Generate Groups"}
             </Button>
           </div>
         )}

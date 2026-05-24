@@ -54,7 +54,7 @@ export async function insertTeamRegistration(
       });
     } else if (isNotNullViolation(e) && !firstDivisionId) {
       throw new Error(
-        "Add at least one division to this tournament before registering teams. (Or run the DB migration so division can be unset until you assign pools.)"
+        "Add at least one pool to this tournament before registering teams. (Or run the DB migration so pool assignment can be unset until you assign teams.)"
       );
     } else {
       throw e;

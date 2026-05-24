@@ -173,10 +173,10 @@ export function PoolTeamAssignments({
         )}
       >
         <CardHeader>
-          <CardTitle className="text-base">Pool assignments</CardTitle>
+          <CardTitle className="text-base">Group assignments</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Add or remove teams per pool. Changes are blocked while a pool has
-            generated matches — regenerate pools if you need to edit.
+            Add or remove teams per group. Changes are blocked while a group has
+            generated matches — regenerate groups if you need to edit.
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -188,7 +188,7 @@ export function PoolTeamAssignments({
                 {pool.matchCount > 0 && (
                   <span className="text-xs text-amber-700 dark:text-amber-400">
                     {pool.matchCount} match
-                    {pool.matchCount !== 1 ? "es" : ""} — regenerate pools to
+                    {pool.matchCount !== 1 ? "es" : ""} — regenerate groups to
                     edit teams
                   </span>
                 )}
@@ -252,7 +252,7 @@ export function PoolTeamAssignments({
       </Card>
       {blocking && (
         <>
-          <span className="sr-only">Updating pool assignments…</span>
+          <span className="sr-only">Updating group assignments…</span>
           <div
             className="pointer-events-auto absolute inset-0 z-10 flex cursor-wait items-center justify-center rounded-lg bg-background/70 backdrop-blur-[1px] ring-1 ring-inset ring-border/60 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-150"
             aria-hidden

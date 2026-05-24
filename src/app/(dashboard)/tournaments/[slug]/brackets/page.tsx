@@ -180,12 +180,12 @@ export default async function BracketsPage({ params }: Props) {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          Pools &amp; Brackets
+          Groups &amp; Brackets
         </h1>
         <p className="text-muted-foreground">{tournament.name}</p>
         {isOrganizer && !canGenerateStructure && (
           <p className="mt-2 text-sm text-muted-foreground">
-            Close registration to generate pools and brackets.
+            Close registration to generate groups and brackets.
           </p>
         )}
         {isOrganizer && canGenerateStructure && poolAssignmentBlocked && (
@@ -196,7 +196,7 @@ export default async function BracketsPage({ params }: Props) {
       </div>
 
       {tournamentDivisions.length === 0 ? (
-        <p className="text-muted-foreground">No divisions configured.</p>
+        <p className="text-muted-foreground">No pools configured.</p>
       ) : (
         <Tabs defaultValue={tournamentDivisions[0]?.id}>
           <TabsList>
@@ -235,7 +235,7 @@ export default async function BracketsPage({ params }: Props) {
 
               {div.pools.length > 0 && (
                 <div className="space-y-4">
-                  <h2 className="text-lg font-semibold">Pool Play</h2>
+                  <h2 className="text-lg font-semibold">Group Play</h2>
                   <div className="grid gap-4 md:grid-cols-2">
                     {div.pools.map((pool) => (
                       <PoolView key={pool.id} pool={pool} />
