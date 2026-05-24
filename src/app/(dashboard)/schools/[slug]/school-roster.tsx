@@ -50,6 +50,7 @@ export function SchoolRoster({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [addRole, setAddRole] = useState<SchoolMemberRole>("member");
 
   async function handleAdd(formData: FormData) {
     setError(null);
@@ -187,9 +188,9 @@ export function SchoolRoster({
           </h3>
           <form
             action={handleAdd}
-            className="grid gap-3 sm:grid-cols-[1.5fr_1fr_1fr_auto]"
+            className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
           >
-            <div className="space-y-1">
+            <div className="w-full space-y-1 sm:w-52 sm:shrink-0">
               <Label htmlFor="email" className="sr-only">
                 Email
               </Label>
@@ -201,32 +202,37 @@ export function SchoolRoster({
                 required
               />
             </div>
-            <div className="space-y-1">
+            <div className="w-full space-y-1 sm:w-36 sm:shrink-0">
               <Label htmlFor="role" className="sr-only">
                 Role
               </Label>
               <select
                 id="role"
                 name="role"
-                defaultValue="member"
+                value={addRole}
+                onChange={(e) =>
+                  setAddRole(e.target.value as SchoolMemberRole)
+                }
                 className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none"
               >
                 <option value="member">Member</option>
                 <option value="officer">Officer</option>
               </select>
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="title" className="sr-only">
-                Title
-              </Label>
-              <Input
-                id="title"
-                name="title"
-                placeholder="Title (e.g. VP)"
-                maxLength={60}
-              />
-            </div>
-            <Button type="submit" disabled={loading}>
+            {addRole === "officer" && (
+              <div className="w-full space-y-1 sm:w-40 sm:shrink-0">
+                <Label htmlFor="title" className="sr-only">
+                  Title
+                </Label>
+                <Input
+                  id="title"
+                  name="title"
+                  placeholder="Title (e.g. VP)"
+                  maxLength={60}
+                />
+              </div>
+            )}
+            <Button type="submit" disabled={loading} className="sm:shrink-0">
               {loading ? "Adding…" : "Add"}
             </Button>
           </form>
