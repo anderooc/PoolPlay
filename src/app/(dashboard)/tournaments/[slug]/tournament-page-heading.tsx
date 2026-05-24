@@ -45,7 +45,9 @@ import {
 import { StatusControls } from "./status-controls";
 import { TournamentHostChecklist } from "@/components/tournament-host-checklist";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
+import { TournamentHostSchoolLink } from "@/components/tournament-host-school-link";
 import type { HostChecklistStep } from "@/lib/tournaments/permissions";
+import type { TournamentHostSchool } from "@/lib/tournaments/host-school";
 import type { TeamGender, TeamRegion } from "@/types";
 import { MapPin, Calendar, User } from "lucide-react";
 
@@ -65,6 +67,7 @@ export function TournamentPageHeading({
   status,
   showRegisterLink = false,
   hostChecklistSteps = [],
+  hostSchool = null,
 }: {
   tournamentId: string;
   initialSlug: string;
@@ -79,6 +82,7 @@ export function TournamentPageHeading({
   status: string;
   showRegisterLink?: boolean;
   hostChecklistSteps?: HostChecklistStep[];
+  hostSchool?: TournamentHostSchool | null;
 }) {
   const router = useRouter();
   const [slug, setSlug] = useState(initialSlug);
@@ -369,6 +373,7 @@ export function TournamentPageHeading({
           region={region}
           className="mt-2"
         />
+        <TournamentHostSchoolLink school={hostSchool} className="mt-2" />
         {listingDescription ? (
           <p className="mt-3 max-w-2xl whitespace-pre-wrap text-sm text-muted-foreground">
             {listingDescription}

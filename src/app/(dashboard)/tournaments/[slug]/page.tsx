@@ -22,6 +22,7 @@ import { MapPin, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { BackLink } from "@/components/layout/back-link";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
+import { TournamentHostSchoolLink } from "@/components/tournament-host-school-link";
 import { formatTournamentDateDisplay } from "@/lib/date-iso";
 import { isTournamentArchived } from "@/lib/tournament-status";
 import {
@@ -34,6 +35,7 @@ import {
   isTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
 import { getTournamentMatchIds } from "@/lib/tournaments/match-query";
+import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import { TournamentPageHeading } from "./tournament-page-heading";
 import { DivisionManager } from "./division-manager";
 import { CourtManager } from "./court-manager";
@@ -150,7 +152,8 @@ export default async function TournamentDetailPage({ params }: Props) {
     isOrganizer && canGeneratePoolsAndBrackets(tournament, user);
   const showRegisterLink = canRegisterTeams(tournament);
 
-  const [poolRow, bracketRow, captainTeamIds, matchIds] = await Promise.all([
+  const [poolRow, bracketRow, captainTeamIds, matchIds, hostSchool] =
+    await Promise.all([
     db
       .select({ id: pools.id })
       .from(pools)
@@ -173,6 +176,7 @@ export default async function TournamentDetailPage({ params }: Props) {
         )
       ),
     getTournamentMatchIds(id),
+    getHostSchoolById(tournament.hostSchoolId),
   ]);
 
   let hasScheduledMatches = false;
@@ -192,6 +196,19 @@ export default async function TournamentDetailPage({ params }: Props) {
   const pendingCount = tournamentRegistrations.filter(
     (r) => r.status === "pending"
   ).length;
+
+  const confirmedTeams = tournamentRegistrations.filter(
+    (r) => r.status === "confirmed" || r.status === "checked_in"
+  );
+
+  const pendingTeams = tournamentRegistrations.filter(
+    (r) => r.status === "pending"
+  );
+
+  const divisionOptions = tournamentDivisions.map((d) => ({
+    id: d.id,
+    name: d.name,
+  }));
 
   const captainIds = new Set(captainTeamIds.map((r) => r.teamId));
 
@@ -229,6 +246,7 @@ export default async function TournamentDetailPage({ params }: Props) {
           status={tournament.status}
           showRegisterLink={showRegisterLink}
           hostChecklistSteps={checklist}
+          hostSchool={hostSchool}
         />
       ) : (
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -280,6 +298,7 @@ export default async function TournamentDetailPage({ params }: Props) {
               region={tournament.region}
               className="mt-2"
             />
+            <TournamentHostSchoolLink school={hostSchool} className="mt-2" />
             {tournament.description && (
               <p className="mt-3 max-w-2xl whitespace-pre-wrap text-sm text-muted-foreground">
                 {tournament.description}
@@ -317,8 +336,19 @@ export default async function TournamentDetailPage({ params }: Props) {
           <TabsTrigger value="divisions">
             Divisions &amp; courts
           </TabsTrigger>
-          <TabsTrigger value="registrations">
-            Registrations ({tournamentRegistrations.length})
+          <TabsTrigger value="teams">
+            Teams ({confirmedTeams.length})
+          </TabsTrigger>
+          <TabsTrigger value="pending" className="gap-2">
+            Pending
+            {pendingCount > 0 && (
+              <Badge
+                variant="default"
+                className="h-5 min-w-5 justify-center rounded-full px-1.5 text-xs tabular-nums"
+              >
+                {pendingCount}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -353,14 +383,35 @@ export default async function TournamentDetailPage({ params }: Props) {
           </section>
         </TabsContent>
 
-        <TabsContent value="registrations" className="mt-4">
+        <TabsContent value="teams" className="mt-4 space-y-3">
+          {canManageRegistrations && (
+            <p className="text-sm text-muted-foreground">
+              Assign confirmed teams to divisions before generating pools.
+            </p>
+          )}
           <RegistrationList
             tournamentId={id}
-            registrations={tournamentRegistrations}
-            divisions={tournamentDivisions.map((d) => ({
-              id: d.id,
-              name: d.name,
-            }))}
+            registrations={confirmedTeams}
+            divisions={divisionOptions}
+            listKind="teams"
+            canManageRegistrations={canManageRegistrations}
+            canCheckIn={canCheckIn}
+            canWithdraw={canRegisterTeams(tournament)}
+            captainTeamIds={captainIds}
+          />
+        </TabsContent>
+
+        <TabsContent value="pending" className="mt-4 space-y-3">
+          {canManageRegistrations && pendingCount > 0 && (
+            <p className="text-sm text-muted-foreground">
+              Review and confirm registrations before assigning divisions.
+            </p>
+          )}
+          <RegistrationList
+            tournamentId={id}
+            registrations={pendingTeams}
+            divisions={divisionOptions}
+            listKind="pending"
             canManageRegistrations={canManageRegistrations}
             canCheckIn={canCheckIn}
             canWithdraw={canRegisterTeams(tournament)}

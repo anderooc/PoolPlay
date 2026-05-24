@@ -7,9 +7,8 @@ import {
   teamMembers,
   tournaments,
   teams,
-  divisions,
 } from "@/lib/db/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import {
   canRegisterTeams,
@@ -19,21 +18,10 @@ import {
   teamMatchesTournamentGender,
 } from "@/lib/tournaments/permissions";
 
-/** Postgres NOT NULL violation — DB not migrated for nullable division_id yet */
-function isNotNullViolation(e: unknown): boolean {
-  if (
-    typeof e === "object" &&
-    e !== null &&
-    "code" in e &&
-    (e as { code: string }).code === "23502"
-  ) {
-    return true;
-  }
-  if (typeof e === "object" && e !== null && "cause" in e) {
-    return isNotNullViolation((e as { cause: unknown }).cause);
-  }
-  return false;
-}
+import {
+  getFirstDivisionId,
+  insertTeamRegistration,
+} from "@/lib/tournaments/registrations";
 
 type TournamentRow = typeof tournaments.$inferSelect;
 
@@ -91,37 +79,6 @@ async function validateTeamRegistration(
   return { ok: true };
 }
 
-async function insertTeamRegistration(
-  tournamentId: string,
-  teamId: string,
-  isHost: boolean,
-  firstDivisionId: string | null
-) {
-  const row = {
-    teamId,
-    tournamentId,
-    divisionId: null as string | null,
-    status: isHost ? ("confirmed" as const) : ("pending" as const),
-  };
-
-  try {
-    await db.insert(registrations).values(row);
-  } catch (e) {
-    if (isNotNullViolation(e) && firstDivisionId) {
-      await db.insert(registrations).values({
-        ...row,
-        divisionId: firstDivisionId,
-      });
-    } else if (isNotNullViolation(e) && !firstDivisionId) {
-      throw new Error(
-        "Add at least one division to this tournament before registering teams. (Or run the DB migration so division can be unset until you assign pools.)"
-      );
-    } else {
-      throw e;
-    }
-  }
-}
-
 export async function registerTeams(tournamentId: string, teamIds: string[]) {
   const user = await requireUser();
   const uniqueIds = [...new Set(teamIds.filter(Boolean))];
@@ -161,21 +118,14 @@ export async function registerTeams(tournamentId: string, teamIds: string[]) {
     }
   }
 
-  const [firstDivision] = await db
-    .select({ id: divisions.id })
-    .from(divisions)
-    .where(eq(divisions.tournamentId, tournamentId))
-    .orderBy(asc(divisions.createdAt))
-    .limit(1);
-
-  const firstDivisionId = firstDivision?.id ?? null;
+  const firstDivisionId = await getFirstDivisionId(tournamentId);
 
   try {
     for (const teamId of uniqueIds) {
       await insertTeamRegistration(
         tournamentId,
         teamId,
-        isHost,
+        isHost ? "confirmed" : "pending",
         firstDivisionId
       );
     }

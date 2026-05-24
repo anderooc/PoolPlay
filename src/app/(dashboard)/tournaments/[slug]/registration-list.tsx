@@ -34,6 +34,8 @@ interface Registration {
 
 type DivisionOption = { id: string; name: string };
 
+type ListKind = "teams" | "pending";
+
 type PendingChange = {
   regId: string;
   expectedDivisionId: string | null;
@@ -44,6 +46,7 @@ export function RegistrationList({
   tournamentId,
   registrations,
   divisions,
+  listKind,
   canManageRegistrations,
   canCheckIn,
   canWithdraw,
@@ -52,6 +55,8 @@ export function RegistrationList({
   tournamentId: string;
   registrations: Registration[];
   divisions: DivisionOption[];
+  /** Confirmed roster vs awaiting approval. */
+  listKind: ListKind;
   canManageRegistrations: boolean;
   canCheckIn: boolean;
   canWithdraw: boolean;
@@ -172,11 +177,18 @@ export function RegistrationList({
     return (
       <Card>
         <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground">No registrations yet.</p>
+          <p className="text-muted-foreground">
+            {listKind === "pending"
+              ? "No teams awaiting approval."
+              : "No confirmed teams yet."}
+          </p>
         </CardContent>
       </Card>
     );
   }
+
+  const showDivisionAssignment =
+    listKind === "teams" && canManageRegistrations && divisions.length > 0;
 
   return (
     <div className="space-y-3">
@@ -209,7 +221,7 @@ export function RegistrationList({
               <p className="text-sm text-muted-foreground">
                 {reg.teamUniversity}
               </p>
-              {canManageRegistrations && divisions.length > 0 ? (
+              {showDivisionAssignment ? (
                 <div className="mt-2 max-w-xs space-y-1">
                   <Label
                     htmlFor={`division-${reg.id}`}
@@ -251,13 +263,13 @@ export function RegistrationList({
                     <p className="text-xs text-destructive">{rowError}</p>
                   )}
                 </div>
-              ) : (
+              ) : listKind === "teams" ? (
                 <p className="mt-1 text-sm text-muted-foreground">
                   {reg.divisionName ?? (
                     <span className="italic">Division not assigned yet</span>
                   )}
                 </p>
-              )}
+              ) : null}
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <Badge
@@ -269,7 +281,9 @@ export function RegistrationList({
               >
                 {reg.status.replace(/_/g, " ")}
               </Badge>
-              {canManageRegistrations && reg.status === "pending" && (
+              {listKind === "pending" &&
+                canManageRegistrations &&
+                reg.status === "pending" && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -280,7 +294,8 @@ export function RegistrationList({
                   Confirm
                 </Button>
               )}
-              {canCheckIn &&
+              {listKind === "teams" &&
+                canCheckIn &&
                 reg.status === "confirmed" && (
                   <Button
                     variant="outline"

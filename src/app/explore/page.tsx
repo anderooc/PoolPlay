@@ -9,17 +9,20 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { getCurrentAuthProfile } from "@/lib/auth";
 import { TournamentGrid } from "@/components/tournament-grid";
+import { enrichTournamentsWithHostSchools } from "@/lib/tournaments/host-school";
 
 export const dynamic = "force-dynamic";
 
 export default async function ExplorePage() {
   const user = await getCurrentAuthProfile();
 
-  const allTournaments = await db
-    .select()
-    .from(tournaments)
-    .where(ne(tournaments.status, "draft"))
-    .orderBy(desc(tournaments.date));
+  const allTournaments = await enrichTournamentsWithHostSchools(
+    await db
+      .select()
+      .from(tournaments)
+      .where(ne(tournaments.status, "draft"))
+      .orderBy(desc(tournaments.date))
+  );
 
   return (
     <div className="flex min-h-screen flex-col">

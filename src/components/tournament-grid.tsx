@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
+import { TournamentHostSchoolLink } from "@/components/tournament-host-school-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { DatePickerCalendar } from "@/components/date-picker";
@@ -40,6 +41,7 @@ import {
   todayISO,
 } from "@/lib/tournament-status";
 import type { TeamGender, TeamRegion } from "@/types";
+import type { TournamentHostSchool } from "@/lib/tournaments/host-school";
 
 /**
  * Distance from the top of the schedule container to the active date
@@ -72,6 +74,7 @@ interface Tournament {
   status: string;
   gender: TeamGender;
   region: TeamRegion;
+  hostSchool?: TournamentHostSchool | null;
 }
 
 function toggleSetValue<T extends string>(
@@ -128,38 +131,37 @@ function TournamentRow({
 }) {
   const archived = isTournamentArchived(t.date);
   return (
-    <Link href={`${linkPrefix}/${t.slug}`} className="block min-w-0 max-w-full">
-      <div className="flex min-w-0 items-start gap-4 rounded-lg border bg-card px-4 py-3.5 transition-colors hover:bg-muted/40">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
-            <span className="min-w-0 truncate font-medium leading-tight">
-              {t.name}
-            </span>
-            <Badge
-              variant={statusVariant(t.status, archived)}
-              className={
-                archived
-                  ? "shrink-0 border-dashed border-muted-foreground/40 bg-muted/40 text-xs text-muted-foreground"
-                  : "shrink-0 text-xs"
-              }
-            >
-              {statusBadgeLabel(t.status, t.date)}
-            </Badge>
-          </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3 w-3 shrink-0" />
-              {t.location}
-            </span>
-          </div>
-          <TeamAttributesBadges
-            gender={t.gender}
-            region={t.region}
-            className="mt-1.5"
-          />
+    <div className="min-w-0 max-w-full rounded-lg border bg-card px-4 py-3.5 transition-colors hover:bg-muted/40">
+      <Link href={`${linkPrefix}/${t.slug}`} className="block min-w-0">
+        <div className="flex items-start justify-between gap-3">
+          <span className="min-w-0 truncate font-medium leading-tight">
+            {t.name}
+          </span>
+          <Badge
+            variant={statusVariant(t.status, archived)}
+            className={
+              archived
+                ? "shrink-0 border-dashed border-muted-foreground/40 bg-muted/40 text-xs text-muted-foreground"
+                : "shrink-0 text-xs"
+            }
+          >
+            {statusBadgeLabel(t.status, t.date)}
+          </Badge>
         </div>
-      </div>
-    </Link>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <MapPin className="h-3 w-3 shrink-0" />
+            {t.location}
+          </span>
+        </div>
+        <TeamAttributesBadges
+          gender={t.gender}
+          region={t.region}
+          className="mt-1.5"
+        />
+      </Link>
+      <TournamentHostSchoolLink school={t.hostSchool} className="mt-1.5" />
+    </div>
   );
 }
 

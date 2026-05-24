@@ -10,7 +10,9 @@ import { PoolPlayMark } from "@/components/layout/poolplay-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
+import { TournamentHostSchoolLink } from "@/components/tournament-host-school-link";
 import { getCurrentAuthProfile } from "@/lib/auth";
+import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import { isTournamentPublishedForPublic } from "@/lib/tournaments/permissions";
 import { formatTournamentDateDisplay } from "@/lib/date-iso";
 import {
@@ -37,11 +39,15 @@ export default async function ExploreTournamentPage({ params }: Props) {
     notFound();
   }
 
-  const [organizer] = await db
-    .select({ fullName: users.fullName })
-    .from(users)
-    .where(eq(users.id, tournament.organizerId))
-    .limit(1);
+  const [organizer, hostSchool] = await Promise.all([
+    db
+      .select({ fullName: users.fullName })
+      .from(users)
+      .where(eq(users.id, tournament.organizerId))
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+    getHostSchoolById(tournament.hostSchoolId),
+  ]);
 
   const archived = isTournamentArchived(tournament.date);
 
@@ -114,6 +120,7 @@ export default async function ExploreTournamentPage({ params }: Props) {
               region={tournament.region}
               className="mt-2"
             />
+            <TournamentHostSchoolLink school={hostSchool} className="mt-2" />
             {tournament.description && (
               <p className="mt-3 text-sm text-muted-foreground">
                 {tournament.description}

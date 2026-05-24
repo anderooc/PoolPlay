@@ -18,7 +18,8 @@ import { eq, and, ne, inArray, or } from "drizzle-orm";
 import { requireUser, isAdmin } from "@/lib/auth";
 import { createTournamentSchema, createDivisionSchema } from "@/lib/validators";
 import { flagBlockedContent } from "@/lib/admin/content-flags";
-import { getHostingTeamForUser } from "@/lib/teams/hosting";
+import { getHostingSchoolForUser } from "@/lib/schools/hosting";
+import { registerHostSchoolTeamsOnCreate } from "@/lib/tournaments/registrations";
 import { slugify, uniqueSlug } from "@/lib/utils/slug";
 import { isTournamentArchived } from "@/lib/tournament-status";
 import {
@@ -35,7 +36,7 @@ export async function createTournament(formData: FormData) {
   const user = await requireUser();
 
   const parsed = createTournamentSchema.safeParse({
-    hostTeamId: formData.get("hostTeamId"),
+    hostSchoolId: formData.get("hostSchoolId"),
     name: formData.get("name"),
     description: formData.get("description") || undefined,
     date: formData.get("date"),
@@ -55,14 +56,14 @@ export async function createTournament(formData: FormData) {
   ]);
   if (contentError) return { error: contentError };
 
-  const hostTeam = await getHostingTeamForUser(
-    parsed.data.hostTeamId,
+  const hostSchool = await getHostingSchoolForUser(
+    parsed.data.hostSchoolId,
     user.id,
     isAdmin(user)
   );
-  if (!hostTeam) {
+  if (!hostSchool) {
     return {
-      error: "Select a team you captain to host this tournament",
+      error: "Select a school you represent as president or officer",
     };
   }
 
@@ -79,9 +80,9 @@ export async function createTournament(formData: FormData) {
     .insert(tournaments)
     .values({
       organizerId: user.id,
-      hostTeamId: hostTeam.id,
-      gender: hostTeam.gender,
-      region: hostTeam.region,
+      hostSchoolId: hostSchool.id,
+      gender: hostSchool.gender,
+      region: hostSchool.region,
       name: parsed.data.name,
       slug,
       description: parsed.data.description || null,
@@ -98,6 +99,8 @@ export async function createTournament(formData: FormData) {
       .set({ role: "organizer" })
       .where(eq(users.id, user.id));
   }
+
+  await registerHostSchoolTeamsOnCreate(tournament.id, hostSchool.id);
 
   redirect(`/tournaments/${tournament.slug}`);
 }

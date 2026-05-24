@@ -6,8 +6,8 @@ import type { TeamGender, TournamentStatus } from "@/types";
 /** Fields required for permission checks across server and client. */
 export type TournamentForPermissions = {
   organizerId: string;
-  /** Metadata from hosting team at create; captains do not get co-host access in v1. */
-  hostTeamId: string | null;
+  /** Metadata from hosting school at create. */
+  hostSchoolId: string | null;
   status: string;
   date: string;
 };

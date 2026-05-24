@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
-import { getHostingTeamOptions } from "@/lib/teams/hosting";
+import { getCurrentUser } from "@/lib/auth";
+import { getUserHostingSchool } from "@/lib/schools/hosting";
 import { NewTournamentForm } from "./new-tournament-form";
 
 export default async function NewTournamentPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const hostingTeams = await getHostingTeamOptions(user.id, isAdmin(user));
+  const hostSchool = await getUserHostingSchool(user.id);
 
-  return <NewTournamentForm hostingTeams={hostingTeams} />;
+  return <NewTournamentForm hostSchool={hostSchool} />;
 }

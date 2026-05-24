@@ -5,14 +5,14 @@ import { buttonVariants } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { TournamentGrid } from "@/components/tournament-grid";
+import { enrichTournamentsWithHostSchools } from "@/lib/tournaments/host-school";
 
 export const dynamic = "force-dynamic";
 
 export default async function TournamentsPage() {
-  const allTournaments = await db
-    .select()
-    .from(tournaments)
-    .orderBy(asc(tournaments.date));
+  const allTournaments = await enrichTournamentsWithHostSchools(
+    await db.select().from(tournaments).orderBy(asc(tournaments.date))
+  );
 
   return (
     <div className="flex h-full min-w-0 flex-col gap-6 overflow-x-hidden">
