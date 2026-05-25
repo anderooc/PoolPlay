@@ -29,7 +29,7 @@ export default async function AdminLayout({
 
       <AdminTabs />
 
-      <div>{children}</div>
+      <div className="pt-2">{children}</div>
     </div>
   );
 }

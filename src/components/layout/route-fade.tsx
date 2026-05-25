@@ -11,13 +11,19 @@ import type { ReactNode } from "react";
  */
 export function RouteFade({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const isAdmin = pathname.startsWith("/admin");
   return (
     <div
-      key={pathname}
+      key={isAdmin ? "admin" : pathname}
       className="h-full"
-      style={{
-        animation: "ui-enter-soft 220ms cubic-bezier(0.22, 1, 0.36, 1) both",
-      }}
+      style={
+        isAdmin
+          ? undefined
+          : {
+              animation:
+                "ui-enter-soft 220ms cubic-bezier(0.22, 1, 0.36, 1) both",
+            }
+      }
     >
       {children}
     </div>

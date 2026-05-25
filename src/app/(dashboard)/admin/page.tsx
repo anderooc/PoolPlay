@@ -106,19 +106,19 @@ export default async function AdminOverviewPage() {
   ]);
 
   return (
-    <div className="space-y-6">
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="space-y-8">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {stats.map((s) => {
           const Icon = s.icon;
           return (
             <Card key={s.label} size="sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-xs font-medium text-muted-foreground">
                   {s.label}
                 </CardTitle>
                 <Icon className="h-3.5 w-3.5 text-muted-foreground" />
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="pt-0 pb-4">
                 <div className="text-2xl font-bold tabular-nums tracking-tight">
                   {s.value}
                 </div>
