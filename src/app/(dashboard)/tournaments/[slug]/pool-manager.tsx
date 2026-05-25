@@ -46,11 +46,60 @@ interface TournamentCourt {
   divisionIds: string[];
 }
 
-const formatLabel: Record<string, string> = {
-  pool_to_bracket: "Group Play to Bracket",
-  single_elimination: "Single Elimination",
-  double_elimination: "Double Elimination",
-};
+const DIVISION_FORMATS = [
+  {
+    value: "pool_to_bracket",
+    label: "Group Play to Bracket",
+    description:
+      "Teams play round-robin in groups, then top finishers advance to a single-elimination bracket.",
+  },
+  {
+    value: "single_elimination",
+    label: "Single Elimination",
+    description:
+      "Teams go straight into a single-elimination bracket; one loss eliminates a team.",
+  },
+  {
+    value: "double_elimination",
+    label: "Double Elimination",
+    description:
+      "Teams play in winners and losers brackets; a team must lose twice to be eliminated.",
+  },
+] as const;
+
+const formatLabel = Object.fromEntries(
+  DIVISION_FORMATS.map((f) => [f.value, f.label])
+) as Record<string, string>;
+
+function formatDescription(format: string): string | undefined {
+  return DIVISION_FORMATS.find((f) => f.value === format)?.description;
+}
+
+/** Wider than the trigger so format labels and descriptions are not clipped. */
+const FORMAT_SELECT_CONTENT_CLASS =
+  "min-w-(--anchor-width) w-max max-w-[min(20rem,calc(100vw-2rem))]";
+
+function DivisionFormatSelectItems() {
+  return (
+    <>
+      {DIVISION_FORMATS.map((format) => (
+        <SelectItem
+          key={format.value}
+          value={format.value}
+          multiline
+          title={format.description}
+        >
+          <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
+            <span className="leading-snug">{format.label}</span>
+            <span className="text-xs font-normal leading-snug text-muted-foreground">
+              {format.description}
+            </span>
+          </span>
+        </SelectItem>
+      ))}
+    </>
+  );
+}
 
 function snapshotTournamentData(
   divs: Division[],
@@ -361,7 +410,11 @@ export function PoolManager({
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="secondary">
+                      <Badge
+                        variant="secondary"
+                        title={formatDescription(div.format)}
+                        className="h-auto min-h-5 max-w-full shrink whitespace-normal py-1 text-left leading-snug"
+                      >
                         {formatLabel[div.format] ??
                           div.format.replace(/_/g, " ")}
                       </Badge>
@@ -462,21 +515,21 @@ export function PoolManager({
                     setDivisionFormat(value ?? "pool_to_bracket")
                   }
                 >
-                  <SelectTrigger id="div-format" className="w-full">
+                  <SelectTrigger
+                    id="div-format"
+                    className="w-full"
+                    title={formatDescription(divisionFormat)}
+                  >
                     <SelectValue>
                       {(v) => formatLabel[v ?? ""] ?? v}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pool_to_bracket">
-                      Group Play to Bracket
-                    </SelectItem>
-                    <SelectItem value="single_elimination">
-                      Single Elimination
-                    </SelectItem>
-                    <SelectItem value="double_elimination">
-                      Double Elimination
-                    </SelectItem>
+                  <SelectContent
+                    side="bottom"
+                    alignItemWithTrigger={false}
+                    className={FORMAT_SELECT_CONTENT_CLASS}
+                  >
+                    <DivisionFormatSelectItems />
                   </SelectContent>
                 </Select>
                 <input type="hidden" name="format" value={divisionFormat} />
@@ -555,14 +608,14 @@ export function PoolManager({
                   "pointer-events-none select-none blur-[3px]"
               )}
             >
-              <DialogHeader>
+              <DialogHeader className="pb-1">
                 <DialogTitle>Edit pool</DialogTitle>
               </DialogHeader>
               {editing && (
-                <form onSubmit={handleEditSubmit} className="space-y-3">
+                <form onSubmit={handleEditSubmit} className="mt-4 space-y-4">
                   <fieldset
                     disabled={editSubmitting}
-                    className="min-w-0 space-y-3 border-0 p-0"
+                    className="min-w-0 space-y-4 border-0 p-0"
                   >
               <div className="space-y-1">
                 <Label htmlFor="edit-div-name">Name</Label>
@@ -579,21 +632,21 @@ export function PoolManager({
                   value={editFormat}
                   onValueChange={(v) => setEditFormat(v ?? "pool_to_bracket")}
                 >
-                  <SelectTrigger id="edit-div-format" className="w-full">
+                  <SelectTrigger
+                    id="edit-div-format"
+                    className="w-full"
+                    title={formatDescription(editFormat)}
+                  >
                     <SelectValue>
                       {(v) => formatLabel[v ?? ""] ?? v}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pool_to_bracket">
-                      Group Play to Bracket
-                    </SelectItem>
-                    <SelectItem value="single_elimination">
-                      Single Elimination
-                    </SelectItem>
-                    <SelectItem value="double_elimination">
-                      Double Elimination
-                    </SelectItem>
+                  <SelectContent
+                    side="bottom"
+                    alignItemWithTrigger={false}
+                    className={FORMAT_SELECT_CONTENT_CLASS}
+                  >
+                    <DivisionFormatSelectItems />
                   </SelectContent>
                 </Select>
                 <input type="hidden" name="format" value={editFormat} />
