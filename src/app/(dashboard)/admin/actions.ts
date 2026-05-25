@@ -45,7 +45,7 @@ export async function setUserRole(userId: string, role: UserRole) {
     .set({ role, updatedAt: new Date() })
     .where(eq(users.id, userId));
 
-  revalidatePath("/admin/users");
+  revalidatePath("/admin");
   return { success: true as const };
 }
 
@@ -65,7 +65,7 @@ export async function adminDeleteUser(userId: string) {
     };
   }
 
-  revalidatePath("/admin/users");
+  revalidatePath("/admin");
   revalidatePath("/admin");
   return { success: true as const };
 }
@@ -110,7 +110,7 @@ export async function adminRenameTournament(
     .set({ name: trimmed, slug: newSlug, updatedAt: new Date() })
     .where(eq(tournaments.id, tournamentId));
 
-  revalidatePath("/admin/tournaments");
+  revalidatePath("/admin");
   revalidatePath("/tournaments");
   revalidatePath("/explore");
   revalidatePath("/tournaments/[slug]", "page");
@@ -137,7 +137,7 @@ export async function adminUpdateTournamentStatus(
     .set({ status, updatedAt: new Date() })
     .where(eq(tournaments.id, tournamentId));
 
-  revalidatePath("/admin/tournaments");
+  revalidatePath("/admin");
   revalidatePath("/tournaments/[slug]", "page");
   return { success: true as const };
 }
@@ -188,7 +188,7 @@ export async function adminDeleteTournament(tournamentId: string) {
     return { error: "Could not delete tournament. Try again." };
   }
 
-  revalidatePath("/admin/tournaments");
+  revalidatePath("/admin");
   revalidatePath("/admin");
   revalidatePath("/tournaments");
   revalidatePath("/explore");
@@ -232,7 +232,7 @@ export async function adminRenameTeam(teamId: string, rawName: string) {
     .set({ name: trimmed, slug: newSlug, updatedAt: new Date() })
     .where(eq(teams.id, teamId));
 
-  revalidatePath("/admin/teams");
+  revalidatePath("/admin");
   revalidatePath("/teams");
   revalidatePath("/teams/[slug]", "page");
   return { success: true as const, slug: newSlug };
@@ -263,7 +263,7 @@ export async function adminDeleteTeam(
   } catch {
     return { error: "Could not delete team. Try again." };
   }
-  revalidatePath("/admin/teams");
+  revalidatePath("/admin");
   revalidatePath("/admin");
   revalidatePath("/teams");
   return { success: true as const };
@@ -275,14 +275,14 @@ export async function adminResolveFlag(flagId: string) {
     .update(contentFlags)
     .set({ resolvedAt: new Date() })
     .where(eq(contentFlags.id, flagId));
-  revalidatePath("/admin/flags");
+  revalidatePath("/admin");
   return { success: true as const };
 }
 
 export async function adminDeleteFlag(flagId: string) {
   await requireAdmin();
   await db.delete(contentFlags).where(eq(contentFlags.id, flagId));
-  revalidatePath("/admin/flags");
+  revalidatePath("/admin");
   return { success: true as const };
 }
 
@@ -306,7 +306,7 @@ export async function adminApproveSchool(schoolId: string) {
     })
     .where(eq(schools.id, schoolId));
 
-  revalidatePath("/admin/schools");
+  revalidatePath("/admin");
   revalidatePath("/schools");
   revalidatePath(`/schools/${school.slug}`);
   return { success: true as const };
@@ -332,7 +332,7 @@ export async function adminRejectSchool(schoolId: string) {
     })
     .where(eq(schools.id, schoolId));
 
-  revalidatePath("/admin/schools");
+  revalidatePath("/admin");
   revalidatePath("/schools");
   revalidatePath(`/schools/${school.slug}`);
   return { success: true as const };
@@ -357,7 +357,7 @@ export async function adminResetSchoolToPending(schoolId: string) {
     })
     .where(eq(schools.id, schoolId));
 
-  revalidatePath("/admin/schools");
+  revalidatePath("/admin");
   revalidatePath("/schools");
   revalidatePath(`/schools/${school.slug}`);
   return { success: true as const };
@@ -399,7 +399,7 @@ export async function adminApproveStandaloneTeam(teamId: string) {
     })
     .where(eq(teams.id, teamId));
 
-  revalidatePath("/admin/teams");
+  revalidatePath("/admin");
   revalidatePath("/teams");
   revalidatePath(`/teams/${gate.team.slug}`);
   return { success: true as const };
@@ -420,7 +420,7 @@ export async function adminRejectStandaloneTeam(teamId: string) {
     })
     .where(eq(teams.id, teamId));
 
-  revalidatePath("/admin/teams");
+  revalidatePath("/admin");
   revalidatePath("/teams");
   revalidatePath(`/teams/${gate.team.slug}`);
   return { success: true as const };
@@ -441,7 +441,7 @@ export async function adminResetStandaloneTeamToPending(teamId: string) {
     })
     .where(eq(teams.id, teamId));
 
-  revalidatePath("/admin/teams");
+  revalidatePath("/admin");
   revalidatePath("/teams");
   revalidatePath(`/teams/${gate.team.slug}`);
   return { success: true as const };
@@ -454,7 +454,7 @@ export async function adminDeleteSchool(schoolId: string) {
   } catch {
     return { error: "Could not delete school. Try again." };
   }
-  revalidatePath("/admin/schools");
+  revalidatePath("/admin");
   revalidatePath("/admin");
   revalidatePath("/schools");
   return { success: true as const };

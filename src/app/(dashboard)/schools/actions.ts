@@ -529,7 +529,7 @@ export async function submitForVerification(schoolId: string) {
     .where(eq(schools.id, schoolId));
 
   revalidatePath(`/schools/${school.slug}`);
-  revalidatePath("/admin/schools");
+  revalidatePath("/admin");
   return { success: true as const, domainMatched };
 }
 

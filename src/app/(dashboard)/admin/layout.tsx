@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
@@ -27,7 +28,9 @@ export default async function AdminLayout({
         </div>
       </div>
 
-      <AdminTabs />
+      <Suspense fallback={<div className="h-10 border-b border-border/60" />}>
+        <AdminTabs />
+      </Suspense>
 
       <div className="pt-2">{children}</div>
     </div>

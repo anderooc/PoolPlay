@@ -337,7 +337,6 @@ export async function deleteTeam(teamId: string, confirmationName: string) {
   }
 
   revalidatePath("/teams");
-  revalidatePath("/admin/teams");
   revalidatePath("/admin");
   return { success: true as const };
 }

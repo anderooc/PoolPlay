@@ -1,211 +1,35 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Trophy, Group, Flag, Calendar, UserCog } from "lucide-react";
-import { db } from "@/lib/db";
-import {
-  users,
-  tournaments,
-  teams,
-  contentFlags,
-  registrations,
-} from "@/lib/db/schema";
-import { count, eq, gte, isNull, or, sql } from "drizzle-orm";
-import { todayISO } from "@/lib/tournament-status";
+import { parseAdminPage, parseAdminTab } from "./constants";
+import { AdminOverviewPanel } from "./panels/overview-panel";
+import { AdminUsersPanel } from "./panels/users-panel";
+import { AdminTournamentsPanel } from "./panels/tournaments-panel";
+import { AdminSchoolsPanel } from "./panels/schools-panel";
+import { AdminTeamsPanel } from "./panels/teams-panel";
+import { AdminFlagsPanel } from "./panels/flags-panel";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminOverviewPage() {
-  const today = todayISO();
+interface Props {
+  searchParams?: Promise<{ tab?: string; page?: string }>;
+}
 
-  const [
-    [userTotal],
-    [adminTotal],
-    [tournamentTotal],
-    [activeTournaments],
-    [teamTotal],
-    [registrationTotal],
-    [openFlags],
-  ] = await Promise.all([
-    db.select({ value: count() }).from(users),
-    db.select({ value: count() }).from(users).where(eq(users.role, "admin")),
-    db.select({ value: count() }).from(tournaments),
-    db
-      .select({ value: count() })
-      .from(tournaments)
-      .where(
-        or(
-          eq(tournaments.status, "in_progress"),
-          eq(tournaments.status, "registration_open"),
-          gte(tournaments.date, today)
-        )
-      ),
-    db.select({ value: count() }).from(teams),
-    db.select({ value: count() }).from(registrations),
-    db
-      .select({ value: count() })
-      .from(contentFlags)
-      .where(isNull(contentFlags.resolvedAt)),
-  ]);
+export default async function AdminPage({ searchParams }: Props) {
+  const sp = (await searchParams) ?? {};
+  const tab = parseAdminTab(sp.tab);
+  const page = parseAdminPage(sp.page);
 
-  const stats: Array<{
-    label: string;
-    value: number;
-    icon: React.ComponentType<{ className?: string }>;
-    hint?: string;
-  }> = [
-    {
-      label: "Users",
-      value: userTotal.value,
-      icon: Users,
-      hint: `${adminTotal.value} admin${adminTotal.value === 1 ? "" : "s"}`,
-    },
-    {
-      label: "Tournaments",
-      value: tournamentTotal.value,
-      icon: Trophy,
-      hint: `${activeTournaments.value} active`,
-    },
-    { label: "Teams", value: teamTotal.value, icon: Group },
-    {
-      label: "Registrations",
-      value: registrationTotal.value,
-      icon: Calendar,
-    },
-    {
-      label: "Open content flags",
-      value: openFlags.value,
-      icon: Flag,
-      hint: openFlags.value === 0 ? "All clear" : undefined,
-    },
-  ];
-
-  // Latest 5 users + 5 flags as a quick triage view
-  const [recentUsers, recentFlags] = await Promise.all([
-    db
-      .select({
-        id: users.id,
-        email: users.email,
-        fullName: users.fullName,
-        role: users.role,
-        createdAt: users.createdAt,
-      })
-      .from(users)
-      .orderBy(sql`${users.createdAt} DESC`)
-      .limit(5),
-    db
-      .select({
-        id: contentFlags.id,
-        area: contentFlags.area,
-        text: contentFlags.text,
-        blockedWord: contentFlags.blockedWord,
-        createdAt: contentFlags.createdAt,
-      })
-      .from(contentFlags)
-      .where(isNull(contentFlags.resolvedAt))
-      .orderBy(sql`${contentFlags.createdAt} DESC`)
-      .limit(5),
-  ]);
-
-  return (
-    <div className="space-y-8">
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {stats.map((s) => {
-          const Icon = s.icon;
-          return (
-            <Card key={s.label} size="sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground">
-                  {s.label}
-                </CardTitle>
-                <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-              </CardHeader>
-              <CardContent className="pt-0 pb-4">
-                <div className="text-2xl font-bold tabular-nums tracking-tight">
-                  {s.value}
-                </div>
-                {s.hint && (
-                  <p className="text-xs text-muted-foreground">{s.hint}</p>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </section>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base">
-              <span className="inline-flex items-center gap-2">
-                <UserCog className="h-4 w-4" />
-                Newest users
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {recentUsers.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No users yet.</p>
-            ) : (
-              <ul className="space-y-2">
-                {recentUsers.map((u) => (
-                  <li
-                    key={u.id}
-                    className="flex items-center justify-between gap-3 rounded-md border p-2 text-sm"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{u.fullName}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {u.email}
-                      </p>
-                    </div>
-                    <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-xs capitalize">
-                      {u.role}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base">
-              <span className="inline-flex items-center gap-2">
-                <Flag className="h-4 w-4" />
-                Open content flags
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {recentFlags.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No flagged content right now.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {recentFlags.map((f) => (
-                  <li
-                    key={f.id}
-                    className="rounded-md border p-2 text-sm"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive">
-                        {f.blockedWord}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {f.area}
-                      </span>
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-foreground">
-                      {f.text}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+  switch (tab) {
+    case "users":
+      return <AdminUsersPanel page={page} />;
+    case "tournaments":
+      return <AdminTournamentsPanel page={page} />;
+    case "schools":
+      return <AdminSchoolsPanel page={page} />;
+    case "teams":
+      return <AdminTeamsPanel page={page} />;
+    case "flags":
+      return <AdminFlagsPanel page={page} />;
+    case "overview":
+    default:
+      return <AdminOverviewPanel />;
+  }
 }
