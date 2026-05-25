@@ -592,6 +592,11 @@ export function TournamentPageHeading({
                 disabled={detailsSaving}
                 placeholder="Street address or facility name"
               />
+              <AddressMapPreview
+                address={draftAddress}
+                location={draftLocation}
+                height={160}
+              />
             </div>
           </div>
           {detailsError && (

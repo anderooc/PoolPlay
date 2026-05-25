@@ -17,6 +17,7 @@ import {
 import { BackLink } from "@/components/layout/back-link";
 import { DatePickerField } from "@/components/date-picker";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
+import { AddressMapPreview } from "@/components/address-map-preview";
 import { todayISO } from "@/lib/tournament-status";
 import type { HostingSchoolOption } from "@/lib/schools/hosting";
 import type { TeamGender, TeamRegion } from "@/types";
@@ -30,6 +31,8 @@ export function NewTournamentForm({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [date, setDate] = useState(todayISO);
+  const [location, setLocation] = useState("");
+  const [address, setAddress] = useState("");
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -141,6 +144,8 @@ export function NewTournamentForm({
                   name="location"
                   placeholder="University Gym"
                   required
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
                   disabled={isPending}
                 />
               </div>
@@ -150,7 +155,14 @@ export function NewTournamentForm({
                   id="address"
                   name="address"
                   placeholder="123 Main St, City, ST 12345"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
                   disabled={isPending}
+                />
+                <AddressMapPreview
+                  address={address}
+                  location={location}
+                  height={160}
                 />
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
