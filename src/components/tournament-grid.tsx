@@ -153,13 +153,11 @@ function TournamentRow({
             {t.location}
           </span>
         </div>
-        <TeamAttributesBadges
-          gender={t.gender}
-          region={t.region}
-          className="mt-1.5"
-        />
       </Link>
-      <TournamentHostSchoolLink school={t.hostSchool} className="mt-1.5" />
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <TeamAttributesBadges gender={t.gender} region={t.region} />
+        <TournamentHostSchoolLink school={t.hostSchool} />
+      </div>
     </div>
   );
 }
