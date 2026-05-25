@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Building2, Plus, Users } from "lucide-react";
+import { TEAM_VERIFICATION_STATUS_LABELS } from "@/lib/constants/team";
+import { isStandaloneTeam } from "@/lib/teams/verification";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -26,6 +28,8 @@ export default async function TeamsPage() {
       role: teamMembers.role,
       schoolName: schools.name,
       schoolSlug: schools.slug,
+      schoolId: teams.schoolId,
+      verificationStatus: teams.verificationStatus,
     })
     .from(teamMembers)
     .innerJoin(teams, eq(teamMembers.teamId, teams.id))
@@ -74,9 +78,26 @@ export default async function TeamsPage() {
                     <CardTitle className="text-lg leading-tight">
                       {team.name}
                     </CardTitle>
-                    <Badge variant="secondary" className="shrink-0">
-                      {team.role}
-                    </Badge>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <Badge variant="secondary">{team.role}</Badge>
+                      {isStandaloneTeam(team.schoolId) &&
+                        team.verificationStatus !== "verified" && (
+                          <Badge
+                            variant={
+                              team.verificationStatus === "rejected"
+                                ? "destructive"
+                                : "outline"
+                            }
+                            className="text-xs"
+                          >
+                            {
+                              TEAM_VERIFICATION_STATUS_LABELS[
+                                team.verificationStatus
+                              ]
+                            }
+                          </Badge>
+                        )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>

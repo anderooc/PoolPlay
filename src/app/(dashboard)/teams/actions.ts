@@ -143,6 +143,7 @@ export async function createTeam(formData: FormData) {
       gender: teamGender,
       region: teamRegion,
       schoolId: parsed.data.schoolId ?? null,
+      verificationStatus: parsed.data.schoolId ? "verified" : "pending",
     })
     .returning();
 

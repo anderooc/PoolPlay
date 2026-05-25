@@ -14,7 +14,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SmartBackLink } from "@/components/layout/smart-back-link";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
+import { Badge } from "@/components/ui/badge";
 import { Building2, CheckCircle2 } from "lucide-react";
+import { TEAM_VERIFICATION_STATUS_LABELS } from "@/lib/constants/team";
+import { isStandaloneTeam } from "@/lib/teams/verification";
 import { AddMemberForm } from "./add-member-form";
 import { RosterRow } from "./roster-row";
 import { TeamDeleteButton } from "./team-delete-button";
@@ -89,9 +92,36 @@ export default async function TeamDetailPage({ params }: Props) {
     ? `/schools/${schoolRow.slug}`
     : "/teams";
 
+  const standalone = isStandaloneTeam(team.schoolId);
+  const showVerificationBanner =
+    standalone && team.verificationStatus !== "verified";
+
   return (
     <div className="space-y-6">
       <SmartBackLink fallbackHref={backFallback}>Back</SmartBackLink>
+      {showVerificationBanner && (
+        <div
+          className={
+            team.verificationStatus === "rejected"
+              ? "rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm"
+              : "rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm"
+          }
+        >
+          <p className="font-medium">
+            {team.verificationStatus === "pending"
+              ? "Pending admin approval"
+              : "Team not approved"}
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            {team.verificationStatus === "pending"
+              ? "Standalone teams must be verified before they can register for tournaments. An admin will review this team soon."
+              : "This team was rejected and cannot register for tournaments. Contact an admin if you believe this was a mistake."}
+          </p>
+          <Badge variant="secondary" className="mt-2">
+            {TEAM_VERIFICATION_STATUS_LABELS[team.verificationStatus]}
+          </Badge>
+        </div>
+      )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">{team.name}</h1>

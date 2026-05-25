@@ -1,3 +1,5 @@
+import type { TeamVerificationStatus } from "@/types";
+
 /** Database enum values for `team_gender`. */
 export const TEAM_GENDERS = ["mens", "womens"] as const;
 
@@ -35,4 +37,13 @@ export const TEAM_REGION_LABELS: Record<
   southeast: "Southeast",
   west: "West",
   northwest: "Northwest",
+};
+
+export const TEAM_VERIFICATION_STATUS_LABELS: Record<
+  TeamVerificationStatus,
+  string
+> = {
+  pending: "Pending review",
+  verified: "Verified",
+  rejected: "Rejected",
 };

@@ -167,6 +167,12 @@ export function NewTeamForm({
               ) : (
                 <TeamAttributeFields />
               )}
+              {!selectedSchool && (
+                <p className="text-sm text-muted-foreground">
+                  Standalone teams are submitted for admin approval before they
+                  can register for tournaments.
+                </p>
+              )}
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Creating..." : "Create team"}

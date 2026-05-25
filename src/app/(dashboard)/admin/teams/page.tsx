@@ -1,9 +1,10 @@
 import { db } from "@/lib/db";
 import { teams, teamMembers } from "@/lib/db/schema";
-import { asc, count, eq } from "drizzle-orm";
+import { asc, count, eq, isNull, sql } from "drizzle-orm";
 import {
   Table,
   TableBody,
+  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -24,12 +25,16 @@ export default async function AdminTeamsPage({ searchParams }: Props) {
   const requestedPage =
     Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
 
-  const [{ value: total }] = await db
+  const [{ value: standaloneTotal }] = await db
     .select({ value: count() })
-    .from(teams);
+    .from(teams)
+    .where(isNull(teams.schoolId));
 
-  const totalPages = Math.max(1, Math.ceil(total / ADMIN_TABLE_PAGE_SIZE));
-  const page = Math.min(requestedPage, totalPages);
+  const standalonePages = Math.max(
+    1,
+    Math.ceil(standaloneTotal / ADMIN_TABLE_PAGE_SIZE)
+  );
+  const page = Math.min(requestedPage, standalonePages);
 
   const rows = await db
     .select({
@@ -37,22 +42,35 @@ export default async function AdminTeamsPage({ searchParams }: Props) {
       name: teams.name,
       slug: teams.slug,
       university: teams.university,
+      schoolId: teams.schoolId,
+      verificationStatus: teams.verificationStatus,
       memberCount: count(teamMembers.id),
     })
     .from(teams)
     .leftJoin(teamMembers, eq(teamMembers.teamId, teams.id))
+    .where(isNull(teams.schoolId))
     .groupBy(teams.id)
-    .orderBy(asc(teams.name))
+    .orderBy(
+      sql`CASE ${teams.verificationStatus}
+        WHEN 'pending' THEN 0
+        WHEN 'rejected' THEN 1
+        WHEN 'verified' THEN 2
+        ELSE 3 END`,
+      asc(teams.name)
+    )
     .limit(ADMIN_TABLE_PAGE_SIZE)
     .offset((page - 1) * ADMIN_TABLE_PAGE_SIZE);
 
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold tracking-tight">Teams</h2>
+        <h2 className="text-lg font-semibold tracking-tight">
+          Standalone teams
+        </h2>
         <p className="text-sm text-muted-foreground">
-          Rename or delete any team. Deleting cascades to memberships and
-          tournament registrations.{" "}
+          Approve or reject teams that are not linked to a school. School-linked
+          teams are approved through their school&apos;s verification. Pending
+          review is listed first.{" "}
           <span className="text-muted-foreground/90">
             ({ADMIN_TABLE_PAGE_SIZE} per page.)
           </span>
@@ -65,21 +83,31 @@ export default async function AdminTeamsPage({ searchParams }: Props) {
             <TableRow>
               <TableHead>Team</TableHead>
               <TableHead>University</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Members</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((t) => (
-              <TeamRow key={t.id} team={t} />
-            ))}
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="py-8 text-center text-muted-foreground"
+                >
+                  No standalone teams yet.
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((t) => <TeamRow key={t.id} team={t} />)
+            )}
           </TableBody>
         </Table>
         <AdminTablePagination
           basePath="/admin/teams"
           page={page}
           pageSize={ADMIN_TABLE_PAGE_SIZE}
-          total={total}
+          total={standaloneTotal}
         />
       </div>
     </div>

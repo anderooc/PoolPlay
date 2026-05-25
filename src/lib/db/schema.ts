@@ -66,6 +66,12 @@ export const schoolVerificationStatusEnum = pgEnum(
   ["pending", "verified", "rejected"]
 );
 
+export const teamVerificationStatusEnum = pgEnum("team_verification_status", [
+  "pending",
+  "verified",
+  "rejected",
+]);
+
 export const teamGenderEnum = pgEnum("team_gender", ["mens", "womens"]);
 
 export const teamRegionEnum = pgEnum("team_region", [
@@ -154,6 +160,14 @@ export const teams = pgTable("teams", {
   gender: teamGenderEnum("gender").notNull(),
   region: teamRegionEnum("region").notNull(),
   season: text("season"),
+  /** Standalone teams require admin approval; school-linked teams use verified. */
+  verificationStatus: teamVerificationStatusEnum("verification_status")
+    .default("pending")
+    .notNull(),
+  verifiedAt: timestamp("verified_at"),
+  verifiedByUserId: uuid("verified_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

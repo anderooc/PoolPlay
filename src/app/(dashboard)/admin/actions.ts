@@ -363,6 +363,90 @@ export async function adminResetSchoolToPending(schoolId: string) {
   return { success: true as const };
 }
 
+async function requireStandaloneTeam(teamId: string) {
+  const [team] = await db
+    .select({
+      id: teams.id,
+      slug: teams.slug,
+      schoolId: teams.schoolId,
+    })
+    .from(teams)
+    .where(eq(teams.id, teamId))
+    .limit(1);
+
+  if (!team) return { error: "Team not found" as const };
+  if (team.schoolId) {
+    return {
+      error:
+        "School-linked teams are approved through their school, not team review.",
+    };
+  }
+  return { team };
+}
+
+export async function adminApproveStandaloneTeam(teamId: string) {
+  const admin = await requireAdmin();
+  const gate = await requireStandaloneTeam(teamId);
+  if ("error" in gate) return gate;
+
+  await db
+    .update(teams)
+    .set({
+      verificationStatus: "verified",
+      verifiedAt: new Date(),
+      verifiedByUserId: admin.id,
+      updatedAt: new Date(),
+    })
+    .where(eq(teams.id, teamId));
+
+  revalidatePath("/admin/teams");
+  revalidatePath("/teams");
+  revalidatePath(`/teams/${gate.team.slug}`);
+  return { success: true as const };
+}
+
+export async function adminRejectStandaloneTeam(teamId: string) {
+  const admin = await requireAdmin();
+  const gate = await requireStandaloneTeam(teamId);
+  if ("error" in gate) return gate;
+
+  await db
+    .update(teams)
+    .set({
+      verificationStatus: "rejected",
+      verifiedAt: null,
+      verifiedByUserId: admin.id,
+      updatedAt: new Date(),
+    })
+    .where(eq(teams.id, teamId));
+
+  revalidatePath("/admin/teams");
+  revalidatePath("/teams");
+  revalidatePath(`/teams/${gate.team.slug}`);
+  return { success: true as const };
+}
+
+export async function adminResetStandaloneTeamToPending(teamId: string) {
+  await requireAdmin();
+  const gate = await requireStandaloneTeam(teamId);
+  if ("error" in gate) return gate;
+
+  await db
+    .update(teams)
+    .set({
+      verificationStatus: "pending",
+      verifiedAt: null,
+      verifiedByUserId: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(teams.id, teamId));
+
+  revalidatePath("/admin/teams");
+  revalidatePath("/teams");
+  revalidatePath(`/teams/${gate.team.slug}`);
+  return { success: true as const };
+}
+
 export async function adminDeleteSchool(schoolId: string) {
   await requireAdmin();
   try {

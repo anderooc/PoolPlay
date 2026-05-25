@@ -580,7 +580,13 @@ export async function attachTeamToSchool(teamId: string, schoolId: string) {
 
   await db
     .update(teams)
-    .set({ schoolId, updatedAt: new Date() })
+    .set({
+      schoolId,
+      verificationStatus: "verified",
+      verifiedAt: new Date(),
+      verifiedByUserId: null,
+      updatedAt: new Date(),
+    })
     .where(eq(teams.id, teamId));
 
   revalidatePath(`/schools/${school.slug}`);
@@ -612,7 +618,13 @@ export async function detachTeamFromSchool(teamId: string) {
 
   await db
     .update(teams)
-    .set({ schoolId: null, updatedAt: new Date() })
+    .set({
+      schoolId: null,
+      verificationStatus: "pending",
+      verifiedAt: null,
+      verifiedByUserId: null,
+      updatedAt: new Date(),
+    })
     .where(eq(teams.id, teamId));
 
   revalidatePath(`/schools/${school.slug}`);

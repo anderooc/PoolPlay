@@ -24,6 +24,9 @@ export type SchoolMemberRole = "president" | "officer" | "member";
 
 export type SchoolVerificationStatus = "pending" | "verified" | "rejected";
 
+/** Standalone teams (no parent school) use the same review states as schools. */
+export type TeamVerificationStatus = SchoolVerificationStatus;
+
 export type TeamGender = "mens" | "womens";
 
 export type TeamRegion =

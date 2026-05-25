@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -15,9 +16,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ExternalLink, Loader2, Pencil, Trash2 } from "lucide-react";
+import {
+  CheckCircle2,
+  ExternalLink,
+  Loader2,
+  Pencil,
+  RotateCcw,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
-import { adminDeleteTeam, adminRenameTeam } from "../actions";
+import {
+  adminApproveStandaloneTeam,
+  adminDeleteTeam,
+  adminRejectStandaloneTeam,
+  adminRenameTeam,
+  adminResetStandaloneTeamToPending,
+} from "../actions";
+import { TEAM_VERIFICATION_STATUS_LABELS } from "@/lib/constants/team";
+import type { TeamVerificationStatus } from "@/types";
 
 interface Props {
   team: {
@@ -25,6 +42,8 @@ interface Props {
     name: string;
     slug: string;
     university: string;
+    schoolId: string | null;
+    verificationStatus: TeamVerificationStatus;
     memberCount: number;
   };
 }
@@ -33,6 +52,7 @@ export function TeamRow({ team }: Props) {
   const router = useRouter();
   const [name, setName] = useState(team.name);
   const [slug, setSlug] = useState(team.slug);
+  const [pending, start] = useTransition();
 
   const [renameOpen, setRenameOpen] = useState(false);
   const [draft, setDraft] = useState(team.name);
@@ -42,8 +62,36 @@ export function TeamRow({ team }: Props) {
   const [confirmText, setConfirmText] = useState("");
   const [deleting, startDelete] = useTransition();
 
+  const isStandalone = team.schoolId == null;
   const nameMatches =
     confirmText.trim() === name.trim() && confirmText.trim() !== "";
+
+  function approve() {
+    start(async () => {
+      const result = await adminApproveStandaloneTeam(team.id);
+      if ("error" in result && result.error) toast.error(result.error);
+      else toast.success("Team approved");
+      router.refresh();
+    });
+  }
+
+  function reject() {
+    start(async () => {
+      const result = await adminRejectStandaloneTeam(team.id);
+      if ("error" in result && result.error) toast.error(result.error);
+      else toast.success("Team rejected");
+      router.refresh();
+    });
+  }
+
+  function reopen() {
+    start(async () => {
+      const result = await adminResetStandaloneTeamToPending(team.id);
+      if ("error" in result && result.error) toast.error(result.error);
+      else toast.success("Reopened for review");
+      router.refresh();
+    });
+  }
 
   function commitRename() {
     startRename(async () => {
@@ -77,6 +125,13 @@ export function TeamRow({ team }: Props) {
     });
   }
 
+  const statusVariant =
+    team.verificationStatus === "verified"
+      ? "default"
+      : team.verificationStatus === "rejected"
+        ? "destructive"
+        : "secondary";
+
   return (
     <>
       <TableRow>
@@ -90,11 +145,53 @@ export function TeamRow({ team }: Props) {
           </Link>
         </TableCell>
         <TableCell className="text-muted-foreground">{team.university}</TableCell>
+        <TableCell>
+          <Badge variant={statusVariant} className="gap-1">
+            {team.verificationStatus === "verified" && (
+              <CheckCircle2 className="h-3 w-3" />
+            )}
+            {TEAM_VERIFICATION_STATUS_LABELS[team.verificationStatus]}
+          </Badge>
+        </TableCell>
         <TableCell className="text-right tabular-nums">
           {team.memberCount}
         </TableCell>
         <TableCell className="text-right">
-          <div className="inline-flex gap-1">
+          <div className="flex flex-wrap justify-end gap-1">
+            {isStandalone && team.verificationStatus !== "verified" && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={approve}
+                disabled={pending}
+              >
+                Approve
+              </Button>
+            )}
+            {isStandalone && team.verificationStatus !== "rejected" && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={reject}
+                disabled={pending}
+              >
+                <X className="h-3.5 w-3.5" />
+                Reject
+              </Button>
+            )}
+            {isStandalone && team.verificationStatus !== "pending" && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={reopen}
+                disabled={pending}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reopen
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -105,7 +202,6 @@ export function TeamRow({ team }: Props) {
               }}
             >
               <Pencil className="h-3.5 w-3.5" />
-              Rename
             </Button>
             <Button
               type="button"
@@ -114,7 +210,6 @@ export function TeamRow({ team }: Props) {
               onClick={() => setDeleteOpen(true)}
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Delete
             </Button>
           </div>
         </TableCell>
