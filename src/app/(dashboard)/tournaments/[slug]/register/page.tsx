@@ -1,9 +1,14 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { teams, teamMembers, registrations } from "@/lib/db/schema";
+import { teams, teamMembers, registrations, schools } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
+import {
+  isSchoolVerifiedForTournament,
+  teamEligibleForTournamentRegistrationFilter,
+} from "@/lib/tournaments/registration-eligibility";
 import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
+import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import { formatTeamGender } from "@/lib/labels/team";
 import {
   canRegisterTeams,
@@ -17,6 +22,14 @@ import { RegisterForm } from "./register-form";
 interface Props {
   params: Promise<{ slug: string }>;
 }
+
+const teamSelectFields = {
+  id: teams.id,
+  name: teams.name,
+  university: teams.university,
+  schoolId: teams.schoolId,
+  schoolName: schools.name,
+} as const;
 
 export default async function RegisterPage({ params }: Props) {
   const { slug } = await params;
@@ -51,48 +64,77 @@ export default async function RegisterPage({ params }: Props) {
   const isHost = isTournamentOrganizer(tournament, user);
   const tournamentGenderLabel = formatTeamGender(tournament.gender);
 
-  // Run the existing-registrations lookup in parallel with the candidate
-  // teams query so both complete in a single round-trip instead of two.
-  const [existingRegs, candidateTeams] = await Promise.all([
+  const [existingRegs, hostSchool, allSchools] = await Promise.all([
     db
       .select({ teamId: registrations.teamId })
       .from(registrations)
       .where(eq(registrations.tournamentId, id)),
+    isHost && tournament.hostSchoolId
+      ? getHostSchoolById(tournament.hostSchoolId)
+      : Promise.resolve(null),
     isHost
       ? db
           .select({
-            id: teams.id,
-            name: teams.name,
-            university: teams.university,
+            id: schools.id,
+            name: schools.name,
+            university: schools.university,
           })
+          .from(schools)
+          .where(eq(schools.verificationStatus, "verified"))
+          .orderBy(asc(schools.name))
+      : Promise.resolve([]),
+  ]);
+
+  const hostSchoolVerified =
+    hostSchool != null &&
+    isSchoolVerifiedForTournament(hostSchool.verificationStatus);
+
+  const candidateTeams = isHost
+    ? tournament.hostSchoolId && hostSchoolVerified
+      ? await db
+          .select(teamSelectFields)
           .from(teams)
-          .where(eq(teams.gender, tournament.gender))
-          .orderBy(asc(teams.name))
-      : db
-          .select({
-            id: teams.id,
-            name: teams.name,
-            university: teams.university,
-          })
-          .from(teamMembers)
-          .innerJoin(teams, eq(teamMembers.teamId, teams.id))
+          .leftJoin(schools, eq(teams.schoolId, schools.id))
           .where(
             and(
-              eq(teamMembers.userId, user.id),
-              eq(teamMembers.role, "captain"),
-              eq(teams.gender, tournament.gender)
+              eq(teams.gender, tournament.gender),
+              eq(teams.schoolId, tournament.hostSchoolId)
             )
-          ),
-  ]);
+          )
+          .orderBy(asc(teams.name))
+      : []
+    : await db
+        .select(teamSelectFields)
+        .from(teamMembers)
+        .innerJoin(teams, eq(teamMembers.teamId, teams.id))
+        .leftJoin(schools, eq(teams.schoolId, schools.id))
+        .where(
+          and(
+            eq(teamMembers.userId, user.id),
+            eq(teamMembers.role, "captain"),
+            eq(teams.gender, tournament.gender),
+            teamEligibleForTournamentRegistrationFilter
+          )
+        )
+        .orderBy(asc(schools.name), asc(teams.name));
 
   const alreadyRegisteredIds = new Set(existingRegs.map((r) => r.teamId));
   const availableTeams = candidateTeams.filter(
     (t) => !alreadyRegisteredIds.has(t.id)
   );
 
+  const hostSchoolForForm =
+    isHost && tournament.hostSchoolId && hostSchool && hostSchoolVerified
+      ? { id: tournament.hostSchoolId, name: hostSchool.name }
+      : null;
+
+  const showForm = isHost
+    ? allSchools.length > 0
+    : availableTeams.length > 0;
+
   const emptyMessage = isHost
-    ? `Every ${tournamentGenderLabel} team is already registered, or no matching teams exist in PoolPlay yet.`
-    : `You don't have any ${tournamentGenderLabel} teams eligible to register. Captain a matching team that isn't already signed up, or ask the host to add your team.`;
+    ? "No verified schools are available yet."
+    : `You don't have any ${tournamentGenderLabel} teams eligible to register. Teams must be admin-approved (standalone) or under a verified school.`;
 
   return (
     <div className="space-y-3">
@@ -112,9 +154,23 @@ export default async function RegisterPage({ params }: Props) {
             />
             {isHost ? (
               <p className="mt-2 text-sm text-muted-foreground">
-                Select one or more {tournamentGenderLabel} teams to add. Pool
-                and group placement can be set later from the tournament page, and
-                host-added teams are confirmed automatically.
+                {hostSchoolForForm ? (
+                  <>
+                    Choose a school, then select {tournamentGenderLabel} teams
+                    to add. Starts with{" "}
+                    <span className="font-medium text-foreground">
+                      {hostSchoolForForm.name}
+                    </span>
+                    . Pool and group placement can be set later, and host-added
+                    teams are confirmed automatically.
+                  </>
+                ) : (
+                  <>
+                    Choose a school, then select {tournamentGenderLabel} teams
+                    to add. Pool and group placement can be set later, and
+                    host-added teams are confirmed automatically.
+                  </>
+                )}
               </p>
             ) : (
               <p className="mt-2 text-sm text-muted-foreground">
@@ -124,15 +180,17 @@ export default async function RegisterPage({ params }: Props) {
             )}
           </CardHeader>
           <CardContent className="overflow-visible">
-            {availableTeams.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-            ) : (
+            {showForm ? (
               <RegisterForm
                 tournamentId={id}
                 tournamentSlug={tournament.slug}
                 teams={availableTeams}
                 asHost={isHost}
+                hostSchool={hostSchoolForForm}
+                schools={isHost ? allSchools : undefined}
               />
+            ) : (
+              <p className="text-sm text-muted-foreground">{emptyMessage}</p>
             )}
           </CardContent>
         </Card>

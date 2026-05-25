@@ -7,8 +7,14 @@ import {
   teamMembers,
   tournaments,
   teams,
+  schools,
 } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, notInArray, asc } from "drizzle-orm";
+import {
+  isSchoolVerifiedForTournament,
+  SCHOOL_NOT_VERIFIED_FOR_TOURNAMENT_ERROR,
+  teamRegistrationBlockReason,
+} from "@/lib/tournaments/registration-eligibility";
 import { requireUser } from "@/lib/auth";
 import {
   canRegisterTeams,
@@ -32,13 +38,29 @@ async function validateTeamRegistration(
   isHost: boolean
 ): Promise<{ error: string } | { ok: true }> {
   const [team] = await db
-    .select({ id: teams.id, gender: teams.gender })
+    .select({
+      id: teams.id,
+      gender: teams.gender,
+      schoolId: teams.schoolId,
+      schoolVerificationStatus: schools.verificationStatus,
+      teamVerificationStatus: teams.verificationStatus,
+    })
     .from(teams)
+    .leftJoin(schools, eq(teams.schoolId, schools.id))
     .where(eq(teams.id, teamId))
     .limit(1);
 
   if (!team) {
     return { error: "Team not found" };
+  }
+
+  const registrationBlock = teamRegistrationBlockReason(
+    team.schoolId,
+    team.schoolVerificationStatus,
+    team.teamVerificationStatus
+  );
+  if (registrationBlock) {
+    return { error: registrationBlock };
   }
 
   if (!teamMatchesTournamentGender(team.gender, tournament.gender)) {
@@ -209,4 +231,92 @@ export async function withdrawRegistration(
   revalidatePath("/tournaments/[slug]", "page");
   revalidatePath("/tournaments/[slug]/register", "page");
   return { success: true };
+}
+
+export type AddableTeamResult = {
+  id: string;
+  name: string;
+  university: string;
+  schoolId: string | null;
+  schoolName: string | null;
+};
+
+/** Host-only: eligible teams for one school (matching gender, not yet registered). */
+export async function getAddableTeamsForSchool(
+  tournamentId: string,
+  schoolId: string
+): Promise<{ teams: AddableTeamResult[] } | { error: string }> {
+  const user = await requireUser();
+
+  const [tournament] = await db
+    .select({
+      id: tournaments.id,
+      gender: tournaments.gender,
+      organizerId: tournaments.organizerId,
+      hostSchoolId: tournaments.hostSchoolId,
+      status: tournaments.status,
+      date: tournaments.date,
+    })
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament) {
+    return { error: "Tournament not found" };
+  }
+
+  if (!isTournamentOrganizer(tournament, user)) {
+    return { error: "Only the tournament host can add teams" };
+  }
+
+  if (!canRegisterTeams(tournament)) {
+    return { error: "Registration is not open for this tournament" };
+  }
+
+  const [school] = await db
+    .select({
+      id: schools.id,
+      verificationStatus: schools.verificationStatus,
+    })
+    .from(schools)
+    .where(eq(schools.id, schoolId))
+    .limit(1);
+
+  if (!school) {
+    return { error: "School not found" };
+  }
+
+  if (!isSchoolVerifiedForTournament(school.verificationStatus)) {
+    return { error: SCHOOL_NOT_VERIFIED_FOR_TOURNAMENT_ERROR };
+  }
+
+  const existingRegs = await db
+    .select({ teamId: registrations.teamId })
+    .from(registrations)
+    .where(eq(registrations.tournamentId, tournamentId));
+
+  const registeredIds = existingRegs.map((r) => r.teamId);
+
+  const rows = await db
+    .select({
+      id: teams.id,
+      name: teams.name,
+      university: teams.university,
+      schoolId: teams.schoolId,
+      schoolName: schools.name,
+    })
+    .from(teams)
+    .innerJoin(schools, eq(teams.schoolId, schools.id))
+    .where(
+      and(
+        eq(teams.schoolId, schoolId),
+        eq(teams.gender, tournament.gender),
+        registeredIds.length > 0
+          ? notInArray(teams.id, registeredIds)
+          : undefined
+      )
+    )
+    .orderBy(asc(teams.name));
+
+  return { teams: rows };
 }
