@@ -8,12 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AdminDialogContent } from "../admin-dialog-content";
 import {
   CheckCircle2,
   ExternalLink,
@@ -103,10 +103,10 @@ export function SchoolRow({ school }: Props) {
   return (
     <>
       <TableRow>
-        <TableCell>
+        <TableCell className="min-w-0">
           <Link
             href={`/schools/${school.slug}`}
-            className="inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline"
+            className="inline-flex max-w-full items-center gap-1 font-medium underline-offset-4 hover:underline"
           >
             {school.name}
             <ExternalLink className="h-3 w-3 text-muted-foreground" />
@@ -118,10 +118,10 @@ export function SchoolRow({ school }: Props) {
             )}
           </div>
         </TableCell>
-        <TableCell className="text-muted-foreground">
+        <TableCell className="min-w-0 text-muted-foreground">
           {school.presidentName ?? "—"}
           {school.presidentEmail && (
-            <div className="text-xs">{school.presidentEmail}</div>
+            <div className="truncate text-xs">{school.presidentEmail}</div>
           )}
         </TableCell>
         <TableCell className="text-right tabular-nums">
@@ -130,7 +130,7 @@ export function SchoolRow({ school }: Props) {
         <TableCell className="text-right tabular-nums">
           {school.teamCount}
         </TableCell>
-        <TableCell>
+        <TableCell className="min-w-0">
           <div className="flex flex-wrap items-center gap-1">
             <Badge variant={statusVariant} className="gap-1 capitalize">
               {school.verificationStatus === "verified" && (
@@ -148,62 +148,69 @@ export function SchoolRow({ school }: Props) {
             )}
           </div>
         </TableCell>
-        <TableCell className="text-right">
-          <div className="inline-flex flex-wrap gap-1">
-            {school.verificationStatus !== "verified" && (
-              <Button
-                type="button"
-                size="sm"
-                variant="default"
-                disabled={pending}
-                onClick={approve}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Approve
-              </Button>
-            )}
-            {school.verificationStatus !== "rejected" && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={pending}
-                onClick={reject}
-              >
-                <X className="h-3.5 w-3.5" />
-                Reject
-              </Button>
-            )}
-            {school.verificationStatus !== "pending" && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={pending}
-                onClick={reopen}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Reopen
-              </Button>
-            )}
-            <Button
-              type="button"
-              size="sm"
-              variant="destructive"
-              onClick={() => setDeleteOpen(true)}
+        <TableCell className="w-72 text-right">
+          <div className="flex w-full items-center justify-end gap-2">
+            <span
+              className="flex h-4 w-4 shrink-0 items-center justify-center"
+              aria-hidden={!pending}
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete
-            </Button>
-            {pending && (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-            )}
+              {pending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+              ) : null}
+            </span>
+            <div className="flex shrink-0 flex-wrap justify-end gap-1">
+              {school.verificationStatus !== "verified" && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="default"
+                  disabled={pending}
+                  onClick={approve}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Approve
+                </Button>
+              )}
+              {school.verificationStatus === "pending" && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={reject}
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Reject
+                </Button>
+              )}
+              {school.verificationStatus !== "pending" && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={reopen}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reopen
+                </Button>
+              )}
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </Button>
+            </div>
           </div>
         </TableCell>
       </TableRow>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-md">
+        <AdminDialogContent>
           <DialogHeader>
             <DialogTitle>Delete &ldquo;{school.name}&rdquo;?</DialogTitle>
             <DialogDescription>
@@ -230,7 +237,7 @@ export function SchoolRow({ school }: Props) {
               Delete permanently
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AdminDialogContent>
       </Dialog>
     </>
   );

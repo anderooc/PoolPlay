@@ -10,12 +10,12 @@ import { Label } from "@/components/ui/label";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AdminDialogContent } from "../admin-dialog-content";
 import {
   CheckCircle2,
   ExternalLink,
@@ -168,7 +168,7 @@ export function TeamRow({ team }: Props) {
                 Approve
               </Button>
             )}
-            {isStandalone && team.verificationStatus !== "rejected" && (
+            {isStandalone && team.verificationStatus === "pending" && (
               <Button
                 type="button"
                 variant="outline"
@@ -216,7 +216,7 @@ export function TeamRow({ team }: Props) {
       </TableRow>
 
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
-        <DialogContent className="sm:max-w-md">
+        <AdminDialogContent>
           <DialogHeader>
             <DialogTitle>Rename team</DialogTitle>
             <DialogDescription>
@@ -255,7 +255,7 @@ export function TeamRow({ team }: Props) {
               Save
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AdminDialogContent>
       </Dialog>
 
       <Dialog
@@ -266,7 +266,7 @@ export function TeamRow({ team }: Props) {
           if (!open) setConfirmText("");
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <AdminDialogContent>
           <DialogHeader>
             <DialogTitle>Delete &ldquo;{name}&rdquo;?</DialogTitle>
             <DialogDescription>
@@ -311,7 +311,7 @@ export function TeamRow({ team }: Props) {
               Delete permanently
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AdminDialogContent>
       </Dialog>
     </>
   );

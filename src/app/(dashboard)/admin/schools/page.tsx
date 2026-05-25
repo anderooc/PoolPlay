@@ -98,7 +98,15 @@ export default async function AdminSchoolsPage({ searchParams }: Props) {
       </div>
 
       <div className="rounded-md border">
-        <Table>
+        <Table className="table-fixed">
+          <colgroup>
+            <col />
+            <col />
+            <col className="w-20" />
+            <col className="w-20" />
+            <col className="w-[11rem]" />
+            <col className="w-72" />
+          </colgroup>
           <TableHeader>
             <TableRow>
               <TableHead>School</TableHead>
