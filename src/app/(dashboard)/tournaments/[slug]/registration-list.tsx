@@ -219,8 +219,7 @@ export function RegistrationList({
           <div
             key={reg.id}
             className={cn(
-              "relative flex flex-col gap-3 rounded-md border p-3 transition-opacity duration-150 sm:flex-row sm:justify-between",
-              applicantView ? "sm:items-center" : "sm:items-start",
+              "relative flex flex-col gap-3 rounded-md border p-3 transition-opacity duration-150 sm:flex-row sm:items-center sm:justify-between",
               isBusy && "opacity-60"
             )}
           >
@@ -287,34 +286,26 @@ export function RegistrationList({
                 </p>
               ) : null}
             </div>
-            <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
-              {applicantView ? (
-                <div
-                  className={cn(
-                    "min-w-[9.5rem] rounded-md border px-4 py-3 text-center",
-                    reg.status === "pending"
-                      ? "border-amber-500/30 bg-amber-500/5"
-                      : "border-border bg-muted/30"
-                  )}
-                >
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Status
-                  </p>
-                  <p className="mt-1 text-sm font-semibold">
-                    {registrationStatusLabel(reg.status)}
-                  </p>
-                </div>
-              ) : (
-                <Badge
-                  variant={
-                    reg.status === "confirmed" || reg.status === "checked_in"
+            <div className="flex shrink-0 flex-row flex-wrap items-center justify-end gap-2">
+              <Badge
+                variant={
+                  applicantView
+                    ? "secondary"
+                    : reg.status === "confirmed" || reg.status === "checked_in"
                       ? "default"
                       : "secondary"
-                  }
-                >
-                  {reg.status.replace(/_/g, " ")}
-                </Badge>
-              )}
+                }
+                className={cn(
+                  "h-8 shrink-0 px-2.5 text-xs font-medium capitalize",
+                  applicantView &&
+                    reg.status === "pending" &&
+                    "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300"
+                )}
+              >
+                {applicantView
+                  ? registrationStatusLabel(reg.status)
+                  : reg.status.replace(/_/g, " ")}
+              </Badge>
               {listKind === "pending" &&
                 canManageRegistrations &&
                 reg.status === "pending" && (
@@ -353,7 +344,9 @@ export function RegistrationList({
                 </Button>
               )}
               {rowError && applicantView && (
-                <p className="text-xs text-destructive">{rowError}</p>
+                <p className="w-full text-right text-xs text-destructive">
+                  {rowError}
+                </p>
               )}
             </div>
           </div>
