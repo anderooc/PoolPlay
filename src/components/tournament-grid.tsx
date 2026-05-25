@@ -55,14 +55,13 @@ const SELECTED_PANEL_MIN_H =
   "min-h-[5.5rem] min-w-0 w-full max-w-full";
 
 /**
- * Minimum cooldown (ms) between wheel/touch-driven date advances. Lower =
- * snappier reaction to scroll input. Trackpads emit many small events per
- * gesture, so we throttle to keep one wheel "kick" = one date.
+ * Accumulated wheel deltaY (px) required before moving to the next/previous
+ * date. Higher = more scrolling per date, easier to land on adjacent days.
  */
-const ADVANCE_COOLDOWN_MS = 110;
+const WHEEL_DELTA_PER_DATE = 120;
 
 /** Vertical pixels of touch movement before a swipe advances the date. */
-const SWIPE_THRESHOLD_PX = 28;
+const SWIPE_THRESHOLD_PX = 56;
 
 interface Tournament {
   id: string;
@@ -269,29 +268,45 @@ function ChronologicalSchedule({
       if (nextDate) onSelectedDateChange(nextDate);
     }
 
-    let cooldown = false;
+    let wheelAccumulator = 0;
     function onWheel(e: WheelEvent) {
       e.preventDefault();
-      if (cooldown) return;
-      if (Math.abs(e.deltaY) < 4) return;
-      cooldown = true;
-      window.setTimeout(() => {
-        cooldown = false;
-      }, ADVANCE_COOLDOWN_MS);
-      advance(e.deltaY > 0 ? 1 : -1);
+      if (Math.abs(e.deltaY) < 1) return;
+      wheelAccumulator += e.deltaY;
+
+      while (wheelAccumulator >= WHEEL_DELTA_PER_DATE) {
+        advance(1);
+        wheelAccumulator -= WHEEL_DELTA_PER_DATE;
+      }
+      while (wheelAccumulator <= -WHEEL_DELTA_PER_DATE) {
+        advance(-1);
+        wheelAccumulator += WHEEL_DELTA_PER_DATE;
+      }
     }
 
     let touchY = 0;
+    let touchAccumulator = 0;
     function onTouchStart(e: TouchEvent) {
-      if (e.touches.length === 1) touchY = e.touches[0].clientY;
+      if (e.touches.length === 1) {
+        touchY = e.touches[0].clientY;
+        touchAccumulator = 0;
+      }
     }
     function onTouchMove(e: TouchEvent) {
       if (e.touches.length !== 1) return;
-      const dy = touchY - e.touches[0].clientY;
-      if (Math.abs(dy) > SWIPE_THRESHOLD_PX) {
+      const y = e.touches[0].clientY;
+      touchAccumulator += touchY - y;
+      touchY = y;
+
+      while (touchAccumulator >= SWIPE_THRESHOLD_PX) {
         e.preventDefault();
-        advance(dy > 0 ? 1 : -1);
-        touchY = e.touches[0].clientY;
+        advance(1);
+        touchAccumulator -= SWIPE_THRESHOLD_PX;
+      }
+      while (touchAccumulator <= -SWIPE_THRESHOLD_PX) {
+        e.preventDefault();
+        advance(-1);
+        touchAccumulator += SWIPE_THRESHOLD_PX;
       }
     }
 

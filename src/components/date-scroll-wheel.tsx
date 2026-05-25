@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils";
 
 const LINE_HEIGHT_PX = 36;
 const VISIBLE_RADIUS = 2;
-const WHEEL_COOLDOWN_MS = 110;
+const WHEEL_DELTA_PER_DATE = 120;
 const FADE_IDLE_MS = 1100;
-const DRAG_STEP_PX = 12;
+const DRAG_STEP_PX = 36;
 const CLICK_SLOP_PX = 6;
 
 function subscribeReducedMotion(onStoreChange: () => void) {
@@ -122,17 +122,21 @@ export function DateScrollWheel({
     const el = rootRef.current;
     if (!el) return;
 
-    let cooldown = false;
+    let wheelAccumulator = 0;
     function onWheel(e: WheelEvent) {
       e.preventDefault();
       e.stopPropagation();
-      if (cooldown) return;
-      if (Math.abs(e.deltaY) < 4) return;
-      cooldown = true;
-      window.setTimeout(() => {
-        cooldown = false;
-      }, WHEEL_COOLDOWN_MS);
-      advance(e.deltaY > 0 ? 1 : -1);
+      if (Math.abs(e.deltaY) < 1) return;
+      wheelAccumulator += e.deltaY;
+
+      while (wheelAccumulator >= WHEEL_DELTA_PER_DATE) {
+        advance(1);
+        wheelAccumulator -= WHEEL_DELTA_PER_DATE;
+      }
+      while (wheelAccumulator <= -WHEEL_DELTA_PER_DATE) {
+        advance(-1);
+        wheelAccumulator += WHEEL_DELTA_PER_DATE;
+      }
     }
 
     el.addEventListener("wheel", onWheel, { passive: false });
