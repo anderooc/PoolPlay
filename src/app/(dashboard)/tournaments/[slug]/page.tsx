@@ -300,12 +300,13 @@ export default async function TournamentDetailPage({ params }: Props) {
                 {organizer?.fullName ?? "Unknown organizer"}
               </span>
             </div>
-            <TeamAttributesBadges
-              gender={tournament.gender}
-              region={tournament.region}
-              className="mt-2"
-            />
-            <TournamentHostSchoolLink school={hostSchool} className="mt-2" />
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <TeamAttributesBadges
+                gender={tournament.gender}
+                region={tournament.region}
+              />
+              <TournamentHostSchoolLink school={hostSchool} />
+            </div>
             {tournament.description && (
               <p className="mt-3 max-w-2xl whitespace-pre-wrap text-sm text-muted-foreground">
                 {tournament.description}

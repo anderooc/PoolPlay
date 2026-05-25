@@ -377,15 +377,15 @@ export function TournamentPageHeading({
             {organizerName}
           </span>
         </div>
-        <TeamAttributesBadges
-          gender={gender}
-          region={region}
-          className={compact ? "mt-1" : "mt-2"}
-        />
-        <TournamentHostSchoolLink
-          school={hostSchool}
-          className={compact ? "mt-1" : "mt-2"}
-        />
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-1.5",
+            compact ? "mt-1" : "mt-2"
+          )}
+        >
+          <TeamAttributesBadges gender={gender} region={region} />
+          <TournamentHostSchoolLink school={hostSchool} />
+        </div>
         {listingDescription ? (
           <p
             className={cn(
