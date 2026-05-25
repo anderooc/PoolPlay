@@ -19,7 +19,8 @@ import {
   isTournamentArchived,
   statusBadgeLabel,
 } from "@/lib/tournament-status";
-import { Calendar, MapPin, User } from "lucide-react";
+import { Calendar, User } from "lucide-react";
+import { TournamentLocationLink } from "@/components/tournament-location-link";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -102,10 +103,10 @@ export default async function ExploreTournamentPage({ params }: Props) {
               </Badge>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
-                {tournament.location}
-              </span>
+              <TournamentLocationLink
+                location={tournament.location}
+                address={tournament.address}
+              />
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
                 {formatTournamentDateDisplay(tournament.date)}

@@ -17,7 +17,8 @@ import { eq, asc, and, count, isNotNull, inArray } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buttonVariants } from "@/components/ui/button";
-import { MapPin, Calendar, User } from "lucide-react";
+import { Calendar, User } from "lucide-react";
+import { TournamentLocationLink } from "@/components/tournament-location-link";
 import Link from "next/link";
 import { BackLink } from "@/components/layout/back-link";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
@@ -286,10 +287,10 @@ export default async function TournamentDetailPage({ params }: Props) {
               })()}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
-                {tournament.location}
-              </span>
+              <TournamentLocationLink
+                location={tournament.location}
+                address={tournament.address}
+              />
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
                 {formatTournamentDateDisplay(tournament.date)}

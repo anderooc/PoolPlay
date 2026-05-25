@@ -49,7 +49,9 @@ import { TournamentHostSchoolLink } from "@/components/tournament-host-school-li
 import type { HostChecklistStep } from "@/lib/tournaments/permissions";
 import type { TournamentHostSchool } from "@/lib/tournaments/host-school";
 import type { TeamGender, TeamRegion } from "@/types";
-import { MapPin, Calendar, User } from "lucide-react";
+import { Calendar, User } from "lucide-react";
+import { TournamentLocationLink } from "@/components/tournament-location-link";
+import { AddressMapPreview } from "@/components/address-map-preview";
 
 type DeleteStep = "intro" | "confirm";
 
@@ -362,13 +364,10 @@ export function TournamentPageHeading({
             compact ? "mt-1 text-xs" : "mt-2 text-sm"
           )}
         >
-          <span className="flex items-center gap-1">
-            <MapPin className="h-3.5 w-3.5 shrink-0" />
-            <span>
-              {listingLocation}
-              {listingAddress ? ` · ${listingAddress}` : null}
-            </span>
-          </span>
+          <TournamentLocationLink
+            location={listingLocation}
+            address={listingAddress}
+          />
           <span className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5" />
             {formatTournamentDateDisplay(date)}
