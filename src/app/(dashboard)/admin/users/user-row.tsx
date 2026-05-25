@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { ADMIN_SELECT_SIDE_OFFSET } from "../constants";
 import { setUserRole, adminDeleteUser } from "../actions";
 import type { UserRole } from "@/types";
 
@@ -94,7 +95,7 @@ export function UserRow({ user, isSelf }: Props) {
             <SelectTrigger size="sm" className="w-[8.5rem]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent sideOffset={ADMIN_SELECT_SIDE_OFFSET}>
               {ROLE_OPTIONS.map((o) => (
                 <SelectItem key={o.value} value={o.value}>
                   {o.label}

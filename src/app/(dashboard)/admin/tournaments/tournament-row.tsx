@@ -15,12 +15,13 @@ import { Input } from "@/components/ui/input";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AdminDialogContent } from "../admin-dialog-content";
+import { ADMIN_SELECT_SIDE_OFFSET } from "../constants";
 import { ExternalLink, Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -150,7 +151,7 @@ export function TournamentRow({ tournament }: Props) {
               <SelectTrigger size="sm" className="w-[12rem]">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent sideOffset={ADMIN_SELECT_SIDE_OFFSET}>
                 {STATUS_OPTIONS.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
                     {o.label}
@@ -191,7 +192,7 @@ export function TournamentRow({ tournament }: Props) {
       </TableRow>
 
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
-        <DialogContent className="sm:max-w-md">
+        <AdminDialogContent>
           <DialogHeader>
             <DialogTitle>Rename tournament</DialogTitle>
             <DialogDescription>
@@ -229,11 +230,11 @@ export function TournamentRow({ tournament }: Props) {
               Save
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AdminDialogContent>
       </Dialog>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-md">
+        <AdminDialogContent>
           <DialogHeader>
             <DialogTitle>Delete &ldquo;{name}&rdquo;?</DialogTitle>
             <DialogDescription>
@@ -261,7 +262,7 @@ export function TournamentRow({ tournament }: Props) {
               Delete permanently
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AdminDialogContent>
       </Dialog>
     </>
   );
