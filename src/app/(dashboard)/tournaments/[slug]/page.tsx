@@ -229,8 +229,11 @@ export default async function TournamentDetailPage({ params }: Props) {
       })
     : [];
 
+  const emptySetup =
+    tournamentDivisions.length === 0 && courtRows.length === 0;
+
   return (
-    <div className="space-y-6">
+    <div className={emptySetup ? "space-y-3" : "space-y-6"}>
       <BackLink href="/tournaments">All tournaments</BackLink>
 
       {isOrganizer ? (
@@ -249,6 +252,7 @@ export default async function TournamentDetailPage({ params }: Props) {
           showRegisterLink={showRegisterLink}
           hostChecklistSteps={checklist}
           hostSchool={hostSchool}
+          compact={emptySetup}
         />
       ) : (
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -358,9 +362,20 @@ export default async function TournamentDetailPage({ params }: Props) {
           )}
         </TabsList>
 
-        <TabsContent value="pools" className="mt-4 space-y-10">
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold tracking-tight">Pools</h2>
+        <TabsContent
+          value="pools"
+          className={emptySetup ? "mt-2 space-y-4" : "mt-4 space-y-10"}
+        >
+          <section className={emptySetup ? "space-y-1.5" : "space-y-3"}>
+            <h2
+              className={
+                emptySetup
+                  ? "text-base font-semibold tracking-tight"
+                  : "text-lg font-semibold tracking-tight"
+              }
+            >
+              Pools
+            </h2>
             <PoolManager
               tournamentId={id}
               divisions={tournamentDivisions}
@@ -370,13 +385,24 @@ export default async function TournamentDetailPage({ params }: Props) {
                 divisionIds: c.divisionIds,
               }))}
               isOrganizer={canEditSetup}
+              compactEmpty={emptySetup}
             />
           </section>
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold tracking-tight">Courts</h2>
-            <p className="text-sm text-muted-foreground">
-              Used when auto-scheduling matches and on the live scoring view.
-            </p>
+          <section className={emptySetup ? "space-y-1.5" : "space-y-3"}>
+            <h2
+              className={
+                emptySetup
+                  ? "text-base font-semibold tracking-tight"
+                  : "text-lg font-semibold tracking-tight"
+              }
+            >
+              Courts
+            </h2>
+            {!emptySetup && (
+              <p className="text-sm text-muted-foreground">
+                Used when auto-scheduling matches and on the live scoring view.
+              </p>
+            )}
             <CourtManager
               tournamentId={id}
               courts={tournamentCourts.map((c) => ({
@@ -385,6 +411,7 @@ export default async function TournamentDetailPage({ params }: Props) {
                 divisionNames: c.divisionNames,
               }))}
               isOrganizer={canEditSetup}
+              compactEmpty={emptySetup}
             />
           </section>
         </TabsContent>

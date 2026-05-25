@@ -71,22 +71,22 @@ export function NewTournamentForm({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <BackLink href="/tournaments">All tournaments</BackLink>
 
       <div className="mx-auto max-w-lg">
-        <Card>
-          <CardHeader>
-            <CardTitle>Create Tournament</CardTitle>
-            <CardDescription>
+        <Card size="sm">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-base">Create Tournament</CardTitle>
+            <CardDescription className="text-xs">
               Gender and region are set from your school.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={onSubmit} className="space-y-4" aria-busy={isPending}>
-              <div className="space-y-2">
-                <Label>Hosting school</Label>
-                <div className="rounded-lg border bg-muted/40 px-3 py-2.5">
+            <form onSubmit={onSubmit} className="space-y-2.5" aria-busy={isPending}>
+              <div className="space-y-1">
+                <Label className="text-xs">Hosting school</Label>
+                <div className="rounded-lg border bg-muted/40 px-2.5 py-2">
                   <p className="text-sm font-medium">{hostSchool.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {hostSchool.university}
@@ -110,13 +110,16 @@ export function NewTournamentForm({
                   disabled={isPending}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+              <div className="space-y-1">
+                <Label htmlFor="description" className="text-xs">
+                  Description
+                </Label>
                 <Textarea
                   id="description"
                   name="description"
-                  placeholder="Start time, entry fee for the first team, fee for each additional team, format, and other details teams need before registering..."
-                  rows={4}
+                  placeholder="Start time, fees, format, and other details for teams..."
+                  rows={3}
+                  className="min-h-0 text-sm"
                   disabled={isPending}
                 />
               </div>

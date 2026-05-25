@@ -68,6 +68,7 @@ export function TournamentPageHeading({
   showRegisterLink = false,
   hostChecklistSteps = [],
   hostSchool = null,
+  compact = false,
 }: {
   tournamentId: string;
   initialSlug: string;
@@ -83,6 +84,8 @@ export function TournamentPageHeading({
   showRegisterLink?: boolean;
   hostChecklistSteps?: HostChecklistStep[];
   hostSchool?: TournamentHostSchool | null;
+  /** Tighter layout when setup tab has no pools or courts yet. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [slug, setSlug] = useState(initialSlug);
@@ -291,9 +294,14 @@ export function TournamentPageHeading({
   }
 
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div
+      className={cn(
+        "flex flex-col lg:flex-row lg:items-start lg:justify-between",
+        compact ? "gap-2.5" : "gap-4"
+      )}
+    >
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {editingTitle ? (
             <div className="min-w-0 flex-1 basis-full sm:basis-auto sm:max-w-[min(100%,42rem)]">
               <input
@@ -306,7 +314,7 @@ export function TournamentPageHeading({
                   "w-full min-w-0 border-0 border-b-2 border-primary bg-transparent px-0 py-0.5 text-2xl font-bold tracking-tight text-foreground caret-primary shadow-none outline-none ring-0 transition-[border-color] duration-150",
                   "focus-visible:border-primary focus-visible:ring-0",
                   "disabled:cursor-not-allowed disabled:opacity-60",
-                  "sm:text-3xl"
+                  compact ? "sm:text-2xl" : "sm:text-3xl"
                 )}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
@@ -328,7 +336,12 @@ export function TournamentPageHeading({
               )}
             </div>
           ) : (
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            <h1
+              className={cn(
+                "font-bold tracking-tight",
+                compact ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"
+              )}
+            >
               {name}
             </h1>
           )}
@@ -343,7 +356,12 @@ export function TournamentPageHeading({
             {badgeLabel}
           </Badge>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-x-3 gap-y-0.5 text-muted-foreground",
+            compact ? "mt-1 text-xs" : "mt-2 text-sm"
+          )}
+        >
           <span className="flex items-center gap-1">
             <MapPin className="h-3.5 w-3.5 shrink-0" />
             <span>
@@ -363,41 +381,70 @@ export function TournamentPageHeading({
         <TeamAttributesBadges
           gender={gender}
           region={region}
-          className="mt-2"
+          className={compact ? "mt-1" : "mt-2"}
         />
-        <TournamentHostSchoolLink school={hostSchool} className="mt-2" />
+        <TournamentHostSchoolLink
+          school={hostSchool}
+          className={compact ? "mt-1" : "mt-2"}
+        />
         {listingDescription ? (
-          <p className="mt-3 max-w-2xl whitespace-pre-wrap text-sm text-muted-foreground">
+          <p
+            className={cn(
+              "max-w-2xl whitespace-pre-wrap text-muted-foreground",
+              compact
+                ? "mt-1.5 line-clamp-2 text-xs"
+                : "mt-3 text-sm"
+            )}
+          >
             {listingDescription}
           </p>
         ) : (
-          <p className="mt-3 max-w-2xl text-sm italic text-muted-foreground/80">
+          <p
+            className={cn(
+              "max-w-2xl italic text-muted-foreground/80",
+              compact ? "mt-1.5 text-xs" : "mt-3 text-sm"
+            )}
+          >
             No description yet. Use the menu to edit listing details.
           </p>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div
+        className={cn(
+          "flex flex-wrap items-center justify-end",
+          compact ? "gap-1.5" : "gap-2"
+        )}
+      >
         {hostChecklistSteps.length > 0 ? (
           <TournamentHostChecklist steps={hostChecklistSteps} />
         ) : null}
         {showRegisterLink && (
           <Link
             href={`/tournaments/${slug}/register`}
-            className={buttonVariants({ className: "w-full sm:w-auto" })}
+            className={buttonVariants({
+              size: compact ? "sm" : "default",
+              className: "w-full sm:w-auto",
+            })}
           >
             Add / register teams
           </Link>
         )}
         <Link
           href={`/tournaments/${slug}/brackets`}
-          className={buttonVariants({ variant: "outline" })}
+          className={buttonVariants({
+            variant: "outline",
+            size: compact ? "sm" : "default",
+          })}
         >
           Groups &amp; Brackets
         </Link>
         <Link
           href={`/tournaments/${slug}/scoring`}
-          className={buttonVariants({ variant: "outline" })}
+          className={buttonVariants({
+            variant: "outline",
+            size: compact ? "sm" : "default",
+          })}
         >
           Live Scoring
         </Link>

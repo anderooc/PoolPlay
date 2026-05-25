@@ -128,11 +128,13 @@ export function PoolManager({
   divisions,
   tournamentCourts,
   isOrganizer,
+  compactEmpty = false,
 }: {
   tournamentId: string;
   divisions: Division[];
   tournamentCourts: TournamentCourt[];
   isOrganizer: boolean;
+  compactEmpty?: boolean;
 }) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
@@ -329,22 +331,32 @@ export function PoolManager({
   const removeBusy = removingDivisionId !== null;
 
   return (
-    <div className="space-y-4">
+    <div className={compactEmpty ? "space-y-2" : "space-y-4"}>
       {removeError && (
         <p className="text-sm text-destructive" role="alert">
           {removeError}
         </p>
       )}
       {divisions.length === 0 && !showForm ? (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">
+        <Card size="sm">
+          <CardContent
+            className={cn(
+              "text-center",
+              compactEmpty ? "py-4" : "py-8"
+            )}
+          >
+            <p
+              className={
+                compactEmpty ? "text-sm text-muted-foreground" : "text-muted-foreground"
+              }
+            >
               No pools configured yet.
             </p>
             {isOrganizer && (
               <Button
-                className="mt-3"
+                className={compactEmpty ? "mt-2" : "mt-3"}
                 variant="outline"
+                size={compactEmpty ? "sm" : "default"}
                 disabled={removeBusy}
                 onClick={() => setShowForm(true)}
               >

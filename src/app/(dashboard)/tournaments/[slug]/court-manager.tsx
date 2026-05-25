@@ -22,10 +22,12 @@ export function CourtManager({
   tournamentId,
   courts,
   isOrganizer,
+  compactEmpty = false,
 }: {
   tournamentId: string;
   courts: Court[];
   isOrganizer: boolean;
+  compactEmpty?: boolean;
 }) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
@@ -119,15 +121,27 @@ export function CourtManager({
   const removeBusy = removingCourtId !== null;
 
   return (
-    <div className="space-y-4">
+    <div className={compactEmpty ? "space-y-2" : "space-y-4"}>
       {courts.length === 0 && !showForm ? (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">No courts added yet.</p>
+        <Card size="sm">
+          <CardContent
+            className={cn(
+              "text-center",
+              compactEmpty ? "py-4" : "py-8"
+            )}
+          >
+            <p
+              className={
+                compactEmpty ? "text-sm text-muted-foreground" : "text-muted-foreground"
+              }
+            >
+              No courts added yet.
+            </p>
             {isOrganizer && (
               <Button
-                className="mt-3"
+                className={compactEmpty ? "mt-2" : "mt-3"}
                 variant="outline"
+                size={compactEmpty ? "sm" : "default"}
                 disabled={removeBusy}
                 onClick={() => setShowForm(true)}
               >
