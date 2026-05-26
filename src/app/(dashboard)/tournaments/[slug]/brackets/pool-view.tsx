@@ -10,7 +10,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatMatchStatusLabel } from "@/lib/labels/match";
 import { calculatePoolStandings } from "@/lib/utils/pool";
+import { cn } from "@/lib/utils";
 
 interface PoolTeam {
   id: string;
@@ -93,16 +95,17 @@ export function PoolView({ pool }: { pool: Pool }) {
           {pool.matches.map((match) => (
             <div
               key={match.id}
-              className="flex items-center justify-between rounded border p-2 text-sm"
+              className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded border p-2 text-sm"
             >
               <span
-                className={
-                  match.winnerId === match.teamAId ? "font-semibold" : ""
-                }
+                className={cn(
+                  "min-w-0 truncate text-right",
+                  match.winnerId === match.teamAId && "font-semibold"
+                )}
               >
                 {match.teamA?.name ?? "TBD"}
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center justify-center gap-2 px-1">
                 {match.sets.length > 0 ? (
                   match.sets.map((s, i) => (
                     <span key={i} className="text-xs text-muted-foreground">
@@ -111,14 +114,15 @@ export function PoolView({ pool }: { pool: Pool }) {
                   ))
                 ) : (
                   <Badge variant="secondary" className="text-xs">
-                    {match.status}
+                    {formatMatchStatusLabel(match.status)}
                   </Badge>
                 )}
               </div>
               <span
-                className={
-                  match.winnerId === match.teamBId ? "font-semibold" : ""
-                }
+                className={cn(
+                  "min-w-0 truncate text-left",
+                  match.winnerId === match.teamBId && "font-semibold"
+                )}
               >
                 {match.teamB?.name ?? "TBD"}
               </span>

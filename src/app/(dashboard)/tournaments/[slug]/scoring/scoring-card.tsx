@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { updateScore, finalizeMatch, startMatch } from "./actions";
 import { format } from "date-fns";
+import { formatMatchStatusLabel } from "@/lib/labels/match";
 
 interface MatchSet {
   id: string;
@@ -90,7 +91,7 @@ export function ScoringCard({
                   : "outline"
             }
           >
-            {match.status.replace(/_/g, " ")}
+            {formatMatchStatusLabel(match.status)}
           </Badge>
         </div>
         <p className="text-xs text-muted-foreground">
