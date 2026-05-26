@@ -474,15 +474,6 @@ export function TournamentPageHeading({
           </Link>
         )}
         <Link
-          href={`/tournaments/${slug}/brackets`}
-          className={buttonVariants({
-            variant: "outline",
-            size: compact ? "sm" : "default",
-          })}
-        >
-          Groups &amp; Brackets
-        </Link>
-        <Link
           href={`/tournaments/${slug}/scoring`}
           className={buttonVariants({
             variant: "outline",

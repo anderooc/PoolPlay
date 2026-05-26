@@ -30,6 +30,7 @@ import {
 } from "../actions";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { formatSnakeCaseLabel } from "@/lib/utils/format-label";
 import { toast } from "sonner";
 
 interface Division {
@@ -428,7 +429,7 @@ export function PoolManager({
                         className="h-auto min-h-5 max-w-full shrink whitespace-normal py-1 text-left leading-snug"
                       >
                         {formatLabel[div.format] ??
-                          div.format.replace(/_/g, " ")}
+                          formatSnakeCaseLabel(div.format)}
                       </Badge>
                       {div.teamCap != null && (
                         <span className="text-xs text-muted-foreground">
@@ -547,14 +548,18 @@ export function PoolManager({
                 <input type="hidden" name="format" value={divisionFormat} />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="div-cap">Team Cap (optional)</Label>
+                <Label htmlFor="div-cap">Team cap (optional)</Label>
                 <Input
                   id="div-cap"
                   name="teamCap"
                   type="number"
-                  placeholder="4"
+                  placeholder="8"
                   min={2}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Sizes the elimination bracket (defaults to 8). Top finishers
+                  advance after pool play.
+                </p>
               </div>
               {error && (
                 <p className="text-sm text-destructive">{error}</p>

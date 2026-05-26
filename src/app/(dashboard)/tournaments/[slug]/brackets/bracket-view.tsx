@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { formatBracketTypeLabel } from "@/lib/labels/bracket";
 
 interface BracketMatch {
   id: string;
@@ -51,7 +52,8 @@ export function BracketView({ bracket }: { bracket: Bracket }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">
-          {bracket.bracketType.replace(/_/g, " ")} ({bracket.seedCount} teams)
+          {formatBracketTypeLabel(bracket.bracketType)} ({bracket.seedCount}{" "}
+          teams)
         </CardTitle>
       </CardHeader>
       <CardContent>
