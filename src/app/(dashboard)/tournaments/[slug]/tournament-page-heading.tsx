@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  startTransition,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -117,12 +124,13 @@ export function TournamentPageHeading({
   const [dateError, setDateError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (detailsOpen) return;
     queueMicrotask(() => {
       setListingDescription(description);
       setListingLocation(location);
       setListingAddress(address ?? "");
     });
-  }, [description, location, address]);
+  }, [description, location, address, detailsOpen]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -271,7 +279,11 @@ export function TournamentPageHeading({
       setListingLocation(result.location);
       setListingAddress(result.address ?? "");
       setDetailsOpen(false);
-      router.refresh();
+      setDetailsSaving(false);
+      startTransition(() => {
+        router.refresh();
+      });
+      return;
     }
     setDetailsSaving(false);
   }
@@ -540,7 +552,7 @@ export function TournamentPageHeading({
       <Dialog
         open={detailsOpen}
         onOpenChange={(open) => {
-          if (detailsSaving) return;
+          if (detailsSaving && open) return;
           if (open) {
             setDraftDescription(listingDescription ?? "");
             setDraftLocation(listingLocation);
@@ -592,11 +604,13 @@ export function TournamentPageHeading({
                 disabled={detailsSaving}
                 placeholder="Street address or facility name"
               />
-              <AddressMapPreview
-                address={draftAddress}
-                location={draftLocation}
-                height={160}
-              />
+              {detailsOpen && !detailsSaving ? (
+                <AddressMapPreview
+                  address={draftAddress}
+                  location={draftLocation}
+                  height={160}
+                />
+              ) : null}
             </div>
           </div>
           {detailsError && (

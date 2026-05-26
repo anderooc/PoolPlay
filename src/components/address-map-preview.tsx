@@ -36,10 +36,9 @@ export function AddressMapPreview({
   const [debouncedQuery, setDebouncedQuery] = useState(query);
 
   useEffect(() => {
-    if (query === debouncedQuery) return;
     const t = window.setTimeout(() => setDebouncedQuery(query), debounceMs);
     return () => window.clearTimeout(t);
-  }, [query, debouncedQuery, debounceMs]);
+  }, [query, debounceMs]);
 
   if (trimmedAddress.length === 0) return null;
 
