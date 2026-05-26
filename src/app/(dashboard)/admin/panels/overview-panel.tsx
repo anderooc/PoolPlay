@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatSnakeCaseLabel } from "@/lib/utils/format-label";
 import { Users, Trophy, Group, Flag, Calendar, UserCog } from "lucide-react";
 import { db } from "@/lib/db";
 import {
@@ -155,8 +156,8 @@ export async function AdminOverviewPanel() {
                         {u.email}
                       </p>
                     </div>
-                    <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-xs capitalize">
-                      {u.role}
+                    <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-xs">
+                      {formatSnakeCaseLabel(u.role)}
                     </span>
                   </li>
                 ))}

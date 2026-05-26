@@ -8,6 +8,7 @@ import { CalendarClock } from "lucide-react";
 import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { ScheduleControls } from "./schedule-controls";
+import { formatMatchStatusLabel } from "@/lib/labels/match";
 
 export default async function SchedulePage() {
   const user = await getCurrentUser();
@@ -150,7 +151,7 @@ export default async function SchedulePage() {
                     }
                     className="shrink-0"
                   >
-                    {match.status.replace(/_/g, " ")}
+                    {formatMatchStatusLabel(match.status)}
                   </Badge>
                 </div>
               ))}
