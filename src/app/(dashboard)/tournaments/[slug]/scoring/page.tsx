@@ -19,6 +19,10 @@ import {
   isTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
 import { getTournamentMatchIds } from "@/lib/tournaments/match-query";
+import {
+  getMatchDivisionIdMap,
+  getUnreleasedDivisionIds,
+} from "@/lib/tournaments/unreleased-divisions";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -38,7 +42,7 @@ export default async function ScoringPage({ params }: Props) {
 
   const matchIds = await getTournamentMatchIds(id);
 
-  const allMatches =
+  let allMatches =
     matchIds.length === 0
       ? []
       : await db
@@ -46,6 +50,20 @@ export default async function ScoringPage({ params }: Props) {
           .from(matches)
           .where(inArray(matches.id, matchIds))
           .orderBy(asc(matches.scheduledTime));
+
+  if (!isOrganizer && allMatches.length > 0) {
+    const [unreleasedDivisionIds, matchDivisionId] = await Promise.all([
+      getUnreleasedDivisionIds(id),
+      getMatchDivisionIdMap(id),
+    ]);
+    if (unreleasedDivisionIds.size > 0) {
+      allMatches = allMatches.filter((match) => {
+        const divisionId = matchDivisionId.get(match.id);
+        if (!divisionId) return true;
+        return !unreleasedDivisionIds.has(divisionId);
+      });
+    }
+  }
 
   const enrichedMatches = await Promise.all(
     allMatches.map(async (match) => {

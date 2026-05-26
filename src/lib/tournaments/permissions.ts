@@ -28,6 +28,16 @@ export function isTournamentOrganizer(
   return tournament.organizerId === user.id || isAdmin(user);
 }
 
+/** Pool standings, matches, and brackets are host-only until released. */
+export function canViewDivisionPoolPlay(
+  tournament: Pick<TournamentForPermissions, "organizerId">,
+  user: UserForPermissions,
+  poolsReleasedAt: Date | string | null
+): boolean {
+  if (isTournamentOrganizer(tournament, user)) return true;
+  return poolsReleasedAt != null;
+}
+
 /** Draft tournaments are hidden from everyone except the organizer, admins, and
  *  members of the hosting school. Non-draft tournaments are visible to all
  *  authenticated users on the dashboard. */
@@ -128,7 +138,7 @@ export function poolAssignmentBlockedMessage(
   pendingRegistrationCount: number
 ): string | null {
   if (pendingRegistrationCount > 0) {
-    return "Confirm all registered teams before assigning groups.";
+    return "Confirm all registered teams before generating matches or brackets.";
   }
   return null;
 }
@@ -240,15 +250,15 @@ export function hostChecklistSteps(input: {
     },
     {
       id: "structure",
-      label: "Assign pools and generate groups",
+      label: "Generate pool matches",
       done: hasPools,
-      hint: "Confirm teams, close registration, assign pools, then generate groups.",
+      hint: "Confirm teams and close registration, then generate matches from the Pools tab.",
     },
     {
       id: "bracket",
       label: "Generate brackets",
       done: hasBracket,
-      hint: "Create elimination brackets after group play is set.",
+      hint: "Create elimination brackets from the Bracket tab after pool play is set.",
     },
     {
       id: "schedule",
