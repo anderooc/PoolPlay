@@ -1,3 +1,5 @@
+import { formatSnakeCaseLabel } from "@/lib/utils/format-label";
+
 /**
  * Shared helpers for tournament status display. "Archived" is a pure
  * date-based derived state: a tournament whose date is strictly before
@@ -44,5 +46,5 @@ export function statusBadgeLabel(
   today: string = todayISO()
 ): string {
   if (isTournamentArchived(tournamentDate, today)) return "Archived";
-  return STATUS_LABEL[status] ?? status.replace(/_/g, " ");
+  return STATUS_LABEL[status] ?? formatSnakeCaseLabel(status);
 }
