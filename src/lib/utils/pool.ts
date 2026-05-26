@@ -51,18 +51,64 @@ export function generatePools(teams: Team[], poolCount: number): Pool[] {
   }));
 }
 
+const BYE = -1;
+
 /**
- * Generates all round-robin matches within a pool.
+ * Circle-method slot order so round 1 pairs seed 2 vs lowest seed.
+ * `teamIds` must be sorted by seed ascending (seed 1 at index 0).
+ */
+function initialCircleSlots(n: number): number[] {
+  const secondSeed = 1;
+  const lowest = n - 1;
+
+  if (n % 2 === 0) {
+    // e.g. 4 teams → [1, 0, 2, 3] → first pairing 2v4, then 1v3
+    return [
+      secondSeed,
+      0,
+      ...Array.from({ length: n - 3 }, (_, i) => i + 2),
+      lowest,
+    ];
+  }
+
+  // Odd pool: phantom bye so round 1 is still 2v(lowest)
+  // e.g. 3 teams → [1, 0, bye, 2] → 2v3 first
+  return [
+    secondSeed,
+    0,
+    ...Array.from({ length: n - 3 }, (_, i) => i + 2),
+    BYE,
+    lowest,
+  ];
+}
+
+/**
+ * Round-robin match order for a pool. `teamIds` must be sorted by seed ascending
+ * (seed 1 first, lowest seed last). The first match is always lowest vs seed 2;
+ * remaining rounds follow the circle method (with a bye for odd pools).
  */
 export function generatePoolMatches(
   teamIds: string[]
 ): { teamAId: string; teamBId: string }[] {
+  const n = teamIds.length;
+  if (n < 2) return [];
+
+  let slots = initialCircleSlots(n);
+  const m = slots.length;
   const matches: { teamAId: string; teamBId: string }[] = [];
-  for (let i = 0; i < teamIds.length; i++) {
-    for (let j = i + 1; j < teamIds.length; j++) {
-      matches.push({ teamAId: teamIds[i], teamBId: teamIds[j] });
+
+  for (let round = 0; round < m - 1; round++) {
+    for (let i = 0; i < m / 2; i++) {
+      const a = slots[i];
+      const b = slots[m - 1 - i];
+      if (a === BYE || b === BYE) continue;
+      matches.push({ teamAId: teamIds[a], teamBId: teamIds[b] });
     }
+    const fixed = slots[0];
+    const rest = slots.slice(1);
+    slots = [fixed, rest[rest.length - 1], ...rest.slice(0, -1)];
   }
+
   return matches;
 }
 
