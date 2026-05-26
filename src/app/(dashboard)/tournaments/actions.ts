@@ -14,7 +14,7 @@ import {
   pools,
   brackets,
 } from "@/lib/db/schema";
-import { eq, and, ne, inArray, or } from "drizzle-orm";
+import { eq, and, ne, inArray, or, count } from "drizzle-orm";
 import { requireUser, isAdmin } from "@/lib/auth";
 import { createTournamentSchema, createDivisionSchema } from "@/lib/validators";
 import { flagBlockedContent } from "@/lib/admin/content-flags";
@@ -28,6 +28,12 @@ import {
   canEditTournamentSetup,
   isTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
+import {
+  ensureDivisionAutoPool,
+  syncDivisionAutoPoolMembers,
+  syncManyDivisionPools,
+} from "@/lib/tournaments/division-pools";
+import { ensureDivisionBracketSkeleton } from "@/lib/tournaments/bracket-structure";
 import type { TournamentStatus } from "@/types";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -468,6 +474,14 @@ export async function addDivision(tournamentId: string, formData: FormData) {
     return { error: "Could not create pool" };
   }
 
+  // Eagerly create the matching auto-pool and bracket skeleton.
+  await ensureDivisionAutoPool(inserted.id);
+  await ensureDivisionBracketSkeleton(
+    inserted.id,
+    parsed.data.format,
+    parsed.data.teamCap ?? null
+  );
+
   revalidatePath("/tournaments/[slug]", "page");
   return { success: true as const, id: inserted.id };
 }
@@ -489,6 +503,70 @@ export async function removeDivision(tournamentId: string, divisionId: string) {
 
   revalidatePath("/tournaments/[slug]", "page");
   return { success: true };
+}
+
+/** Make pool play and brackets visible to all tournament viewers. */
+export async function releaseDivisionPools(
+  tournamentId: string,
+  divisionId: string
+) {
+  const user = await requireUser();
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+    return { error: "Only the tournament host can release pools" };
+  }
+
+  const [division] = await db
+    .select()
+    .from(divisions)
+    .where(eq(divisions.id, divisionId))
+    .limit(1);
+
+  if (!division || division.tournamentId !== tournamentId) {
+    return { error: "Pool not found" };
+  }
+
+  if (division.poolsReleasedAt) {
+    return { success: true as const, alreadyReleased: true as const };
+  }
+
+  const poolRows = await db
+    .select({ id: pools.id })
+    .from(pools)
+    .where(eq(pools.divisionId, divisionId))
+    .limit(1);
+
+  const poolId = poolRows[0]?.id;
+  if (!poolId) {
+    return { error: "Set up pool matches before releasing" };
+  }
+
+  const [{ value: matchCount }] = await db
+    .select({ value: count() })
+    .from(matches)
+    .where(eq(matches.poolId, poolId));
+
+  if ((matchCount ?? 0) === 0) {
+    return {
+      error:
+        "Save seeding and generate pool matches on the Pools tab before releasing",
+    };
+  }
+
+  await db
+    .update(divisions)
+    .set({ poolsReleasedAt: new Date() })
+    .where(eq(divisions.id, divisionId));
+
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/scoring", "page");
+  return { success: true as const };
 }
 
 export async function addCourt(tournamentId: string, formData: FormData) {
@@ -598,8 +676,72 @@ export async function updateRegistrationStatus(
     .set({ status })
     .where(eq(registrations.id, registrationId));
 
+  if (reg.divisionId) {
+    await syncDivisionAutoPoolMembers(reg.tournamentId, reg.divisionId);
+  }
+
   revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/brackets", "page");
   return { success: true };
+}
+
+/** Confirm multiple pending registrations in one action (e.g. all teams from a school). */
+export async function confirmPendingRegistrations(
+  tournamentId: string,
+  registrationIds: string[]
+) {
+  const user = await requireUser();
+  const uniqueIds = [...new Set(registrationIds)];
+  if (uniqueIds.length === 0) {
+    return { error: "No registrations selected" };
+  }
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+    return { error: "Only the organizer can update registrations" };
+  }
+
+  if (!canEditRegistrations(tournament, user)) {
+    return {
+      error: "Registrations cannot be updated in the current tournament stage.",
+    };
+  }
+
+  const rows = await db
+    .select({ id: registrations.id, divisionId: registrations.divisionId })
+    .from(registrations)
+    .where(
+      and(
+        eq(registrations.tournamentId, tournamentId),
+        inArray(registrations.id, uniqueIds),
+        eq(registrations.status, "pending")
+      )
+    );
+
+  if (rows.length !== uniqueIds.length) {
+    return {
+      error: "Some registrations are missing or no longer pending",
+    };
+  }
+
+  await db
+    .update(registrations)
+    .set({ status: "confirmed" })
+    .where(inArray(registrations.id, uniqueIds));
+
+  await syncManyDivisionPools(
+    tournamentId,
+    rows.map((r) => r.divisionId)
+  );
+
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/brackets", "page");
+  return { success: true as const, count: rows.length };
 }
 
 export async function updateDivision(
@@ -782,12 +924,149 @@ export async function setRegistrationDivision(
     }
   }
 
+  const previousDivisionId = reg.divisionId;
+
   await db
     .update(registrations)
     .set({ divisionId })
     .where(eq(registrations.id, registrationId));
 
+  await syncManyDivisionPools(reg.tournamentId, [
+    previousDivisionId,
+    divisionId,
+  ]);
+
   revalidatePath("/tournaments/[slug]", "page");
   revalidatePath("/tournaments/[slug]/brackets", "page");
   return { success: true };
+}
+
+/** Assign multiple registrations to one pool (or unassign) in a single update. */
+export async function bulkAssignRegistrationsToDivision(
+  tournamentId: string,
+  registrationIds: string[],
+  divisionId: string | null
+) {
+  const user = await requireUser();
+  const uniqueIds = [...new Set(registrationIds)];
+  if (uniqueIds.length === 0) {
+    return { error: "No teams selected" };
+  }
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+    return { error: "Only the organizer can update registrations" };
+  }
+
+  if (!canEditRegistrations(tournament, user)) {
+    return {
+      error: "Pool assignments cannot be changed in the current tournament stage.",
+    };
+  }
+
+  if (divisionId) {
+    const [div] = await db
+      .select({ id: divisions.id, tournamentId: divisions.tournamentId })
+      .from(divisions)
+      .where(eq(divisions.id, divisionId))
+      .limit(1);
+    if (!div || div.tournamentId !== tournamentId) {
+      return { error: "Invalid pool for this tournament" };
+    }
+  }
+
+  const rows = await db
+    .select({ id: registrations.id, divisionId: registrations.divisionId })
+    .from(registrations)
+    .where(
+      and(
+        eq(registrations.tournamentId, tournamentId),
+        inArray(registrations.id, uniqueIds)
+      )
+    );
+  if (rows.length !== uniqueIds.length) {
+    return { error: "Some registrations no longer exist" };
+  }
+
+  await db
+    .update(registrations)
+    .set({ divisionId })
+    .where(
+      and(
+        eq(registrations.tournamentId, tournamentId),
+        inArray(registrations.id, uniqueIds)
+      )
+    );
+
+  await syncManyDivisionPools(tournamentId, [
+    divisionId,
+    ...rows.map((r) => r.divisionId),
+  ]);
+
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/brackets", "page");
+  return { success: true as const, count: rows.length };
+}
+
+/** Host-only: delete multiple registrations from a tournament at once. */
+export async function bulkRemoveRegistrations(
+  tournamentId: string,
+  registrationIds: string[]
+) {
+  const user = await requireUser();
+  const uniqueIds = [...new Set(registrationIds)];
+  if (uniqueIds.length === 0) {
+    return { error: "No teams selected" };
+  }
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+    return { error: "Only the organizer can remove teams" };
+  }
+
+  if (!canEditRegistrations(tournament, user)) {
+    return {
+      error: "Teams cannot be removed in the current tournament stage.",
+    };
+  }
+
+  const targetRows = await db
+    .select({ id: registrations.id, divisionId: registrations.divisionId })
+    .from(registrations)
+    .where(
+      and(
+        eq(registrations.tournamentId, tournamentId),
+        inArray(registrations.id, uniqueIds)
+      )
+    );
+
+  const result = await db
+    .delete(registrations)
+    .where(
+      and(
+        eq(registrations.tournamentId, tournamentId),
+        inArray(registrations.id, uniqueIds)
+      )
+    )
+    .returning({ id: registrations.id });
+
+  await syncManyDivisionPools(
+    tournamentId,
+    targetRows.map((r) => r.divisionId)
+  );
+
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/register", "page");
+  revalidatePath("/tournaments/[slug]/brackets", "page");
+  return { success: true as const, count: result.length };
 }

@@ -23,6 +23,7 @@ import {
   registrationGenderMismatchMessage,
   teamMatchesTournamentGender,
 } from "@/lib/tournaments/permissions";
+import { syncDivisionAutoPoolMembers } from "@/lib/tournaments/division-pools";
 
 import {
   getFirstDivisionId,
@@ -226,10 +227,17 @@ export async function withdrawRegistration(
     return { error: "This team is not registered for this tournament" };
   }
 
+  const removedDivisionId = reg.divisionId;
+
   await db.delete(registrations).where(eq(registrations.id, reg.id));
+
+  if (removedDivisionId) {
+    await syncDivisionAutoPoolMembers(tournamentId, removedDivisionId);
+  }
 
   revalidatePath("/tournaments/[slug]", "page");
   revalidatePath("/tournaments/[slug]/register", "page");
+  revalidatePath("/tournaments/[slug]/brackets", "page");
   return { success: true };
 }
 
