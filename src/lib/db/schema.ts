@@ -216,6 +216,8 @@ export const divisions = pgTable("divisions", {
   name: text("name").notNull(),
   format: divisionFormatEnum("format").default("pool_to_bracket").notNull(),
   teamCap: integer("team_cap"),
+  /** When set, non-host users can view pool play and brackets for this pool. */
+  poolsReleasedAt: timestamp("pools_released_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
