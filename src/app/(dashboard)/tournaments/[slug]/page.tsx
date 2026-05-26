@@ -253,6 +253,7 @@ export default async function TournamentDetailPage({ params }: Props) {
           showRegisterLink={showRegisterLink}
           hostChecklistSteps={checklist}
           hostSchool={hostSchool}
+          hasScheduledMatches={hasScheduledMatches}
           compact={emptySetup}
         />
       ) : (

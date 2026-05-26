@@ -1,6 +1,10 @@
 import { TEAM_GENDER_LABELS } from "@/lib/constants/team";
 import { isAdmin } from "@/lib/auth";
 import { isTournamentArchived } from "@/lib/tournament-status";
+import {
+  evaluateListingDetailsChecklist,
+  listingDetailsHint,
+} from "@/lib/tournaments/listing-details-checklist";
 import type { TeamGender, TournamentStatus } from "@/types";
 
 /** Fields required for permission checks across server and client. */
@@ -170,38 +174,6 @@ export type HostChecklistStep = {
   hint?: string;
 };
 
-function descriptionLooksComplete(description: string | null | undefined): boolean {
-  return (description?.trim().length ?? 0) >= 20;
-}
-
-/** Heuristic: description mentions fees for first vs additional teams. */
-function descriptionMentionsEntryFees(
-  description: string | null | undefined
-): boolean {
-  if (!description?.trim()) return false;
-  const text = description.toLowerCase();
-  const hasFeeWord = /entry\s*fee|registration\s*fee|team\s*fee|cost\s*per\s*team|\$\d/.test(
-    text
-  );
-  const hasFirstAndAdditional =
-    /first\s+team/.test(text) &&
-    /additional|each\s+(additional|subsequent)|second\s+team|every\s+team\s+after/.test(
-      text
-    );
-  return hasFeeWord && (hasFirstAndAdditional || /first.*\$|1st.*\$/.test(text));
-}
-
-function eventStartTimeDocumented(
-  description: string | null | undefined,
-  hasScheduledMatches: boolean
-): boolean {
-  if (hasScheduledMatches) return true;
-  if (!description?.trim()) return false;
-  return /\b\d{1,2}(:\d{2})?\s*(am|pm)\b|\bstart\s*(time|at)\b|\bevent\s+begins\b|\barrive\b|\bdoors\s+open\b/i.test(
-    description
-  );
-}
-
 export function hostChecklistSteps(input: {
   status: string;
   description: string | null;
@@ -227,18 +199,20 @@ export function hostChecklistSteps(input: {
     hasScheduledMatches,
   } = input;
 
-  const listingDetailsComplete =
-    descriptionLooksComplete(description) &&
-    Boolean(address?.trim()) &&
-    descriptionMentionsEntryFees(description) &&
-    eventStartTimeDocumented(description, hasScheduledMatches);
+  const listingCheck = evaluateListingDetailsChecklist({
+    description,
+    address,
+    hasScheduledMatches,
+  });
 
   return [
     {
       id: "listing",
       label: "Finalize details, fees & start time",
-      done: listingDetailsComplete,
-      hint: "Description + address: entry fee for first team and each additional team, and event start time (match times on Schedule later).",
+      done: listingCheck.complete,
+      hint: listingCheck.complete
+        ? undefined
+        : listingDetailsHint(listingCheck, hasScheduledMatches),
     },
     {
       id: "setup",

@@ -54,6 +54,10 @@ import { TournamentHostChecklist } from "@/components/tournament-host-checklist"
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { TournamentHostSchoolLink } from "@/components/tournament-host-school-link";
 import type { HostChecklistStep } from "@/lib/tournaments/permissions";
+import {
+  evaluateListingDetailsChecklist,
+  listingDetailsHint,
+} from "@/lib/tournaments/listing-details-checklist";
 import type { TournamentHostSchool } from "@/lib/tournaments/host-school";
 import type { TeamGender, TeamRegion } from "@/types";
 import { Calendar, User } from "lucide-react";
@@ -77,6 +81,7 @@ export function TournamentPageHeading({
   showRegisterLink = false,
   hostChecklistSteps = [],
   hostSchool = null,
+  hasScheduledMatches = false,
   compact = false,
 }: {
   tournamentId: string;
@@ -93,6 +98,7 @@ export function TournamentPageHeading({
   showRegisterLink?: boolean;
   hostChecklistSteps?: HostChecklistStep[];
   hostSchool?: TournamentHostSchool | null;
+  hasScheduledMatches?: boolean;
   /** Tighter layout when setup tab has no pools or courts yet. */
   compact?: boolean;
 }) {
@@ -141,6 +147,32 @@ export function TournamentPageHeading({
   }, [initialSlug, initialName, editingTitle]);
 
   const archived = isTournamentArchived(date);
+
+  /** Re-evaluate listing step from saved client state so the checklist updates right after save. */
+  const resolvedChecklistSteps = useMemo(() => {
+    if (hostChecklistSteps.length === 0) return hostChecklistSteps;
+    const listing = evaluateListingDetailsChecklist({
+      description: listingDescription,
+      address: listingAddress,
+      hasScheduledMatches,
+    });
+    return hostChecklistSteps.map((step) =>
+      step.id === "listing"
+        ? {
+            ...step,
+            done: listing.complete,
+            hint: listing.complete
+              ? undefined
+              : listingDetailsHint(listing, hasScheduledMatches),
+          }
+        : step
+    );
+  }, [
+    hostChecklistSteps,
+    listingDescription,
+    listingAddress,
+    hasScheduledMatches,
+  ]);
 
   const [copyHint, setCopyHint] = useState<string | null>(null);
 
@@ -427,8 +459,8 @@ export function TournamentPageHeading({
           compact ? "gap-1.5" : "gap-2"
         )}
       >
-        {hostChecklistSteps.length > 0 ? (
-          <TournamentHostChecklist steps={hostChecklistSteps} />
+        {resolvedChecklistSteps.length > 0 ? (
+          <TournamentHostChecklist steps={resolvedChecklistSteps} />
         ) : null}
         {showRegisterLink && (
           <Link
