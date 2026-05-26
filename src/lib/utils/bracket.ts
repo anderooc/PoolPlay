@@ -92,6 +92,35 @@ export function generateDoubleEliminationBracket(
   return { winners, losers, grandFinal };
 }
 
+/** Bracket slot count used when creating an empty skeleton (uses team cap or default). */
+export function bracketSlotCount(teamCap: number | null | undefined): number {
+  if (teamCap != null && teamCap >= 2) return teamCap;
+  return 8;
+}
+
+/**
+ * Full single-elimination match tree with TBD slots (null teams). Used when a
+ * pool is created so the bracket exists before pool play finishes.
+ */
+export function createEmptySingleEliminationBracket(slotCount: number): BracketMatch[] {
+  const n = Math.max(2, bracketSlotCount(slotCount));
+  const size = nextPowerOf2(n);
+  return generateSingleEliminationBracket(Array<string>(size).fill("BYE"));
+}
+
+/**
+ * Double-elimination skeleton (winners + losers + grand final), all slots TBD.
+ */
+export function createEmptyDoubleEliminationBracket(slotCount: number): {
+  winners: BracketMatch[];
+  losers: BracketMatch[];
+  grandFinal: BracketMatch;
+} {
+  const n = Math.max(2, bracketSlotCount(slotCount));
+  const size = nextPowerOf2(n);
+  return generateDoubleEliminationBracket(Array<string>(size).fill("BYE"));
+}
+
 function nextPowerOf2(n: number): number {
   let p = 1;
   while (p < n) p *= 2;

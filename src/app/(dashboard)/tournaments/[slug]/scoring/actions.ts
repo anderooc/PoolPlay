@@ -2,12 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { matches, sets, tournaments } from "@/lib/db/schema";
+import { matches, pools, sets, tournaments } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { updateScoreSchema } from "@/lib/validators";
 import { canScoreMatches } from "@/lib/tournaments/permissions";
 import { getMatchTournamentId } from "@/lib/tournaments/match-query";
+import { tryFillBracketFromPoolPlay } from "@/lib/tournaments/bracket-structure";
 
 async function assertCanScoreMatch(matchId: string) {
   const user = await requireUser();
@@ -92,6 +93,16 @@ export async function finalizeMatch(matchId: string, winnerId: string) {
   const gate = await assertCanScoreMatch(matchId);
   if (gate.error) return { error: gate.error };
 
+  const [match] = await db
+    .select({
+      poolId: matches.poolId,
+      divisionId: pools.divisionId,
+    })
+    .from(matches)
+    .leftJoin(pools, eq(matches.poolId, pools.id))
+    .where(eq(matches.id, matchId))
+    .limit(1);
+
   await db
     .update(matches)
     .set({
@@ -101,7 +112,12 @@ export async function finalizeMatch(matchId: string, winnerId: string) {
     })
     .where(eq(matches.id, matchId));
 
+  if (match?.divisionId) {
+    await tryFillBracketFromPoolPlay(match.divisionId);
+  }
+
   revalidatePath(`/tournaments/[slug]/scoring`, "page");
+  revalidatePath("/tournaments/[slug]", "page");
   return { success: true };
 }
 
