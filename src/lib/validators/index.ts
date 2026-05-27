@@ -103,6 +103,9 @@ export const updateMatchFormatSchema = z
       .int()
       .min(5, "Tiebreak target must be at least 5")
       .max(30, "Tiebreak target is too high"),
+    warmupFormat: z.enum(["none", "three_three_one"], {
+      message: "Choose a warmup format",
+    }),
   })
   .refine((v) => v.setStartingScore < v.setTargetScore, {
     path: ["setStartingScore"],
