@@ -318,6 +318,11 @@ export const matches = pgTable("matches", {
   }),
   teamAId: uuid("team_a_id").references(() => teams.id),
   teamBId: uuid("team_b_id").references(() => teams.id),
+  /** Working team responsible for reffing this match. Defaults to a lower-seeded
+   * pool team that is not playing; host can override. */
+  refTeamId: uuid("ref_team_id").references(() => teams.id, {
+    onDelete: "set null",
+  }),
   bracketRound: integer("bracket_round"),
   bracketPosition: integer("bracket_position"),
   scheduledTime: timestamp("scheduled_time"),
