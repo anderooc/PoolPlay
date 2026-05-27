@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { matches, poolTeams } from "@/lib/db/schema";
-import { generatePoolMatches } from "@/lib/utils/pool";
+import { assignRefsToMatchups, generatePoolMatches } from "@/lib/utils/pool";
 
 type DbClient = typeof db;
 
@@ -41,13 +41,14 @@ export async function regeneratePoolMatchesFromSeeds(
   }
 
   const teamIds = members.map((m) => m.teamId);
-  const matchups = generatePoolMatches(teamIds);
+  const matchups = assignRefsToMatchups(teamIds, generatePoolMatches(teamIds));
 
   for (const matchup of matchups) {
     await client.insert(matches).values({
       poolId,
       teamAId: matchup.teamAId,
       teamBId: matchup.teamBId,
+      refTeamId: matchup.refTeamId,
       status: "upcoming",
     });
   }

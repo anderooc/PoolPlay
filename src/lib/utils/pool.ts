@@ -58,6 +58,8 @@ const BYE = -1;
  * `teamIds` must be sorted by seed ascending (seed 1 at index 0).
  */
 function initialCircleSlots(n: number): number[] {
+  if (n === 2) return [0, 1];
+
   const secondSeed = 1;
   const lowest = n - 1;
 
@@ -80,6 +82,47 @@ function initialCircleSlots(n: number): number[] {
     BYE,
     lowest,
   ];
+}
+
+export interface PoolMatchup {
+  teamAId: string;
+  teamBId: string;
+  refTeamId: string | null;
+}
+
+/**
+ * Assigns each matchup a working team that is not playing. Distribution is
+ * balanced (round-robin on assignment count) and ties go to the lowest-seeded
+ * eligible team — i.e. lower seeds end up reffing more when totals don't
+ * divide evenly. `teamIds` must be sorted by seed ascending.
+ */
+export function assignRefsToMatchups(
+  teamIds: string[],
+  matchups: { teamAId: string; teamBId: string }[]
+): PoolMatchup[] {
+  const refCounts = new Map<string, number>(teamIds.map((id) => [id, 0]));
+  const seedIndex = new Map<string, number>(
+    teamIds.map((id, index) => [id, index])
+  );
+
+  return matchups.map((m) => {
+    const eligible = teamIds.filter(
+      (id) => id !== m.teamAId && id !== m.teamBId
+    );
+    if (eligible.length === 0) {
+      return { ...m, refTeamId: null };
+    }
+    eligible.sort((a, b) => {
+      const ca = refCounts.get(a) ?? 0;
+      const cb = refCounts.get(b) ?? 0;
+      if (ca !== cb) return ca - cb;
+      // Higher seed index = lower seed = should ref more on ties.
+      return (seedIndex.get(b) ?? 0) - (seedIndex.get(a) ?? 0);
+    });
+    const refTeamId = eligible[0];
+    refCounts.set(refTeamId, (refCounts.get(refTeamId) ?? 0) + 1);
+    return { ...m, refTeamId };
+  });
 }
 
 /**
