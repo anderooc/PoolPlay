@@ -83,12 +83,43 @@ export const updateScoreSchema = z.object({
   teamBScore: z.number().int().min(0),
 });
 
+export const updateMatchFormatSchema = z
+  .object({
+    matchFormat: z.enum(["play_all_3", "best_of_2", "two_with_tiebreak"], {
+      message: "Choose a match format",
+    }),
+    setStartingScore: z
+      .number()
+      .int()
+      .min(0, "Starting score can't be negative")
+      .max(50, "Starting score is too high"),
+    setTargetScore: z
+      .number()
+      .int()
+      .min(5, "Target score must be at least 5")
+      .max(50, "Target score is too high"),
+    tiebreakTargetScore: z
+      .number()
+      .int()
+      .min(5, "Tiebreak target must be at least 5")
+      .max(30, "Tiebreak target is too high"),
+  })
+  .refine((v) => v.setStartingScore < v.setTargetScore, {
+    path: ["setStartingScore"],
+    message: "Starting score must be less than the target score",
+  })
+  .refine((v) => v.setStartingScore < v.tiebreakTargetScore, {
+    path: ["setStartingScore"],
+    message: "Starting score must be less than the tiebreak target",
+  });
+
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateTeamInput = z.infer<typeof createTeamSchema>;
 export type CreateTournamentInput = z.infer<typeof createTournamentSchema>;
 export type CreateDivisionInput = z.infer<typeof createDivisionSchema>;
 export type UpdateScoreInput = z.infer<typeof updateScoreSchema>;
+export type UpdateMatchFormatInput = z.infer<typeof updateMatchFormatSchema>;
 export type CreateSchoolInput = z.infer<typeof createSchoolSchema>;
 export type UpdateSchoolInput = z.infer<typeof updateSchoolSchema>;
 export type AddSchoolMemberInput = z.infer<typeof addSchoolMemberSchema>;
