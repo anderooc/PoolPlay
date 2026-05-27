@@ -1,7 +1,16 @@
 "use client";
 
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -13,6 +22,7 @@ import {
 import { formatMatchStatusLabel } from "@/lib/labels/match";
 import { calculatePoolStandings } from "@/lib/utils/pool";
 import { cn } from "@/lib/utils";
+import { updateMatchRef } from "./actions";
 
 interface PoolTeam {
   id: string;
@@ -30,10 +40,12 @@ interface PoolMatch {
   id: string;
   teamAId: string | null;
   teamBId: string | null;
+  refTeamId: string | null;
   winnerId: string | null;
   status: string;
   teamA: { id: string; name: string } | null;
   teamB: { id: string; name: string } | null;
+  ref: { id: string; name: string } | null;
   sets: MatchSet[];
 }
 
@@ -44,7 +56,32 @@ interface Pool {
   matches: PoolMatch[];
 }
 
-export function PoolView({ pool }: { pool: Pool }) {
+const REF_NONE_VALUE = "__none__";
+
+export function PoolView({
+  tournamentId,
+  pool,
+  canEditRefs,
+}: {
+  tournamentId: string;
+  pool: Pool;
+  canEditRefs: boolean;
+}) {
+  const router = useRouter();
+  const [pendingMatchId, setPendingMatchId] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
+  async function handleRefChange(matchId: string, value: string) {
+    const refTeamId = value === REF_NONE_VALUE ? null : value;
+    setPendingMatchId(matchId);
+    const result = await updateMatchRef(tournamentId, matchId, refTeamId);
+    setPendingMatchId(null);
+    if (result.success) {
+      startTransition(() => {
+        router.refresh();
+      });
+    }
+  }
   const standings = calculatePoolStandings(
     pool.teams.map((t) => t.id),
     pool.matches
@@ -105,42 +142,83 @@ export function PoolView({ pool }: { pool: Pool }) {
 
         <div className="space-y-2">
           <h4 className="text-sm font-medium">Matches</h4>
-          {pool.matches.map((match) => (
-            <div
-              key={match.id}
-              className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded border p-2 text-sm"
-            >
-              <span
-                className={cn(
-                  "min-w-0 truncate text-right",
-                  match.winnerId === match.teamAId && "font-semibold"
-                )}
+          {pool.matches.map((match) => {
+            const eligibleRefs = pool.teams.filter(
+              (t) => t.id !== match.teamAId && t.id !== match.teamBId
+            );
+            const showRefControl =
+              canEditRefs && match.status !== "completed" && eligibleRefs.length > 0;
+            return (
+              <div
+                key={match.id}
+                className="space-y-1 rounded border p-2 text-sm"
               >
-                {match.teamA?.name ?? "TBD"}
-              </span>
-              <div className="flex shrink-0 items-center justify-center gap-2 px-1">
-                {match.sets.length > 0 ? (
-                  match.sets.map((s, i) => (
-                    <span key={i} className="text-xs text-muted-foreground">
-                      {s.teamAScore}-{s.teamBScore}
-                    </span>
-                  ))
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                  <span
+                    className={cn(
+                      "min-w-0 truncate text-right",
+                      match.winnerId === match.teamAId && "font-semibold"
+                    )}
+                  >
+                    {match.teamA?.name ?? "TBD"}
+                  </span>
+                  <div className="flex shrink-0 items-center justify-center gap-2 px-1">
+                    {match.sets.length > 0 ? (
+                      match.sets.map((s, i) => (
+                        <span key={i} className="text-xs text-muted-foreground">
+                          {s.teamAScore}-{s.teamBScore}
+                        </span>
+                      ))
+                    ) : (
+                      <Badge variant="secondary" className="text-xs">
+                        {formatMatchStatusLabel(match.status)}
+                      </Badge>
+                    )}
+                  </div>
+                  <span
+                    className={cn(
+                      "min-w-0 truncate text-left",
+                      match.winnerId === match.teamBId && "font-semibold"
+                    )}
+                  >
+                    {match.teamB?.name ?? "TBD"}
+                  </span>
+                </div>
+                {showRefControl ? (
+                  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                    <span>Ref:</span>
+                    <Select
+                      value={match.refTeamId ?? REF_NONE_VALUE}
+                      onValueChange={(value) =>
+                        void handleRefChange(match.id, String(value ?? ""))
+                      }
+                      disabled={pendingMatchId === match.id}
+                    >
+                      <SelectTrigger size="sm" className="h-7 min-w-[10rem]">
+                        <SelectValue placeholder="Choose working team" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={REF_NONE_VALUE}>
+                          Unassigned
+                        </SelectItem>
+                        {eligibleRefs.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 ) : (
-                  <Badge variant="secondary" className="text-xs">
-                    {formatMatchStatusLabel(match.status)}
-                  </Badge>
+                  match.ref && (
+                    <p className="text-center text-xs text-muted-foreground">
+                      Ref: {match.ref.name}
+                    </p>
+                  )
                 )}
               </div>
-              <span
-                className={cn(
-                  "min-w-0 truncate text-left",
-                  match.winnerId === match.teamBId && "font-semibold"
-                )}
-              >
-                {match.teamB?.name ?? "TBD"}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>

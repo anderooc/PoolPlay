@@ -103,11 +103,22 @@ export default async function ScoringPage({ params }: Props) {
         .where(eq(sets.matchId, match.id))
         .orderBy(asc(sets.setNumber));
 
+      const refTeam = match.refTeamId
+        ? (
+            await db
+              .select({ name: teams.name })
+              .from(teams)
+              .where(eq(teams.id, match.refTeamId))
+              .limit(1)
+          )[0]
+        : null;
+
       return {
         ...match,
         teamA,
         teamB,
         courtName: court?.name ?? null,
+        refTeamName: refTeam?.name ?? null,
         sets: matchSets,
       };
     })

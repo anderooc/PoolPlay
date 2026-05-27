@@ -30,10 +30,12 @@ export type DivisionPlayData = {
       id: string;
       teamAId: string | null;
       teamBId: string | null;
+      refTeamId: string | null;
       winnerId: string | null;
       status: string;
       teamA: { id: string; name: string } | null;
       teamB: { id: string; name: string } | null;
+      ref: { id: string; name: string } | null;
       sets: { teamAScore: number; teamBScore: number }[];
     }[];
     matchCount: number;
@@ -134,11 +136,15 @@ export async function getDivisionPlayData(
         const teamB = m.teamBId
           ? (pTeams.find((t) => t.id === m.teamBId) ?? null)
           : null;
+        const refTeam = m.refTeamId
+          ? (pTeams.find((t) => t.id === m.refTeamId) ?? null)
+          : null;
 
         matchData.push({
           id: m.id,
           teamAId: m.teamAId,
           teamBId: m.teamBId,
+          refTeamId: m.refTeamId,
           winnerId: m.winnerId,
           status: m.status,
           sets: matchSets.map((s) => ({
@@ -147,6 +153,7 @@ export async function getDivisionPlayData(
           })),
           teamA: teamA ? { id: teamA.id, name: teamA.name } : null,
           teamB: teamB ? { id: teamB.id, name: teamB.name } : null,
+          ref: refTeam ? { id: refTeam.id, name: refTeam.name } : null,
         });
       }
 

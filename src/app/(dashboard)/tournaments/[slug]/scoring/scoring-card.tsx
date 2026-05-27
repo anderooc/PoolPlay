@@ -32,6 +32,7 @@ interface ScoringMatch {
   teamA: { id: string; name: string } | null;
   teamB: { id: string; name: string } | null;
   courtName: string | null;
+  refTeamName: string | null;
   winnerId: string | null;
   sets: MatchSet[];
 }
@@ -128,6 +129,7 @@ export function ScoringCard({
           {match.courtName && `${match.courtName}`}
           {match.scheduledTime &&
             ` \u00B7 ${format(match.scheduledTime, "h:mm a")}`}
+          {match.refTeamName && ` \u00B7 Ref ${match.refTeamName}`}
           {` \u00B7 ${formatMatchFormatLabel(matchFormat)} \u00B7 To ${setTargetScore}${
             matchFormat === "two_with_tiebreak"
               ? ` (3rd to ${tiebreakTargetScore})`

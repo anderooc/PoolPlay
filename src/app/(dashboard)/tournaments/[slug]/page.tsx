@@ -613,7 +613,11 @@ export default async function TournamentDetailPage({ params }: Props) {
                                   />
                                 )}
                               {pool.matches.length > 0 ? (
-                                <PoolView pool={pool} />
+                                <PoolView
+                                  tournamentId={tournament.id}
+                                  pool={pool}
+                                  canEditRefs={isOrganizer}
+                                />
                               ) : isOrganizer &&
                                 div.format === "pool_to_bracket" ? (
                                 <p className="text-sm text-muted-foreground">

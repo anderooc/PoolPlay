@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import {
   divisions,
+  matches,
   tournaments,
   registrations,
   pools,
@@ -14,6 +15,7 @@ import { requireUser } from "@/lib/auth";
 import type { UserForPermissions } from "@/lib/tournaments/permissions";
 import {
   canAssignTeamsToPools,
+  isTournamentOrganizer,
   poolAssignmentBlockedMessage,
 } from "@/lib/tournaments/permissions";
 import { regeneratePoolMatchesFromSeeds } from "@/lib/tournaments/pool-matches";
@@ -140,4 +142,72 @@ export async function updatePoolSeeding(
     success: true as const,
     matchCount: matchResult.matchCount ?? 0,
   };
+}
+
+/** Override the auto-assigned working/ref team for a single pool match. */
+export async function updateMatchRef(
+  tournamentId: string,
+  matchId: string,
+  refTeamId: string | null
+) {
+  const user = await requireUser();
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+    return { error: "Only the organizer can change the working team" };
+  }
+
+  const [match] = await db
+    .select({
+      id: matches.id,
+      poolId: matches.poolId,
+      teamAId: matches.teamAId,
+      teamBId: matches.teamBId,
+      status: matches.status,
+    })
+    .from(matches)
+    .where(eq(matches.id, matchId))
+    .limit(1);
+
+  if (!match || !match.poolId) {
+    return { error: "Match not found" };
+  }
+
+  if (match.status === "completed") {
+    return { error: "Match is already completed" };
+  }
+
+  if (
+    refTeamId !== null &&
+    (refTeamId === match.teamAId || refTeamId === match.teamBId)
+  ) {
+    return { error: "Working team can't be one of the playing teams" };
+  }
+
+  if (refTeamId !== null) {
+    const [member] = await db
+      .select({ teamId: poolTeams.teamId })
+      .from(poolTeams)
+      .where(
+        and(eq(poolTeams.poolId, match.poolId), eq(poolTeams.teamId, refTeamId))
+      )
+      .limit(1);
+    if (!member) {
+      return { error: "Working team must be in the same pool" };
+    }
+  }
+
+  await db
+    .update(matches)
+    .set({ refTeamId, updatedAt: new Date() })
+    .where(eq(matches.id, matchId));
+
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/scoring", "page");
+  return { success: true as const };
 }

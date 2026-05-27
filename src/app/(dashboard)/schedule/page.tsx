@@ -64,11 +64,22 @@ export default async function SchedulePage() {
         contextLabel = `Bracket R${match.bracketRound}`;
       }
 
+      const refTeam = match.refTeamId
+        ? (
+            await db
+              .select({ name: teams.name })
+              .from(teams)
+              .where(eq(teams.id, match.refTeamId))
+              .limit(1)
+          )[0]
+        : null;
+
       return {
         ...match,
         teamAName: teamA?.name ?? "TBD",
         teamBName: teamB?.name ?? "TBD",
         courtName: court?.name ?? "Unassigned",
+        refTeamName: refTeam?.name ?? null,
         contextLabel,
       };
     })
@@ -138,6 +149,7 @@ export default async function SchedulePage() {
                       <p className="truncate text-xs text-muted-foreground">
                         {match.courtName}
                         {match.contextLabel && `\u00A0\u00B7\u00A0${match.contextLabel}`}
+                        {match.refTeamName && `\u00A0\u00B7\u00A0Ref ${match.refTeamName}`}
                       </p>
                     </div>
                   </div>
