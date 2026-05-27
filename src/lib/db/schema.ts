@@ -50,6 +50,12 @@ export const matchStatusEnum = pgEnum("match_status", [
   "completed",
 ]);
 
+export const matchFormatEnum = pgEnum("match_format", [
+  "play_all_3",
+  "best_of_2",
+  "two_with_tiebreak",
+]);
+
 export const teamMemberRoleEnum = pgEnum("team_member_role", [
   "captain",
   "player",
@@ -204,6 +210,16 @@ export const tournaments = pgTable("tournaments", {
   location: text("location").notNull(),
   address: text("address"),
   status: tournamentStatusEnum("status").default("draft").notNull(),
+  /** Set / scoring rules used for every match in this tournament. */
+  matchFormat: matchFormatEnum("match_format")
+    .default("two_with_tiebreak")
+    .notNull(),
+  /** Starting score per set (e.g. 4 for shorter pools that begin at 4-4). */
+  setStartingScore: integer("set_starting_score").default(0).notNull(),
+  /** Target score for a regular set (commonly 21 or 25). */
+  setTargetScore: integer("set_target_score").default(25).notNull(),
+  /** Target score for the tiebreak third set (commonly 15). */
+  tiebreakTargetScore: integer("tiebreak_target_score").default(15).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
