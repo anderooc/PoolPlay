@@ -159,6 +159,10 @@ export default async function ScoringPage({ params }: Props) {
                   key={match.id}
                   match={match}
                   canScore={canScore}
+                  matchFormat={tournament.matchFormat}
+                  setStartingScore={tournament.setStartingScore}
+                  setTargetScore={tournament.setTargetScore}
+                  tiebreakTargetScore={tournament.tiebreakTargetScore}
                 />
               ))}
             </div>
@@ -179,6 +183,10 @@ export default async function ScoringPage({ params }: Props) {
                   key={match.id}
                   match={match}
                   canScore={canScore}
+                  matchFormat={tournament.matchFormat}
+                  setStartingScore={tournament.setStartingScore}
+                  setTargetScore={tournament.setTargetScore}
+                  tiebreakTargetScore={tournament.tiebreakTargetScore}
                 />
               ))}
             </div>
@@ -201,6 +209,10 @@ export default async function ScoringPage({ params }: Props) {
                   key={match.id}
                   match={match}
                   canScore={canScore}
+                  matchFormat={tournament.matchFormat}
+                  setStartingScore={tournament.setStartingScore}
+                  setTargetScore={tournament.setTargetScore}
+                  tiebreakTargetScore={tournament.tiebreakTargetScore}
                 />
               ))}
             </div>

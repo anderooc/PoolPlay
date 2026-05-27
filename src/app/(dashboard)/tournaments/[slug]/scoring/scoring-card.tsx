@@ -9,6 +9,14 @@ import { Separator } from "@/components/ui/separator";
 import { updateScore, finalizeMatch, startMatch } from "./actions";
 import { format } from "date-fns";
 import { formatMatchStatusLabel } from "@/lib/labels/match";
+import {
+  formatMatchFormatLabel,
+  type MatchFormat,
+} from "@/lib/labels/match-format";
+import {
+  targetForSet,
+  totalSetsForFormat,
+} from "@/lib/tournaments/match-format";
 
 interface MatchSet {
   id: string;
@@ -28,19 +36,41 @@ interface ScoringMatch {
   sets: MatchSet[];
 }
 
+interface MatchFormatProps {
+  matchFormat: MatchFormat;
+  setStartingScore: number;
+  setTargetScore: number;
+  tiebreakTargetScore: number;
+}
+
 export function ScoringCard({
   match,
   canScore,
+  matchFormat,
+  setStartingScore,
+  setTargetScore,
+  tiebreakTargetScore,
 }: {
   match: ScoringMatch;
   canScore: boolean;
-}) {
+} & MatchFormatProps) {
   const [newSetNumber, setNewSetNumber] = useState(
     (match.sets.length || 0) + 1
   );
-  const [teamAScore, setTeamAScore] = useState(0);
-  const [teamBScore, setTeamBScore] = useState(0);
+  const [teamAScore, setTeamAScore] = useState(setStartingScore);
+  const [teamBScore, setTeamBScore] = useState(setStartingScore);
   const [loading, setLoading] = useState(false);
+
+  const { max: maxSets } = totalSetsForFormat(matchFormat);
+  const targetThisSet = targetForSet(
+    {
+      format: matchFormat,
+      targetScore: setTargetScore,
+      tiebreakTargetScore: tiebreakTargetScore,
+    },
+    newSetNumber
+  );
+  const setsLocked = match.sets.length >= maxSets;
 
   async function handleScoreSubmit() {
     setLoading(true);
@@ -51,8 +81,8 @@ export function ScoringCard({
     formData.set("teamBScore", String(teamBScore));
     await updateScore(formData);
     setNewSetNumber((prev) => prev + 1);
-    setTeamAScore(0);
-    setTeamBScore(0);
+    setTeamAScore(setStartingScore);
+    setTeamBScore(setStartingScore);
     setLoading(false);
   }
 
@@ -98,6 +128,11 @@ export function ScoringCard({
           {match.courtName && `${match.courtName}`}
           {match.scheduledTime &&
             ` \u00B7 ${format(match.scheduledTime, "h:mm a")}`}
+          {` \u00B7 ${formatMatchFormatLabel(matchFormat)} \u00B7 To ${setTargetScore}${
+            matchFormat === "two_with_tiebreak"
+              ? ` (3rd to ${tiebreakTargetScore})`
+              : ""
+          }`}
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -156,11 +191,16 @@ export function ScoringCard({
           </Button>
         )}
 
-        {canScore && match.status === "in_progress" && (
+        {canScore && match.status === "in_progress" && !setsLocked && (
           <>
             <Separator />
             <div className="space-y-2">
-              <p className="text-sm font-medium">Add Set {newSetNumber}</p>
+              <p className="text-sm font-medium">
+                Add Set {newSetNumber}
+                <span className="ml-2 font-normal text-muted-foreground">
+                  to {targetThisSet}
+                </span>
+              </p>
               <div className="flex items-center gap-2">
                 <div className="flex-1">
                   <Input

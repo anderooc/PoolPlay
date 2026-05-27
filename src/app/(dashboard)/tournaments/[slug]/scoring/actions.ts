@@ -3,12 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { matches, pools, sets, tournaments } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { asc, eq, and } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { updateScoreSchema } from "@/lib/validators";
 import { canScoreMatches } from "@/lib/tournaments/permissions";
 import { getMatchTournamentId } from "@/lib/tournaments/match-query";
 import { tryFillBracketFromPoolPlay } from "@/lib/tournaments/bracket-structure";
+import { evaluateMatchOutcome } from "@/lib/tournaments/match-format";
 
 async function assertCanScoreMatch(matchId: string) {
   const user = await requireUser();
@@ -83,6 +84,50 @@ export async function updateScore(formData: FormData) {
       .update(matches)
       .set({ status: "in_progress", updatedAt: new Date() })
       .where(eq(matches.id, matchId));
+  }
+
+  // After saving this set, auto-finalize when the tournament's match format
+  // says enough sets have been played (e.g. 2-with-tiebreak, both sets split).
+  if (match && match.teamAId && match.teamBId) {
+    const tournament = gate.tournament;
+    const allSets = await db
+      .select({
+        teamAScore: sets.teamAScore,
+        teamBScore: sets.teamBScore,
+      })
+      .from(sets)
+      .where(eq(sets.matchId, matchId))
+      .orderBy(asc(sets.setNumber));
+
+    const outcome = evaluateMatchOutcome(
+      { format: tournament.matchFormat },
+      match.teamAId,
+      match.teamBId,
+      allSets
+    );
+
+    if (outcome.shouldFinalize) {
+      await db
+        .update(matches)
+        .set({
+          status: "completed",
+          winnerId: outcome.winnerId,
+          updatedAt: new Date(),
+        })
+        .where(eq(matches.id, matchId));
+
+      const [poolRow] = match.poolId
+        ? await db
+            .select({ divisionId: pools.divisionId })
+            .from(pools)
+            .where(eq(pools.id, match.poolId))
+            .limit(1)
+        : [];
+      if (poolRow?.divisionId) {
+        await tryFillBracketFromPoolPlay(poolRow.divisionId);
+      }
+      revalidatePath("/tournaments/[slug]", "page");
+    }
   }
 
   revalidatePath(`/tournaments/[slug]/scoring`, "page");
