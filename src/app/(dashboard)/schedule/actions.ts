@@ -17,6 +17,7 @@ import { requireUser } from "@/lib/auth";
 import { canScheduleMatches } from "@/lib/tournaments/permissions";
 import { getMatchTournamentId } from "@/lib/tournaments/match-query";
 import { autoScheduleMatchesWithCourtSets } from "@/lib/utils/scheduling";
+import { warmupMinutesForFormat } from "@/lib/labels/warmup-format";
 
 export async function autoScheduleTournament(
   tournamentId: string,
@@ -116,10 +117,12 @@ export async function autoScheduleTournament(
     return { matchId: row.id, courtIds: allowed };
   });
 
+  const warmupMinutes = warmupMinutesForFormat(tournament.warmupFormat);
   const schedule = autoScheduleMatchesWithCourtSets(
     items,
     startTime,
-    matchDuration
+    matchDuration,
+    warmupMinutes
   );
 
   for (const slot of schedule) {
