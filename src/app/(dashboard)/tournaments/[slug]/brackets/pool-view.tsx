@@ -70,9 +70,18 @@ export function PoolView({ pool }: { pool: Pool }) {
             <TableRow>
               <TableHead>#</TableHead>
               <TableHead>Team</TableHead>
-              <TableHead className="text-center">W</TableHead>
-              <TableHead className="text-center">L</TableHead>
-              <TableHead className="text-center">+/-</TableHead>
+              <TableHead className="text-center" title="Match wins / losses">
+                W-L
+              </TableHead>
+              <TableHead className="text-center" title="Sets won / lost">
+                Sets
+              </TableHead>
+              <TableHead
+                className="text-center"
+                title="Point differential across all sets"
+              >
+                +/-
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -80,9 +89,13 @@ export function PoolView({ pool }: { pool: Pool }) {
               <TableRow key={s.teamId}>
                 <TableCell className="font-medium">{i + 1}</TableCell>
                 <TableCell>{teamNameMap.get(s.teamId) ?? "TBD"}</TableCell>
-                <TableCell className="text-center">{s.wins}</TableCell>
-                <TableCell className="text-center">{s.losses}</TableCell>
-                <TableCell className="text-center">
+                <TableCell className="text-center tabular-nums">
+                  {s.wins}-{s.losses}
+                </TableCell>
+                <TableCell className="text-center tabular-nums">
+                  {s.setsWon}-{s.setsLost}
+                </TableCell>
+                <TableCell className="text-center tabular-nums">
                   {s.pointDiff > 0 ? `+${s.pointDiff}` : s.pointDiff}
                 </TableCell>
               </TableRow>

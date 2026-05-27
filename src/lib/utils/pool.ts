@@ -116,6 +116,10 @@ export interface PoolStanding {
   teamId: string;
   wins: number;
   losses: number;
+  /** Sets won across all matches, including non-deciding sets in play_all_3. */
+  setsWon: number;
+  setsLost: number;
+  setDiff: number;
   pointsFor: number;
   pointsAgainst: number;
   pointDiff: number;
@@ -137,6 +141,9 @@ export function calculatePoolStandings(
       teamId: id,
       wins: 0,
       losses: 0,
+      setsWon: 0,
+      setsLost: 0,
+      setDiff: 0,
       pointsFor: 0,
       pointsAgainst: 0,
       pointDiff: 0,
@@ -153,6 +160,14 @@ export function calculatePoolStandings(
       a.pointsAgainst += set.teamBScore;
       b.pointsFor += set.teamBScore;
       b.pointsAgainst += set.teamAScore;
+
+      if (set.teamAScore > set.teamBScore) {
+        a.setsWon++;
+        b.setsLost++;
+      } else if (set.teamBScore > set.teamAScore) {
+        b.setsWon++;
+        a.setsLost++;
+      }
     }
 
     if (match.winnerId === match.teamAId) {
@@ -166,12 +181,15 @@ export function calculatePoolStandings(
 
   const result = [...standings.values()];
   for (const s of result) {
+    s.setDiff = s.setsWon - s.setsLost;
     s.pointDiff = s.pointsFor - s.pointsAgainst;
   }
 
-  // Sort by wins desc, then point diff desc
+  // Sort by match wins, then set diff (handles ties under best_of_2),
+  // finally point diff as the last tiebreaker.
   result.sort((a, b) => {
     if (b.wins !== a.wins) return b.wins - a.wins;
+    if (b.setDiff !== a.setDiff) return b.setDiff - a.setDiff;
     return b.pointDiff - a.pointDiff;
   });
 
