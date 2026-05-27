@@ -16,7 +16,11 @@ import {
 } from "@/lib/db/schema";
 import { eq, and, ne, inArray, or, count } from "drizzle-orm";
 import { requireUser, isAdmin } from "@/lib/auth";
-import { createTournamentSchema, createDivisionSchema } from "@/lib/validators";
+import {
+  createTournamentSchema,
+  createDivisionSchema,
+  updateMatchFormatSchema,
+} from "@/lib/validators";
 import { flagBlockedContent } from "@/lib/admin/content-flags";
 import { getHostingSchoolForUser } from "@/lib/schools/hosting";
 import { registerHostSchoolTeamsOnCreate } from "@/lib/tournaments/registrations";
@@ -243,6 +247,52 @@ export async function updateTournamentListingDetails(
     location,
     address,
   };
+}
+
+/**
+ * Updates the per-set scoring rules used everywhere matches are scored. Already
+ * completed sets are not touched so changing format mid-tournament is safe.
+ */
+export async function updateTournamentMatchFormat(
+  tournamentId: string,
+  input: {
+    matchFormat: string;
+    setStartingScore: number;
+    setTargetScore: number;
+    tiebreakTargetScore: number;
+  }
+) {
+  const user = await requireUser();
+
+  const parsed = updateMatchFormatSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid match format" };
+  }
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+    return { error: "Only the organizer can change the match format" };
+  }
+
+  await db
+    .update(tournaments)
+    .set({
+      matchFormat: parsed.data.matchFormat,
+      setStartingScore: parsed.data.setStartingScore,
+      setTargetScore: parsed.data.setTargetScore,
+      tiebreakTargetScore: parsed.data.tiebreakTargetScore,
+      updatedAt: new Date(),
+    })
+    .where(eq(tournaments.id, tournamentId));
+
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/scoring", "page");
+  return { success: true as const };
 }
 
 export async function deleteTournament(

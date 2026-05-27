@@ -16,6 +16,7 @@ import {
   Link2,
   MoreVertical,
   Pencil,
+  Settings2,
   Trash2,
 } from "lucide-react";
 import {
@@ -23,7 +24,21 @@ import {
   deleteTournament,
   updateTournamentDate,
   updateTournamentListingDetails,
+  updateTournamentMatchFormat,
 } from "../actions";
+import {
+  formatMatchFormatHint,
+  formatMatchFormatLabel,
+  MATCH_FORMATS,
+  type MatchFormat,
+} from "@/lib/labels/match-format";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatTournamentDateDisplay } from "@/lib/date-iso";
 import { isTournamentArchived, statusBadgeLabel } from "@/lib/tournament-status";
 import { cn } from "@/lib/utils";
@@ -83,6 +98,10 @@ export function TournamentPageHeading({
   hostSchool = null,
   hasScheduledMatches = false,
   compact = false,
+  matchFormat,
+  setStartingScore,
+  setTargetScore,
+  tiebreakTargetScore,
 }: {
   tournamentId: string;
   initialSlug: string;
@@ -101,6 +120,10 @@ export function TournamentPageHeading({
   hasScheduledMatches?: boolean;
   /** Tighter layout when setup tab has no pools or courts yet. */
   compact?: boolean;
+  matchFormat: MatchFormat;
+  setStartingScore: number;
+  setTargetScore: number;
+  tiebreakTargetScore: number;
 }) {
   const router = useRouter();
   const [slug, setSlug] = useState(initialSlug);
@@ -128,6 +151,20 @@ export function TournamentPageHeading({
   const [draftDate, setDraftDate] = useState(date);
   const [dateSaving, setDateSaving] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
+
+  const [formatOpen, setFormatOpen] = useState(false);
+  const [draftFormat, setDraftFormat] = useState<MatchFormat>(matchFormat);
+  const [draftStartingScore, setDraftStartingScore] = useState(
+    String(setStartingScore)
+  );
+  const [draftTargetScore, setDraftTargetScore] = useState(
+    String(setTargetScore)
+  );
+  const [draftTiebreakScore, setDraftTiebreakScore] = useState(
+    String(tiebreakTargetScore)
+  );
+  const [formatSaving, setFormatSaving] = useState(false);
+  const [formatError, setFormatError] = useState<string | null>(null);
 
   useEffect(() => {
     if (detailsOpen) return;
@@ -318,6 +355,38 @@ export function TournamentPageHeading({
       return;
     }
     setDetailsSaving(false);
+  }
+
+  async function commitMatchFormat() {
+    const startingScore = Number(draftStartingScore);
+    const targetScore = Number(draftTargetScore);
+    const tiebreakScore = Number(draftTiebreakScore);
+    if (
+      !Number.isFinite(startingScore) ||
+      !Number.isFinite(targetScore) ||
+      !Number.isFinite(tiebreakScore)
+    ) {
+      setFormatError("Enter valid numbers for each score");
+      return;
+    }
+    setFormatSaving(true);
+    setFormatError(null);
+    const result = await updateTournamentMatchFormat(tournamentId, {
+      matchFormat: draftFormat,
+      setStartingScore: startingScore,
+      setTargetScore: targetScore,
+      tiebreakTargetScore: tiebreakScore,
+    });
+    if ("error" in result && result.error) {
+      setFormatError(result.error);
+      setFormatSaving(false);
+      return;
+    }
+    setFormatOpen(false);
+    setFormatSaving(false);
+    startTransition(() => {
+      router.refresh();
+    });
   }
 
   async function commitDate() {
@@ -539,6 +608,20 @@ export function TournamentPageHeading({
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer"
+                  onClick={() => {
+                    setDraftFormat(matchFormat);
+                    setDraftStartingScore(String(setStartingScore));
+                    setDraftTargetScore(String(setTargetScore));
+                    setDraftTiebreakScore(String(tiebreakTargetScore));
+                    setFormatError(null);
+                    setFormatOpen(true);
+                  }}
+                >
+                  <Settings2 className="size-4" />
+                  Match format
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
                   onClick={() => void copyPageLink()}
                 >
                   <Link2 className="size-4" />
@@ -716,6 +799,126 @@ export function TournamentPageHeading({
               disabled={dateSaving || draftDate.trim().length === 0}
             >
               {dateSaving ? "Saving…" : "Save date"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={formatOpen}
+        onOpenChange={(open) => {
+          if (formatSaving && open) return;
+          if (open) {
+            setDraftFormat(matchFormat);
+            setDraftStartingScore(String(setStartingScore));
+            setDraftTargetScore(String(setTargetScore));
+            setDraftTiebreakScore(String(tiebreakTargetScore));
+            setFormatError(null);
+          } else {
+            setFormatError(null);
+          }
+          setFormatOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md" showCloseButton={!formatSaving}>
+          <DialogHeader>
+            <DialogTitle>Match format</DialogTitle>
+            <DialogDescription>
+              These rules apply to every match in this tournament. Already
+              played sets are not affected.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="match-format">Format</Label>
+              <Select
+                value={draftFormat}
+                onValueChange={(value) => setDraftFormat(value as MatchFormat)}
+                disabled={formatSaving}
+              >
+                <SelectTrigger id="match-format" className="w-full">
+                  <SelectValue placeholder="Choose a format" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MATCH_FORMATS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {formatMatchFormatLabel(option)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {formatMatchFormatHint(draftFormat)}
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="set-starting-score">Starting score</Label>
+                <Input
+                  id="set-starting-score"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={50}
+                  value={draftStartingScore}
+                  onChange={(e) => setDraftStartingScore(e.target.value)}
+                  disabled={formatSaving}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="set-target-score">Target score</Label>
+                <Input
+                  id="set-target-score"
+                  type="number"
+                  inputMode="numeric"
+                  min={5}
+                  max={50}
+                  value={draftTargetScore}
+                  onChange={(e) => setDraftTargetScore(e.target.value)}
+                  disabled={formatSaving}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="set-tiebreak-score">Tiebreak target</Label>
+                <Input
+                  id="set-tiebreak-score"
+                  type="number"
+                  inputMode="numeric"
+                  min={5}
+                  max={30}
+                  value={draftTiebreakScore}
+                  onChange={(e) => setDraftTiebreakScore(e.target.value)}
+                  disabled={
+                    formatSaving || draftFormat !== "two_with_tiebreak"
+                  }
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Pool play often starts at 4-4 and runs to 21. Bracket play
+              usually goes 0-0 to 25.
+            </p>
+          </div>
+          {formatError && (
+            <p className="text-sm text-destructive" role="alert">
+              {formatError}
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setFormatOpen(false)}
+              disabled={formatSaving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void commitMatchFormat()}
+              disabled={formatSaving}
+            >
+              {formatSaving ? "Saving…" : "Save format"}
             </Button>
           </DialogFooter>
         </DialogContent>

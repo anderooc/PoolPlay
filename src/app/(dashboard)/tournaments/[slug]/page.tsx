@@ -316,6 +316,10 @@ export default async function TournamentDetailPage({ params }: Props) {
           hostSchool={hostSchool}
           hasScheduledMatches={hasScheduledMatches}
           compact={emptySetup}
+          matchFormat={tournament.matchFormat}
+          setStartingScore={tournament.setStartingScore}
+          setTargetScore={tournament.setTargetScore}
+          tiebreakTargetScore={tournament.tiebreakTargetScore}
         />
       ) : (
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
