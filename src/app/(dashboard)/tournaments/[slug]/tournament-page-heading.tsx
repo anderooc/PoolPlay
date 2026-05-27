@@ -33,6 +33,12 @@ import {
   type MatchFormat,
 } from "@/lib/labels/match-format";
 import {
+  formatWarmupFormatLabel,
+  WARMUP_FORMATS,
+  warmupMinutesForFormat,
+  type WarmupFormat,
+} from "@/lib/labels/warmup-format";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -102,6 +108,7 @@ export function TournamentPageHeading({
   setStartingScore,
   setTargetScore,
   tiebreakTargetScore,
+  warmupFormat,
 }: {
   tournamentId: string;
   initialSlug: string;
@@ -124,6 +131,7 @@ export function TournamentPageHeading({
   setStartingScore: number;
   setTargetScore: number;
   tiebreakTargetScore: number;
+  warmupFormat: WarmupFormat;
 }) {
   const router = useRouter();
   const [slug, setSlug] = useState(initialSlug);
@@ -162,6 +170,9 @@ export function TournamentPageHeading({
   );
   const [draftTiebreakScore, setDraftTiebreakScore] = useState(
     String(tiebreakTargetScore)
+  );
+  const [draftWarmupFormat, setDraftWarmupFormat] = useState<WarmupFormat>(
+    warmupFormat
   );
   const [formatSaving, setFormatSaving] = useState(false);
   const [formatError, setFormatError] = useState<string | null>(null);
@@ -376,6 +387,7 @@ export function TournamentPageHeading({
       setStartingScore: startingScore,
       setTargetScore: targetScore,
       tiebreakTargetScore: tiebreakScore,
+      warmupFormat: draftWarmupFormat,
     });
     if ("error" in result && result.error) {
       setFormatError(result.error);
@@ -613,6 +625,7 @@ export function TournamentPageHeading({
                     setDraftStartingScore(String(setStartingScore));
                     setDraftTargetScore(String(setTargetScore));
                     setDraftTiebreakScore(String(tiebreakTargetScore));
+                    setDraftWarmupFormat(warmupFormat);
                     setFormatError(null);
                     setFormatOpen(true);
                   }}
@@ -813,6 +826,7 @@ export function TournamentPageHeading({
             setDraftStartingScore(String(setStartingScore));
             setDraftTargetScore(String(setTargetScore));
             setDraftTiebreakScore(String(tiebreakTargetScore));
+            setDraftWarmupFormat(warmupFormat);
             setFormatError(null);
           } else {
             setFormatError(null);
@@ -898,6 +912,32 @@ export function TournamentPageHeading({
               Pool play often starts at 4-4 and runs to 21. Bracket play
               usually goes 0-0 to 25.
             </p>
+            <div className="space-y-2">
+              <Label htmlFor="warmup-format">Warmup before each match</Label>
+              <Select
+                value={draftWarmupFormat}
+                onValueChange={(value) =>
+                  setDraftWarmupFormat(value as WarmupFormat)
+                }
+                disabled={formatSaving}
+              >
+                <SelectTrigger id="warmup-format" className="w-full">
+                  <SelectValue placeholder="Choose a warmup format" />
+                </SelectTrigger>
+                <SelectContent>
+                  {WARMUP_FORMATS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {formatWarmupFormatLabel(option)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {warmupMinutesForFormat(draftWarmupFormat) === 0
+                  ? "No warmup is reserved between matches."
+                  : `Reserves ${warmupMinutesForFormat(draftWarmupFormat)} min before each match when auto-scheduling.`}
+              </p>
+            </div>
           </div>
           {formatError && (
             <p className="text-sm text-destructive" role="alert">

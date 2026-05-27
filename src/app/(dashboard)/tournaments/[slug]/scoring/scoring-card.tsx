@@ -17,6 +17,10 @@ import {
   targetForSet,
   totalSetsForFormat,
 } from "@/lib/tournaments/match-format";
+import {
+  warmupMinutesForFormat,
+  type WarmupFormat,
+} from "@/lib/labels/warmup-format";
 
 interface MatchSet {
   id: string;
@@ -42,6 +46,7 @@ interface MatchFormatProps {
   setStartingScore: number;
   setTargetScore: number;
   tiebreakTargetScore: number;
+  warmupFormat: WarmupFormat;
 }
 
 export function ScoringCard({
@@ -51,6 +56,7 @@ export function ScoringCard({
   setStartingScore,
   setTargetScore,
   tiebreakTargetScore,
+  warmupFormat,
 }: {
   match: ScoringMatch;
   canScore: boolean;
@@ -127,8 +133,18 @@ export function ScoringCard({
         </div>
         <p className="text-xs text-muted-foreground">
           {match.courtName && `${match.courtName}`}
-          {match.scheduledTime &&
-            ` \u00B7 ${format(match.scheduledTime, "h:mm a")}`}
+          {match.scheduledTime && (() => {
+            const warmupMinutes = warmupMinutesForFormat(warmupFormat);
+            const warmupTime =
+              warmupMinutes > 0
+                ? new Date(
+                    match.scheduledTime.getTime() - warmupMinutes * 60 * 1000
+                  )
+                : null;
+            return ` \u00B7 ${
+              warmupTime ? `Warmup ${format(warmupTime, "h:mm")} \u2192 ` : ""
+            }${format(match.scheduledTime, "h:mm a")}`;
+          })()}
           {match.refTeamName && ` \u00B7 Ref ${match.refTeamName}`}
           {` \u00B7 ${formatMatchFormatLabel(matchFormat)} \u00B7 To ${setTargetScore}${
             matchFormat === "two_with_tiebreak"

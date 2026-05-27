@@ -174,6 +174,7 @@ export default async function ScoringPage({ params }: Props) {
                   setStartingScore={tournament.setStartingScore}
                   setTargetScore={tournament.setTargetScore}
                   tiebreakTargetScore={tournament.tiebreakTargetScore}
+                  warmupFormat={tournament.warmupFormat}
                 />
               ))}
             </div>
@@ -198,6 +199,7 @@ export default async function ScoringPage({ params }: Props) {
                   setStartingScore={tournament.setStartingScore}
                   setTargetScore={tournament.setTargetScore}
                   tiebreakTargetScore={tournament.tiebreakTargetScore}
+                  warmupFormat={tournament.warmupFormat}
                 />
               ))}
             </div>
@@ -224,6 +226,7 @@ export default async function ScoringPage({ params }: Props) {
                   setStartingScore={tournament.setStartingScore}
                   setTargetScore={tournament.setTargetScore}
                   tiebreakTargetScore={tournament.tiebreakTargetScore}
+                  warmupFormat={tournament.warmupFormat}
                 />
               ))}
             </div>

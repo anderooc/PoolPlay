@@ -260,6 +260,7 @@ export async function updateTournamentMatchFormat(
     setStartingScore: number;
     setTargetScore: number;
     tiebreakTargetScore: number;
+    warmupFormat: string;
   }
 ) {
   const user = await requireUser();
@@ -286,12 +287,14 @@ export async function updateTournamentMatchFormat(
       setStartingScore: parsed.data.setStartingScore,
       setTargetScore: parsed.data.setTargetScore,
       tiebreakTargetScore: parsed.data.tiebreakTargetScore,
+      warmupFormat: parsed.data.warmupFormat,
       updatedAt: new Date(),
     })
     .where(eq(tournaments.id, tournamentId));
 
   revalidatePath("/tournaments/[slug]", "page");
   revalidatePath("/tournaments/[slug]/scoring", "page");
+  revalidatePath("/schedule");
   return { success: true as const };
 }
 

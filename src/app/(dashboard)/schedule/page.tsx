@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { matches, teams, courts, tournaments, pools } from "@/lib/db/schema";
+import { matches, teams, courts, tournaments, pools, brackets, divisions } from "@/lib/db/schema";
 import { eq, isNotNull, asc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { ScheduleControls } from "./schedule-controls";
 import { formatMatchStatusLabel } from "@/lib/labels/match";
+import { warmupMinutesForFormat, type WarmupFormat } from "@/lib/labels/warmup-format";
 
 export default async function SchedulePage() {
   const user = await getCurrentUser();
@@ -53,15 +54,32 @@ export default async function SchedulePage() {
         : null;
 
       let contextLabel = "";
+      let warmupFormat: WarmupFormat = "none";
       if (match.poolId) {
         const [pool] = await db
-          .select({ name: pools.name })
+          .select({
+            name: pools.name,
+            warmupFormat: tournaments.warmupFormat,
+          })
           .from(pools)
+          .innerJoin(divisions, eq(pools.divisionId, divisions.id))
+          .innerJoin(tournaments, eq(divisions.tournamentId, tournaments.id))
           .where(eq(pools.id, match.poolId))
           .limit(1);
         contextLabel = pool?.name ?? "Pool";
-      } else if (match.bracketRound) {
-        contextLabel = `Bracket R${match.bracketRound}`;
+        warmupFormat = pool?.warmupFormat ?? "none";
+      } else if (match.bracketId) {
+        const [info] = await db
+          .select({ warmupFormat: tournaments.warmupFormat })
+          .from(brackets)
+          .innerJoin(divisions, eq(brackets.divisionId, divisions.id))
+          .innerJoin(tournaments, eq(divisions.tournamentId, tournaments.id))
+          .where(eq(brackets.id, match.bracketId))
+          .limit(1);
+        warmupFormat = info?.warmupFormat ?? "none";
+        if (match.bracketRound) {
+          contextLabel = `Bracket R${match.bracketRound}`;
+        }
       }
 
       const refTeam = match.refTeamId
@@ -74,6 +92,12 @@ export default async function SchedulePage() {
           )[0]
         : null;
 
+      const warmupMinutes = warmupMinutesForFormat(warmupFormat);
+      const warmupStart =
+        match.scheduledTime && warmupMinutes > 0
+          ? new Date(match.scheduledTime.getTime() - warmupMinutes * 60 * 1000)
+          : null;
+
       return {
         ...match,
         teamAName: teamA?.name ?? "TBD",
@@ -81,6 +105,7 @@ export default async function SchedulePage() {
         courtName: court?.name ?? "Unassigned",
         refTeamName: refTeam?.name ?? null,
         contextLabel,
+        warmupStart,
       };
     })
   );
@@ -138,9 +163,14 @@ export default async function SchedulePage() {
                 >
                   <div className="flex min-w-0 items-center gap-4">
                     {match.scheduledTime && (
-                      <span className="min-w-[4.5rem] text-right text-sm font-medium tabular-nums text-muted-foreground">
-                        {format(match.scheduledTime, "h:mm a")}
-                      </span>
+                      <div className="flex min-w-[4.5rem] flex-col items-end text-sm font-medium tabular-nums text-muted-foreground">
+                        <span>{format(match.scheduledTime, "h:mm a")}</span>
+                        {match.warmupStart && (
+                          <span className="text-[10px] font-normal uppercase tracking-wide text-muted-foreground/70">
+                            Warmup {format(match.warmupStart, "h:mm")}
+                          </span>
+                        )}
+                      </div>
                     )}
                     <div className="min-w-0">
                       <p className="truncate font-medium">

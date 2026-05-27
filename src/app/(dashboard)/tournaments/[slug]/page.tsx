@@ -320,6 +320,7 @@ export default async function TournamentDetailPage({ params }: Props) {
           setStartingScore={tournament.setStartingScore}
           setTargetScore={tournament.setTargetScore}
           tiebreakTargetScore={tournament.tiebreakTargetScore}
+          warmupFormat={tournament.warmupFormat}
         />
       ) : (
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
