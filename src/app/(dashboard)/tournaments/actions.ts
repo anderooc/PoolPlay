@@ -261,6 +261,7 @@ export async function updateTournamentMatchFormat(
     setTargetScore: number;
     tiebreakTargetScore: number;
     warmupFormat: string;
+    poolTiebreakCriteria: string[];
   }
 ) {
   const user = await requireUser();
@@ -288,6 +289,7 @@ export async function updateTournamentMatchFormat(
       setTargetScore: parsed.data.setTargetScore,
       tiebreakTargetScore: parsed.data.tiebreakTargetScore,
       warmupFormat: parsed.data.warmupFormat,
+      poolTiebreakCriteria: parsed.data.poolTiebreakCriteria,
       updatedAt: new Date(),
     })
     .where(eq(tournaments.id, tournamentId));

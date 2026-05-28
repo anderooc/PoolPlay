@@ -16,6 +16,8 @@ import {
   Link2,
   MoreVertical,
   Pencil,
+  ArrowUp,
+  ArrowDown,
   Settings2,
   Trash2,
 } from "lucide-react";
@@ -38,6 +40,12 @@ import {
   warmupMinutesForFormat,
   type WarmupFormat,
 } from "@/lib/labels/warmup-format";
+import {
+  formatPoolTiebreakCriterionHint,
+  formatPoolTiebreakCriterionLabel,
+  POOL_TIEBREAK_CRITERIA,
+  type PoolTiebreakCriterion,
+} from "@/lib/labels/pool-tiebreak";
 import {
   Select,
   SelectContent,
@@ -109,6 +117,7 @@ export function TournamentPageHeading({
   setTargetScore,
   tiebreakTargetScore,
   warmupFormat,
+  poolTiebreakCriteria,
 }: {
   tournamentId: string;
   initialSlug: string;
@@ -132,6 +141,7 @@ export function TournamentPageHeading({
   setTargetScore: number;
   tiebreakTargetScore: number;
   warmupFormat: WarmupFormat;
+  poolTiebreakCriteria: PoolTiebreakCriterion[];
 }) {
   const router = useRouter();
   const [slug, setSlug] = useState(initialSlug);
@@ -174,6 +184,9 @@ export function TournamentPageHeading({
   const [draftWarmupFormat, setDraftWarmupFormat] = useState<WarmupFormat>(
     warmupFormat
   );
+  const [draftTiebreakCriteria, setDraftTiebreakCriteria] = useState<
+    PoolTiebreakCriterion[]
+  >(poolTiebreakCriteria);
   const [formatSaving, setFormatSaving] = useState(false);
   const [formatError, setFormatError] = useState<string | null>(null);
 
@@ -388,6 +401,7 @@ export function TournamentPageHeading({
       setTargetScore: targetScore,
       tiebreakTargetScore: tiebreakScore,
       warmupFormat: draftWarmupFormat,
+      poolTiebreakCriteria: draftTiebreakCriteria,
     });
     if ("error" in result && result.error) {
       setFormatError(result.error);
@@ -626,6 +640,7 @@ export function TournamentPageHeading({
                     setDraftTargetScore(String(setTargetScore));
                     setDraftTiebreakScore(String(tiebreakTargetScore));
                     setDraftWarmupFormat(warmupFormat);
+                    setDraftTiebreakCriteria(poolTiebreakCriteria);
                     setFormatError(null);
                     setFormatOpen(true);
                   }}
@@ -827,6 +842,7 @@ export function TournamentPageHeading({
             setDraftTargetScore(String(setTargetScore));
             setDraftTiebreakScore(String(tiebreakTargetScore));
             setDraftWarmupFormat(warmupFormat);
+            setDraftTiebreakCriteria(poolTiebreakCriteria);
             setFormatError(null);
           } else {
             setFormatError(null);
@@ -937,6 +953,99 @@ export function TournamentPageHeading({
                   ? "No warmup is reserved between matches."
                   : `Reserves ${warmupMinutesForFormat(draftWarmupFormat)} min before each match when auto-scheduling.`}
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tie-break order (pool standings / seeding)</Label>
+              <div className="space-y-1">
+                {draftTiebreakCriteria.map((c, index) => (
+                  <div
+                    key={c}
+                    className="flex items-start justify-between gap-2 rounded-md border bg-muted/30 px-2 py-1.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium leading-snug">
+                        {index + 1}. {formatPoolTiebreakCriterionLabel(c)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatPoolTiebreakCriterionHint(c)}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-0.5">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        disabled={formatSaving || index === 0}
+                        onClick={() => {
+                          setDraftTiebreakCriteria((current) => {
+                            const next = [...current];
+                            [next[index - 1], next[index]] = [
+                              next[index],
+                              next[index - 1],
+                            ];
+                            return next;
+                          });
+                        }}
+                        aria-label="Move criterion up"
+                      >
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        disabled={
+                          formatSaving || index === draftTiebreakCriteria.length - 1
+                        }
+                        onClick={() => {
+                          setDraftTiebreakCriteria((current) => {
+                            const next = [...current];
+                            [next[index], next[index + 1]] = [
+                              next[index + 1],
+                              next[index],
+                            ];
+                            return next;
+                          });
+                        }}
+                        aria-label="Move criterion down"
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {draftTiebreakCriteria.length !== POOL_TIEBREAK_CRITERIA.length ? (
+                <p className="text-xs text-muted-foreground">
+                  Currently using a custom subset. Reset to defaults to include all
+                  criteria.
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={formatSaving}
+                  onClick={() =>
+                    setDraftTiebreakCriteria([...POOL_TIEBREAK_CRITERIA])
+                  }
+                >
+                  Reset defaults
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={formatSaving || draftTiebreakCriteria.length === 1}
+                  onClick={() => setDraftTiebreakCriteria((c) => c.slice(0, -1))}
+                >
+                  Remove last
+                </Button>
+              </div>
             </div>
           </div>
           {formatError && (

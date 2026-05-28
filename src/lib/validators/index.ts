@@ -83,30 +83,34 @@ export const updateScoreSchema = z.object({
   teamBScore: z.number().int().min(0),
 });
 
-export const updateMatchFormatSchema = z
-  .object({
-    matchFormat: z.enum(["play_all_3", "best_of_2", "two_with_tiebreak"], {
-      message: "Choose a match format",
-    }),
-    setStartingScore: z
-      .number()
-      .int()
-      .min(0, "Starting score can't be negative")
-      .max(50, "Starting score is too high"),
-    setTargetScore: z
-      .number()
-      .int()
-      .min(5, "Target score must be at least 5")
-      .max(50, "Target score is too high"),
-    tiebreakTargetScore: z
-      .number()
-      .int()
-      .min(5, "Tiebreak target must be at least 5")
-      .max(30, "Tiebreak target is too high"),
-    warmupFormat: z.enum(["none", "three_three_one"], {
-      message: "Choose a warmup format",
-    }),
-  })
+const updateMatchFormatBaseSchema = z.object({
+  matchFormat: z.enum(["play_all_3", "best_of_2", "two_with_tiebreak"], {
+    message: "Choose a match format",
+  }),
+  setStartingScore: z
+    .number()
+    .int()
+    .min(0, "Starting score can't be negative")
+    .max(50, "Starting score is too high"),
+  setTargetScore: z
+    .number()
+    .int()
+    .min(5, "Target score must be at least 5")
+    .max(50, "Target score is too high"),
+  tiebreakTargetScore: z
+    .number()
+    .int()
+    .min(5, "Tiebreak target must be at least 5")
+    .max(30, "Tiebreak target is too high"),
+  warmupFormat: z.enum(["none", "three_three_one"], {
+    message: "Choose a warmup format",
+  }),
+  poolTiebreakCriteria: z
+    .array(z.enum(["match_record", "set_record", "point_diff", "head_to_head"]))
+    .min(1, "Select at least one tie-break criterion"),
+});
+
+export const updateMatchFormatSchema = updateMatchFormatBaseSchema
   .refine((v) => v.setStartingScore < v.setTargetScore, {
     path: ["setStartingScore"],
     message: "Starting score must be less than the target score",
@@ -114,6 +118,10 @@ export const updateMatchFormatSchema = z
   .refine((v) => v.setStartingScore < v.tiebreakTargetScore, {
     path: ["setStartingScore"],
     message: "Starting score must be less than the tiebreak target",
+  })
+  .refine((v) => new Set(v.poolTiebreakCriteria).size === v.poolTiebreakCriteria.length, {
+    path: ["poolTiebreakCriteria"],
+    message: "Tie-break criteria must be unique",
   });
 
 export type SignUpInput = z.infer<typeof signUpSchema>;

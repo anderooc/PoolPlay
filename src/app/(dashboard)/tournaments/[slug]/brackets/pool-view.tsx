@@ -63,10 +63,14 @@ export function PoolView({
   tournamentId,
   pool,
   canEditRefs,
+  tiebreakCriteria,
 }: {
   tournamentId: string;
   pool: Pool;
   canEditRefs: boolean;
+  tiebreakCriteria: Array<
+    "match_record" | "set_record" | "point_diff" | "head_to_head"
+  >;
 }) {
   const router = useRouter();
   const [pendingMatchId, setPendingMatchId] = useState<string | null>(null);
@@ -152,7 +156,8 @@ export function PoolView({
         teamBId: m.teamBId!,
         winnerId: m.winnerId,
         sets: m.sets,
-      }))
+      })),
+    { criteria: tiebreakCriteria }
   );
 
   const teamNameMap = new Map(pool.teams.map((t) => [t.id, t.name]));

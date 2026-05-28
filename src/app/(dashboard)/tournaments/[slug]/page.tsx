@@ -321,6 +321,7 @@ export default async function TournamentDetailPage({ params }: Props) {
           setTargetScore={tournament.setTargetScore}
           tiebreakTargetScore={tournament.tiebreakTargetScore}
           warmupFormat={tournament.warmupFormat}
+          poolTiebreakCriteria={tournament.poolTiebreakCriteria}
         />
       ) : (
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -618,6 +619,7 @@ export default async function TournamentDetailPage({ params }: Props) {
                                   tournamentId={tournament.id}
                                   pool={pool}
                                   canEditRefs={isOrganizer}
+                                  tiebreakCriteria={tournament.poolTiebreakCriteria}
                                 />
                               ) : isOrganizer &&
                                 div.format === "pool_to_bracket" ? (
