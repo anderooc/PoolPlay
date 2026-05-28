@@ -56,7 +56,7 @@ interface Pool {
   matches: PoolMatch[];
 }
 
-const REF_NONE_VALUE = "__none__";
+const REF_NONE_VALUE = "";
 
 export function PoolView({
   tournamentId,
@@ -95,6 +95,9 @@ export function PoolView({
   );
 
   const teamNameMap = new Map(pool.teams.map((t) => [t.id, t.name]));
+  const teamLabelMap = new Map(
+    pool.teams.map((t) => [t.id, `${t.name} (${t.university})`])
+  );
 
   return (
     <Card>
@@ -148,6 +151,9 @@ export function PoolView({
             );
             const showRefControl =
               canEditRefs && match.status !== "completed" && eligibleRefs.length > 0;
+            const selectedRefLabel = match.refTeamId
+              ? (teamLabelMap.get(match.refTeamId) ?? "Unassigned")
+              : "Unassigned";
             return (
               <div
                 key={match.id}
@@ -195,7 +201,9 @@ export function PoolView({
                       disabled={pendingMatchId === match.id}
                     >
                       <SelectTrigger size="sm" className="h-7 min-w-[10rem]">
-                        <SelectValue placeholder="Choose working team" />
+                        <SelectValue placeholder="Choose working team">
+                          {selectedRefLabel}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value={REF_NONE_VALUE}>
@@ -203,16 +211,16 @@ export function PoolView({
                         </SelectItem>
                         {eligibleRefs.map((t) => (
                           <SelectItem key={t.id} value={t.id}>
-                            {t.name}
+                            {t.name} ({t.university})
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                 ) : (
-                  match.ref && (
+                  match.refTeamId && (
                     <p className="text-center text-xs text-muted-foreground">
-                      Ref: {match.ref.name}
+                      Ref: {teamLabelMap.get(match.refTeamId) ?? "Unassigned"}
                     </p>
                   )
                 )}
