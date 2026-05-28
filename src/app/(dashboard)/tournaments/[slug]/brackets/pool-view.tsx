@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -154,11 +155,23 @@ export function PoolView({
             const selectedRefLabel = match.refTeamId
               ? (teamLabelMap.get(match.refTeamId) ?? "Unassigned")
               : "Unassigned";
+            const isUpdatingRef = pendingMatchId === match.id;
             return (
               <div
                 key={match.id}
-                className="space-y-1 rounded border p-2 text-sm"
+                className={cn(
+                  "relative space-y-1 rounded border p-2 text-sm",
+                  isUpdatingRef && "opacity-70"
+                )}
               >
+                {isUpdatingRef && (
+                  <div className="absolute inset-0 z-10 grid place-items-center rounded bg-background/40 backdrop-blur-[1px]">
+                    <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Saving…
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                   <span
                     className={cn(
@@ -198,7 +211,7 @@ export function PoolView({
                       onValueChange={(value) =>
                         void handleRefChange(match.id, String(value ?? ""))
                       }
-                      disabled={pendingMatchId === match.id}
+                      disabled={isUpdatingRef}
                     >
                       <SelectTrigger size="sm" className="h-7 min-w-[10rem]">
                         <SelectValue placeholder="Choose working team">
