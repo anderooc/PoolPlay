@@ -48,21 +48,38 @@ describe("assignRefsToMatchups", () => {
     }
   });
 
-  it("4-team pool: ref load is balanced and lower seeds ref more on ties", () => {
+  it("4-team pool: every team refs once before any repeats (when possible)", () => {
     const teams = ["s1", "s2", "s3", "s4"];
     const withRefs = assignRefsToMatchups(teams, generatePoolMatches(teams));
     for (const m of withRefs) {
       assert.notEqual(m.refTeamId, m.teamAId);
       assert.notEqual(m.refTeamId, m.teamBId);
     }
-    const counts = teams.map(
-      (id) => withRefs.filter((m) => m.refTeamId === id).length
+
+    // Progressive assertion: at no point should someone ref twice while another
+    // team has still never reffed (unless eligibility makes it impossible; for
+    // a 4-team pool it's always possible).
+    const counts = new Map<string, number>(teams.map((id) => [id, 0]));
+    for (const m of withRefs) {
+      const id = m.refTeamId;
+      assert.ok(id);
+      counts.set(id!, (counts.get(id!) ?? 0) + 1);
+
+      const values = teams.map((t) => counts.get(t) ?? 0);
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      assert.ok(
+        !(max >= 2 && min === 0),
+        `repeat happened before all teams reffed once: ${values.join(",")}`
+      );
+    }
+
+    // End state should still be balanced (diff at most 1).
+    const final = teams.map((t) => counts.get(t) ?? 0);
+    assert.ok(
+      Math.max(...final) - Math.min(...final) <= 1,
+      `ref counts should differ by at most 1: ${final.join(",")}`
     );
-    const min = Math.min(...counts);
-    const max = Math.max(...counts);
-    assert.ok(max - min <= 1, `ref counts should differ by at most 1: ${counts.join(",")}`);
-    // Lowest seed (s4 at index 3) refs at least as many as the top seed (s1).
-    assert.ok(counts[3] >= counts[0]);
   });
 
   it("2-team pool: no eligible refs, refTeamId stays null", () => {

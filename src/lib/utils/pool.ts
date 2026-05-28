@@ -92,9 +92,8 @@ export interface PoolMatchup {
 
 /**
  * Assigns each matchup a working team that is not playing. Distribution is
- * balanced (round-robin on assignment count) and ties go to the lowest-seeded
- * eligible team — i.e. lower seeds end up reffing more when totals don't
- * divide evenly. `teamIds` must be sorted by seed ascending.
+ * fair: every team refs once before any repeats (when eligibility allows).
+ * `teamIds` must be sorted by seed ascending.
  */
 export function assignRefsToMatchups(
   teamIds: string[],
@@ -112,14 +111,22 @@ export function assignRefsToMatchups(
     if (eligible.length === 0) {
       return { ...m, refTeamId: null };
     }
-    eligible.sort((a, b) => {
-      const ca = refCounts.get(a) ?? 0;
-      const cb = refCounts.get(b) ?? 0;
-      if (ca !== cb) return ca - cb;
-      // Higher seed index = lower seed = should ref more on ties.
+
+    // Pick the eligible team with the fewest prior ref assignments.
+    // This ensures every team refs once before repeats whenever possible.
+    let minCount = Number.POSITIVE_INFINITY;
+    for (const id of eligible) {
+      minCount = Math.min(minCount, refCounts.get(id) ?? 0);
+    }
+
+    const candidates = eligible.filter((id) => (refCounts.get(id) ?? 0) === minCount);
+    candidates.sort((a, b) => {
+      // Stable, deterministic tie-breaker: prefer lower seeds (higher index)
+      // when counts are equal, so the assignment is predictable.
       return (seedIndex.get(b) ?? 0) - (seedIndex.get(a) ?? 0);
     });
-    const refTeamId = eligible[0];
+
+    const refTeamId = candidates[0];
     refCounts.set(refTeamId, (refCounts.get(refTeamId) ?? 0) + 1);
     return { ...m, refTeamId };
   });
