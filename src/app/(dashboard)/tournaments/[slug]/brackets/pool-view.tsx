@@ -70,18 +70,78 @@ export function PoolView({
 }) {
   const router = useRouter();
   const [pendingMatchId, setPendingMatchId] = useState<string | null>(null);
+  const [optimisticRefByMatchId, setOptimisticRefByMatchId] = useState<
+    Map<string, string | null>
+  >(() => new Map());
+  const [refErrorByMatchId, setRefErrorByMatchId] = useState<
+    Map<string, string>
+  >(() => new Map());
   const [, startTransition] = useTransition();
+
+  function effectiveRefTeamId(match: PoolMatch): string | null {
+    if (optimisticRefByMatchId.has(match.id)) {
+      return optimisticRefByMatchId.get(match.id) ?? null;
+    }
+    return match.refTeamId ?? null;
+  }
+
+  function wouldRefCountsBeInvalid(next: {
+    matchId: string;
+    refTeamId: string | null;
+  }): { invalid: boolean; max: number; min: number } {
+    const counts = new Map<string, number>(pool.teams.map((t) => [t.id, 0]));
+    for (const m of pool.matches) {
+      const refId =
+        m.id === next.matchId ? next.refTeamId : effectiveRefTeamId(m);
+      if (!refId) continue;
+      counts.set(refId, (counts.get(refId) ?? 0) + 1);
+    }
+    const values = [...counts.values()];
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    return { invalid: max - min > 1, max, min };
+  }
 
   async function handleRefChange(matchId: string, value: string) {
     const refTeamId = value === REF_NONE_VALUE ? null : value;
+
+    // Block saves that would make ref distribution too imbalanced.
+    const check = wouldRefCountsBeInvalid({ matchId, refTeamId });
+    if (check.invalid) {
+      setRefErrorByMatchId((current) => {
+        const next = new Map(current);
+        next.set(
+          matchId,
+          `Ref assignments would be unbalanced (${check.max} vs ${check.min}). Keep teams within 1 ref of each other.`
+        );
+        return next;
+      });
+      return;
+    }
+
+    setRefErrorByMatchId((current) => {
+      if (!current.has(matchId)) return current;
+      const next = new Map(current);
+      next.delete(matchId);
+      return next;
+    });
+
     setPendingMatchId(matchId);
     const result = await updateMatchRef(tournamentId, matchId, refTeamId);
-    setPendingMatchId(null);
     if (result.success) {
+      // Update immediately so the user sees the new ref before the blocker clears.
+      setOptimisticRefByMatchId((current) => {
+        const next = new Map(current);
+        next.set(matchId, refTeamId);
+        return next;
+      });
+      // Let React paint at least one frame with the new label.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       startTransition(() => {
         router.refresh();
       });
     }
+    setPendingMatchId(null);
   }
   const standings = calculatePoolStandings(
     pool.teams.map((t) => t.id),
@@ -152,10 +212,12 @@ export function PoolView({
             );
             const showRefControl =
               canEditRefs && match.status !== "completed" && eligibleRefs.length > 0;
-            const selectedRefLabel = match.refTeamId
-              ? (teamLabelMap.get(match.refTeamId) ?? "Unassigned")
+            const refTeamId = effectiveRefTeamId(match);
+            const selectedRefLabel = refTeamId
+              ? (teamLabelMap.get(refTeamId) ?? "Unassigned")
               : "Unassigned";
             const isUpdatingRef = pendingMatchId === match.id;
+            const refError = refErrorByMatchId.get(match.id) ?? null;
             return (
               <div
                 key={match.id}
@@ -204,31 +266,38 @@ export function PoolView({
                   </span>
                 </div>
                 {showRefControl ? (
-                  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                    <span>Ref:</span>
-                    <Select
-                      value={match.refTeamId ?? REF_NONE_VALUE}
-                      onValueChange={(value) =>
-                        void handleRefChange(match.id, String(value ?? ""))
-                      }
-                      disabled={isUpdatingRef}
-                    >
-                      <SelectTrigger size="sm" className="h-7 min-w-[10rem]">
-                        <SelectValue placeholder="Choose working team">
-                          {selectedRefLabel}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={REF_NONE_VALUE}>
-                          Unassigned
-                        </SelectItem>
-                        {eligibleRefs.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name} ({t.university})
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                      <span>Ref:</span>
+                      <Select
+                        value={refTeamId ?? REF_NONE_VALUE}
+                        onValueChange={(value) =>
+                          void handleRefChange(match.id, String(value ?? ""))
+                        }
+                        disabled={isUpdatingRef}
+                      >
+                        <SelectTrigger size="sm" className="h-7 min-w-[10rem]">
+                          <SelectValue placeholder="Choose working team">
+                            {selectedRefLabel}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={REF_NONE_VALUE}>
+                            Unassigned
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                          {eligibleRefs.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.name} ({t.university})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {refError && (
+                      <p className="text-center text-xs text-destructive" role="alert">
+                        {refError}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   match.refTeamId && (
