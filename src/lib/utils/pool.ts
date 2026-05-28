@@ -182,8 +182,16 @@ export function calculatePoolStandings(
     teamBId: string;
     winnerId: string | null;
     sets: { teamAScore: number; teamBScore: number }[];
-  }[]
+  }[],
+  options?: {
+    /** Ordered criteria for breaking ties (highest priority first). */
+    criteria?: Array<"match_record" | "set_record" | "point_diff" | "head_to_head">;
+  }
 ): PoolStanding[] {
+  const criteria =
+    options?.criteria ??
+    (["match_record", "set_record", "point_diff", "head_to_head"] as const);
+
   const standings = new Map<string, PoolStanding>();
 
   for (const id of teamIds) {
@@ -235,12 +243,51 @@ export function calculatePoolStandings(
     s.pointDiff = s.pointsFor - s.pointsAgainst;
   }
 
-  // Sort by match wins, then set diff (handles ties under best_of_2),
-  // finally point diff as the last tiebreaker.
+  type H2H = { smallId: string; largeId: string; smallWins: number; largeWins: number };
+  const headToHeadWins = new Map<string, H2H>();
+  function h2hKey(a: string, b: string) {
+    return a < b ? `${a}:${b}` : `${b}:${a}`;
+  }
+  for (const m of matchResults) {
+    if (!m.winnerId) continue;
+    const key = h2hKey(m.teamAId, m.teamBId);
+    const smallId = m.teamAId < m.teamBId ? m.teamAId : m.teamBId;
+    const largeId = m.teamAId < m.teamBId ? m.teamBId : m.teamAId;
+    const entry =
+      headToHeadWins.get(key) ?? ({ smallId, largeId, smallWins: 0, largeWins: 0 } satisfies H2H);
+    if (m.winnerId === smallId) entry.smallWins++;
+    else if (m.winnerId === largeId) entry.largeWins++;
+    headToHeadWins.set(key, entry);
+  }
+
   result.sort((a, b) => {
-    if (b.wins !== a.wins) return b.wins - a.wins;
-    if (b.setDiff !== a.setDiff) return b.setDiff - a.setDiff;
-    return b.pointDiff - a.pointDiff;
+    for (const c of criteria) {
+      if (c === "match_record") {
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        if (b.losses !== a.losses) return a.losses - b.losses;
+        continue;
+      }
+      if (c === "set_record") {
+        if (b.setDiff !== a.setDiff) return b.setDiff - a.setDiff;
+        if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
+        continue;
+      }
+      if (c === "point_diff") {
+        if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff;
+        continue;
+      }
+      if (c === "head_to_head") {
+        const key = h2hKey(a.teamId, b.teamId);
+        const entry = headToHeadWins.get(key);
+        if (!entry) continue;
+        if (entry.smallWins === entry.largeWins) continue;
+        const aWins = a.teamId === entry.smallId ? entry.smallWins : entry.largeWins;
+        const bWins = b.teamId === entry.smallId ? entry.smallWins : entry.largeWins;
+        if (aWins !== bWins) return bWins - aWins;
+        continue;
+      }
+    }
+    return 0;
   });
 
   return result;

@@ -6,6 +6,7 @@ import {
   matches,
   poolTeams,
   sets,
+  tournaments,
 } from "@/lib/db/schema";
 import {
   bracketSlotCount,
@@ -194,6 +195,13 @@ export async function tryFillBracketFromPoolPlay(
 
   if (!division || division.format !== "pool_to_bracket") return;
 
+  const [tournament] = await client
+    .select({ poolTiebreakCriteria: tournaments.poolTiebreakCriteria })
+    .from(tournaments)
+    .innerJoin(divisions, eq(tournaments.id, divisions.tournamentId))
+    .where(eq(divisions.id, divisionId))
+    .limit(1);
+
   const poolId = await ensureDivisionAutoPool(divisionId, client);
   if (!poolId) return;
 
@@ -238,7 +246,8 @@ export async function tryFillBracketFromPoolPlay(
 
   const standings = calculatePoolStandings(
     pTeams.map((t) => t.teamId),
-    enriched
+    enriched,
+    { criteria: tournament?.poolTiebreakCriteria }
   );
 
   const advanceCount = bracketSlotCount(division.teamCap);
