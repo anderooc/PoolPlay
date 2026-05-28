@@ -9,6 +9,7 @@ import {
   primaryKey,
   boolean,
   uniqueIndex,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -228,6 +229,16 @@ export const tournaments = pgTable("tournaments", {
   /** Warmup convention used between matches. three_three_one = 3-3-1 (7 min). */
   warmupFormat: warmupFormatEnum("warmup_format")
     .default("three_three_one")
+    .notNull(),
+  /**
+   * Ordered criteria for pool standings/seeding tiebreaks.
+   * Default: match record → set record → point diff → head-to-head.
+   */
+  poolTiebreakCriteria: jsonb("pool_tiebreak_criteria")
+    .$type<
+      Array<"match_record" | "set_record" | "point_diff" | "head_to_head">
+    >()
+    .default(["match_record", "set_record", "point_diff", "head_to_head"])
     .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
