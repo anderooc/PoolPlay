@@ -45,6 +45,7 @@ import { CourtManager } from "./court-manager";
 import { RegistrationList } from "./registration-list";
 import { getDivisionPlayData } from "./brackets/data";
 import { PoolView } from "./brackets/pool-view";
+import { PoolMatchFormatPanel } from "./brackets/pool-match-format-panel";
 import { BracketView } from "./brackets/bracket-view";
 import { PoolSeedingPanel } from "./brackets/pool-seeding-panel";
 import { DivisionPoolRelease } from "./brackets/division-pool-release";
@@ -316,12 +317,6 @@ export default async function TournamentDetailPage({ params }: Props) {
           hostSchool={hostSchool}
           hasScheduledMatches={hasScheduledMatches}
           compact={emptySetup}
-          matchFormat={tournament.matchFormat}
-          setStartingScore={tournament.setStartingScore}
-          setTargetScore={tournament.setTargetScore}
-          tiebreakTargetScore={tournament.tiebreakTargetScore}
-          warmupFormat={tournament.warmupFormat}
-          poolTiebreakCriteria={tournament.poolTiebreakCriteria}
         />
       ) : (
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -530,6 +525,17 @@ export default async function TournamentDetailPage({ params }: Props) {
 
         {showPoolPlayTab && (
           <TabsContent value="pool-play" className="mt-4 space-y-6">
+            {isOrganizer && (
+              <PoolMatchFormatPanel
+                tournamentId={tournament.id}
+                matchFormat={tournament.matchFormat}
+                setStartingScore={tournament.setStartingScore}
+                setTargetScore={tournament.setTargetScore}
+                tiebreakTargetScore={tournament.tiebreakTargetScore}
+                warmupFormat={tournament.warmupFormat}
+                poolTiebreakCriteria={tournament.poolTiebreakCriteria}
+              />
+            )}
             {isOrganizer && poolAssignmentBlocked && (
               <p className="text-sm text-muted-foreground">
                 {poolAssignmentBlocked}
