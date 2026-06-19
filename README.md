@@ -1,95 +1,47 @@
 # PoolPlay
 
-Tournament planning and management for collegiate club volleyball: teams, registrations, pools, brackets, scheduling, and live scores.
+PoolPlay is a tournament hub for collegiate club volleyball. Hosts run events end to end in one place; teams register, follow schedules, and check results without juggling spreadsheets and group chats.
 
-## Tech Stack
+## Who it's for
 
-- **Framework**: Next.js 15 (App Router) with TypeScript
-- **Styling**: Tailwind CSS v4 + shadcn/ui
-- **Database**: Supabase (PostgreSQL)
-- **ORM**: Drizzle ORM
-- **Auth**: Supabase Auth
-- **Realtime**: Supabase Realtime (live scoring)
-- **Hosting**: Vercel (free tier)
-- **Validation**: Zod
+**Tournament hosts** — Set up divisions, open registration, build pools, release brackets, schedule courts, and enter scores.
 
-## Getting Started
+**Teams and captains** — Create a team, manage a roster, register for tournaments, and track where you play.
 
-### Prerequisites
+**Players and fans** — Browse public tournaments, view pools and brackets, and follow live scores.
 
-- Node.js 18+
-- A [Supabase](https://supabase.com) project (free tier)
+## What you can do
 
-### Setup
+### Run a tournament
 
-1. Clone the repo and install dependencies:
+- Create tournaments with divisions for pool play, single elimination, double elimination, or pool-to-bracket formats
+- Control registration, check-in, and tournament status from draft through completion
+- Configure match format, scoring targets, warmup windows, and pool tie-break rules
+- Auto-generate pools with university-aware distribution and round-robin schedules
+- Assign working/ref teams across pool matches
+- Release pools to participants when you're ready
+- Build and seed elimination brackets from pool results
+- Auto-schedule matches across courts with warmup time built in
 
-```bash
-npm install
-```
+### Manage teams
 
-2. Copy `.env.local` and fill in your Supabase credentials:
+- Create teams tied to a school and region
+- Manage rosters and jersey numbers
+- Register for open tournaments and track application status
 
-```
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-DATABASE_URL=postgresql://postgres:password@db.your-project.supabase.co:5432/postgres
-```
+### Follow the action
 
-3. Push the database schema to Supabase:
+- Browse upcoming and in-progress tournaments
+- View pool standings, matchups, and brackets
+- Watch scores update in real time during play
 
-```bash
-npm run db:push
-```
+## How it works
 
-4. Start the dev server:
+1. **Explore** — Find tournaments that are open or underway.
+2. **Register** — Teams sign up when a host opens registration.
+3. **Play** — Hosts run pool play, then brackets; everyone sees schedules and results on the tournament page.
+4. **Score** — Organizers enter set scores; standings and brackets update automatically.
 
-```bash
-npm run dev
-```
+## About this repo
 
-Open [http://localhost:3000](http://localhost:3000).
-
-## Features
-
-- **Auth** -- Email/password signup and login via Supabase Auth
-- **Teams** -- Create teams, manage rosters, assign jersey numbers
-- **Tournaments** -- Full lifecycle management (draft, registration, in-progress, completed)
-- **Divisions** -- Configure divisions with pool-to-bracket, single elimination, or double elimination formats
-- **Registration** -- Teams register for tournaments; organizers approve registrations
-- **Pool Play** -- Auto-generate pools with university-aware distribution and round-robin matches
-- **Brackets** -- Auto-generate single/double elimination brackets with proper seeding
-- **Scheduling** -- Auto-schedule matches across courts with configurable time slots
-- **Live Scoring** -- Real-time score entry with Supabase Realtime push to all viewers
-- **Responsive** -- Mobile-friendly design with sidebar navigation and sheet menu
-
-## Project Structure
-
-```
-src/
-  app/
-    (auth)/          -- Login, signup, auth callback
-    (dashboard)/     -- Authenticated app shell
-      dashboard/     -- Home dashboard
-      tournaments/   -- Tournament CRUD + detail + brackets + scoring
-      teams/         -- Team management + roster
-      schedule/      -- Global schedule view
-  components/
-    ui/              -- shadcn/ui primitives
-    layout/          -- Sidebar, header, mobile nav, user menu
-  lib/
-    db/              -- Drizzle schema, client, migrations
-    supabase/        -- Supabase browser + server clients, middleware
-    utils/           -- Pool, bracket, scheduling algorithms
-    validators/      -- Zod schemas
-  types/             -- Shared TypeScript types
-```
-
-## Database Commands
-
-```bash
-npm run db:generate  # Generate migration files
-npm run db:migrate   # Run migrations
-npm run db:push      # Push schema directly (dev)
-npm run db:studio    # Open Drizzle Studio
-```
+This repository contains the PoolPlay web application. It is a private project and is not set up as a self-hosted template.
