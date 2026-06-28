@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   brackets,
@@ -77,59 +77,194 @@ export async function getDivisionPlayData(
     .where(eq(divisions.tournamentId, tournamentId))
     .orderBy(asc(divisions.name), asc(divisions.id));
 
-  const rows: DivisionPlayData[] = [];
+  if (tournamentDivisions.length === 0) return [];
 
-  for (const div of tournamentDivisions) {
-    const eligibleTeams = await db
-      .select({
-        id: teams.id,
-        name: teams.name,
-        university: teams.university,
-      })
-      .from(registrations)
-      .innerJoin(teams, eq(registrations.teamId, teams.id))
-      .where(
-        and(
-          eq(registrations.tournamentId, tournamentId),
-          eq(registrations.divisionId, div.id),
-          eq(registrations.status, "confirmed")
-        )
-      )
-      .orderBy(asc(registrations.registeredAt), asc(teams.name));
+  // Only divisions whose play data is visible to this viewer need their pools,
+  // brackets, and eligible teams fetched. Participants can't see unreleased
+  // divisions, so we skip that work entirely.
+  const visibleDivIds = tournamentDivisions
+    .filter((d) => forOrganizer || d.poolsReleasedAt != null)
+    .map((d) => d.id);
 
-    const divPools = await db
-      .select()
-      .from(pools)
-      .where(eq(pools.divisionId, div.id))
-      .orderBy(asc(pools.createdAt), asc(pools.id));
+  // Bulk queries grouped into dependency "waves": each wave runs its
+  // independent queries in parallel (postgres.js fans them across the pool),
+  // and successive waves depend on ids produced by the previous one. This
+  // replaces the per-division → per-pool → per-match → per-set N+1 waterfall.
+  const [eligibleRows, poolRows, bracketRows] = await Promise.all([
+    visibleDivIds.length
+      ? db
+          .select({
+            divisionId: registrations.divisionId,
+            id: teams.id,
+            name: teams.name,
+            university: teams.university,
+          })
+          .from(registrations)
+          .innerJoin(teams, eq(registrations.teamId, teams.id))
+          .where(
+            and(
+              eq(registrations.tournamentId, tournamentId),
+              inArray(registrations.divisionId, visibleDivIds),
+              eq(registrations.status, "confirmed")
+            )
+          )
+          .orderBy(asc(registrations.registeredAt), asc(teams.name))
+      : Promise.resolve([]),
+    visibleDivIds.length
+      ? db
+          .select()
+          .from(pools)
+          .where(inArray(pools.divisionId, visibleDivIds))
+          .orderBy(asc(pools.createdAt), asc(pools.id))
+      : Promise.resolve([]),
+    visibleDivIds.length
+      ? db
+          .select()
+          .from(brackets)
+          .where(inArray(brackets.divisionId, visibleDivIds))
+          .orderBy(asc(brackets.createdAt), asc(brackets.id))
+      : Promise.resolve([]),
+  ]);
 
-    const poolData: DivisionPlayData["pools"] = [];
-    for (const pool of divPools) {
-      const pTeams = await db
-        .select({
-          id: teams.id,
-          name: teams.name,
-          university: teams.university,
-          seed: poolTeams.seed,
-        })
-        .from(poolTeams)
-        .innerJoin(teams, eq(poolTeams.teamId, teams.id))
-        .where(eq(poolTeams.poolId, pool.id))
-        .orderBy(asc(poolTeams.seed), asc(teams.name));
+  const poolIds = poolRows.map((p) => p.id);
+  const bracketIds = bracketRows.map((b) => b.id);
 
-      const poolMatches = await db
-        .select()
-        .from(matches)
-        .where(eq(matches.poolId, pool.id))
-        .orderBy(asc(matches.createdAt), asc(matches.id));
+  const [poolTeamRows, poolMatchRows, bracketMatchRows] = await Promise.all([
+    poolIds.length
+      ? db
+          .select({
+            poolId: poolTeams.poolId,
+            id: teams.id,
+            name: teams.name,
+            university: teams.university,
+            seed: poolTeams.seed,
+          })
+          .from(poolTeams)
+          .innerJoin(teams, eq(poolTeams.teamId, teams.id))
+          .where(inArray(poolTeams.poolId, poolIds))
+          .orderBy(asc(poolTeams.seed), asc(teams.name))
+      : Promise.resolve([]),
+    poolIds.length
+      ? db
+          .select()
+          .from(matches)
+          .where(inArray(matches.poolId, poolIds))
+          .orderBy(asc(matches.createdAt), asc(matches.id))
+      : Promise.resolve([]),
+    bracketIds.length
+      ? db
+          .select()
+          .from(matches)
+          .where(inArray(matches.bracketId, bracketIds))
+          .orderBy(asc(matches.bracketRound), asc(matches.bracketPosition))
+      : Promise.resolve([]),
+  ]);
 
-      const matchData: DivisionPlayData["pools"][number]["matches"] = [];
-      for (const m of poolMatches) {
-        const matchSets = await db
+  const poolMatchIds = poolMatchRows.map((m) => m.id);
+  const bracketTeamIds = [
+    ...new Set(
+      bracketMatchRows
+        .flatMap((m) => [m.teamAId, m.teamBId])
+        .filter((v): v is string => Boolean(v))
+    ),
+  ];
+
+  const [setRows, bracketTeamRows] = await Promise.all([
+    poolMatchIds.length
+      ? db
           .select()
           .from(sets)
-          .where(eq(sets.matchId, m.id));
+          .where(inArray(sets.matchId, poolMatchIds))
+          .orderBy(asc(sets.setNumber))
+      : Promise.resolve([]),
+    bracketTeamIds.length
+      ? db
+          .select({ id: teams.id, name: teams.name })
+          .from(teams)
+          .where(inArray(teams.id, bracketTeamIds))
+      : Promise.resolve([]),
+  ]);
 
+  // Group the bulk rows by their parent id. Insertion order is preserved from
+  // the ordered queries above, so grouped arrays keep the original ordering.
+  type PoolTeam = DivisionPlayData["pools"][number]["teams"][number];
+  const eligibleByDiv = new Map<string, DivisionPlayData["eligibleTeams"]>();
+  for (const r of eligibleRows) {
+    if (!r.divisionId) continue;
+    const list = eligibleByDiv.get(r.divisionId) ?? [];
+    list.push({ id: r.id, name: r.name, university: r.university });
+    eligibleByDiv.set(r.divisionId, list);
+  }
+
+  const poolsByDiv = new Map<string, typeof poolRows>();
+  for (const p of poolRows) {
+    const list = poolsByDiv.get(p.divisionId) ?? [];
+    list.push(p);
+    poolsByDiv.set(p.divisionId, list);
+  }
+
+  const teamsByPool = new Map<string, PoolTeam[]>();
+  for (const r of poolTeamRows) {
+    const list = teamsByPool.get(r.poolId) ?? [];
+    list.push({ id: r.id, name: r.name, university: r.university, seed: r.seed });
+    teamsByPool.set(r.poolId, list);
+  }
+
+  const matchesByPool = new Map<string, typeof poolMatchRows>();
+  for (const m of poolMatchRows) {
+    if (!m.poolId) continue;
+    const list = matchesByPool.get(m.poolId) ?? [];
+    list.push(m);
+    matchesByPool.set(m.poolId, list);
+  }
+
+  const setsByMatch = new Map<string, { teamAScore: number; teamBScore: number }[]>();
+  for (const s of setRows) {
+    const list = setsByMatch.get(s.matchId) ?? [];
+    list.push({ teamAScore: s.teamAScore, teamBScore: s.teamBScore });
+    setsByMatch.set(s.matchId, list);
+  }
+
+  const bracketsByDiv = new Map<string, typeof bracketRows>();
+  for (const b of bracketRows) {
+    const list = bracketsByDiv.get(b.divisionId) ?? [];
+    list.push(b);
+    bracketsByDiv.set(b.divisionId, list);
+  }
+
+  const matchesByBracket = new Map<string, typeof bracketMatchRows>();
+  for (const m of bracketMatchRows) {
+    if (!m.bracketId) continue;
+    const list = matchesByBracket.get(m.bracketId) ?? [];
+    list.push(m);
+    matchesByBracket.set(m.bracketId, list);
+  }
+
+  const bracketTeamName = new Map<string, string>();
+  for (const t of bracketTeamRows) bracketTeamName.set(t.id, t.name);
+
+  const rows: DivisionPlayData[] = [];
+  for (const div of tournamentDivisions) {
+    const canShowPlay = forOrganizer || div.poolsReleasedAt != null;
+    if (!canShowPlay) {
+      rows.push({
+        id: div.id,
+        name: div.name,
+        format: div.format,
+        poolsReleasedAt: div.poolsReleasedAt,
+        pools: [],
+        brackets: [],
+        eligibleTeams: [],
+      });
+      continue;
+    }
+
+    const poolData: DivisionPlayData["pools"] = (
+      poolsByDiv.get(div.id) ?? []
+    ).map((pool) => {
+      const pTeams = teamsByPool.get(pool.id) ?? [];
+      const poolMatches = matchesByPool.get(pool.id) ?? [];
+      const matchData = poolMatches.map((m) => {
         const teamA = m.teamAId
           ? (pTeams.find((t) => t.id === m.teamAId) ?? null)
           : null;
@@ -139,91 +274,55 @@ export async function getDivisionPlayData(
         const refTeam = m.refTeamId
           ? (pTeams.find((t) => t.id === m.refTeamId) ?? null)
           : null;
-
-        matchData.push({
+        return {
           id: m.id,
           teamAId: m.teamAId,
           teamBId: m.teamBId,
           refTeamId: m.refTeamId,
           winnerId: m.winnerId,
           status: m.status,
-          sets: matchSets.map((s) => ({
-            teamAScore: s.teamAScore,
-            teamBScore: s.teamBScore,
-          })),
+          sets: setsByMatch.get(m.id) ?? [],
           teamA: teamA ? { id: teamA.id, name: teamA.name } : null,
           teamB: teamB ? { id: teamB.id, name: teamB.name } : null,
           ref: refTeam ? { id: refTeam.id, name: refTeam.name } : null,
-        });
-      }
-
-      poolData.push({
+        };
+      });
+      return {
         id: pool.id,
         name: pool.name,
         teams: pTeams,
         matches: matchData,
         matchCount: poolMatches.length,
-      });
-    }
+      };
+    });
 
-    const divBrackets = await db
-      .select()
-      .from(brackets)
-      .where(eq(brackets.divisionId, div.id));
-
-    const bracketData: DivisionPlayData["brackets"] = [];
-    for (const bracket of divBrackets) {
-      const bracketMatches = await db
-        .select()
-        .from(matches)
-        .where(eq(matches.bracketId, bracket.id));
-
-      const allTeamIds = [
-        ...new Set(
-          bracketMatches
-            .flatMap((m) => [m.teamAId, m.teamBId])
-            .filter((v): v is string => Boolean(v))
-        ),
-      ];
-
-      const teamMap = new Map<string, string>();
-      for (const tid of allTeamIds) {
-        const [t] = await db
-          .select({ id: teams.id, name: teams.name })
-          .from(teams)
-          .where(eq(teams.id, tid));
-        if (t) teamMap.set(t.id, t.name);
-      }
-
-      bracketData.push({
-        id: bracket.id,
-        bracketType: bracket.bracketType,
-        seedCount: bracket.seedCount,
-        matches: bracketMatches.map((m) => ({
-          id: m.id,
-          teamAId: m.teamAId,
-          teamBId: m.teamBId,
-          teamAName: m.teamAId ? (teamMap.get(m.teamAId) ?? null) : null,
-          teamBName: m.teamBId ? (teamMap.get(m.teamBId) ?? null) : null,
-          bracketRound: m.bracketRound,
-          bracketPosition: m.bracketPosition,
-          winnerId: m.winnerId,
-          status: m.status,
-        })),
-      });
-    }
-
-    const released = div.poolsReleasedAt != null;
-    const canShowPlay = forOrganizer || released;
+    const bracketData: DivisionPlayData["brackets"] = (
+      bracketsByDiv.get(div.id) ?? []
+    ).map((bracket) => ({
+      id: bracket.id,
+      bracketType: bracket.bracketType,
+      seedCount: bracket.seedCount,
+      matches: (matchesByBracket.get(bracket.id) ?? []).map((m) => ({
+        id: m.id,
+        teamAId: m.teamAId,
+        teamBId: m.teamBId,
+        teamAName: m.teamAId ? (bracketTeamName.get(m.teamAId) ?? null) : null,
+        teamBName: m.teamBId ? (bracketTeamName.get(m.teamBId) ?? null) : null,
+        bracketRound: m.bracketRound,
+        bracketPosition: m.bracketPosition,
+        winnerId: m.winnerId,
+        status: m.status,
+      })),
+    }));
 
     rows.push({
       id: div.id,
       name: div.name,
       format: div.format,
       poolsReleasedAt: div.poolsReleasedAt,
-      pools: canShowPlay ? poolData : [],
-      brackets: canShowPlay ? bracketData : [],
-      eligibleTeams: canShowPlay ? eligibleTeams : [],
+      pools: poolData,
+      brackets: bracketData,
+      eligibleTeams: eligibleByDiv.get(div.id) ?? [],
     });
   }
 

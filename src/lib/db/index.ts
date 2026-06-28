@@ -4,9 +4,19 @@ import * as schema from "./schema";
 
 const connectionString = process.env.DATABASE_URL!;
 
-// prepare: false — required for Supabase transaction pooler (port 6543).
-// Avoid parallel Drizzle queries per request; one pooler connection cannot
-// multiplex concurrent statements (see admin overview-panel).
-const client = postgres(connectionString, { prepare: false });
+// postgres.js keeps a connection *pool*, so `Promise.all` of independent
+// queries fans out across connections rather than serializing on one — this is
+// how most pages in the app already batch their reads. `max` is set explicitly
+// to give parallel reads clear headroom (the Supabase transaction pooler
+// handles many short-lived client connections comfortably). `idle_timeout`
+// reaps idle connections so we don't hold pooler slots open between requests.
+//
+// `prepare: false` is required for the Supabase transaction pooler (port 6543),
+// which cannot reuse named prepared statements across pooled connections.
+const client = postgres(connectionString, {
+  prepare: false,
+  max: 15,
+  idle_timeout: 20,
+});
 
 export const db = drizzle(client, { schema });
