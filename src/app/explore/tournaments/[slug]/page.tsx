@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { tournaments, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { HeaderNav } from "@/components/layout/header-nav";
 import { PoolPlayMark } from "@/components/layout/poolplay-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -15,10 +15,6 @@ import { getCurrentAuthProfile } from "@/lib/auth";
 import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import { isTournamentPublishedForPublic } from "@/lib/tournaments/permissions";
 import { formatTournamentDateDisplay } from "@/lib/date-iso";
-import {
-  isTournamentArchived,
-  statusBadgeLabel,
-} from "@/lib/tournament-status";
 import { Calendar, User } from "lucide-react";
 import { TournamentLocationLink } from "@/components/tournament-location-link";
 
@@ -49,8 +45,6 @@ export default async function ExploreTournamentPage({ params }: Props) {
       .then((rows) => rows[0] ?? null),
     getHostSchoolById(tournament.hostSchoolId),
   ]);
-
-  const archived = isTournamentArchived(tournament.date);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -98,9 +92,11 @@ export default async function ExploreTournamentPage({ params }: Props) {
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
                 {tournament.name}
               </h1>
-              <Badge variant={archived ? "outline" : "secondary"}>
-                {statusBadgeLabel(tournament.status, tournament.date)}
-              </Badge>
+              <StatusBadge
+                kind="tournament"
+                status={tournament.status}
+                date={tournament.date}
+              />
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <TournamentLocationLink

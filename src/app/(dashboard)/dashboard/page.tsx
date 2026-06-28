@@ -2,11 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { tournaments, teams, teamMembers } from "@/lib/db/schema";
 import { eq, desc, count, gte, or } from "drizzle-orm";
-import {
-  isTournamentArchived,
-  statusBadgeLabel,
-  todayISO,
-} from "@/lib/tournament-status";
+import { todayISO } from "@/lib/tournament-status";
 import {
   filterVisibleTournaments,
   getUserSchoolIds,
@@ -14,6 +10,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   Trophy,
@@ -76,14 +74,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          Welcome back, {firstName}
-        </h1>
-        <p className="mt-1 text-muted-foreground">
-          Here&apos;s what&apos;s happening on PoolPlay.
-        </p>
-      </div>
+      <PageHeader
+        title={`Welcome back, ${firstName}`}
+        description="Here's what's happening on PoolPlay."
+      />
 
       {isNewUser ? (
         <Card className="border-dashed">
@@ -147,16 +141,19 @@ export default async function DashboardPage() {
             label="My Teams"
             value={userTeams.length}
             icon={Users}
+            accent="primary"
           />
           <StatCard
             label="Active Tournaments"
             value={activeTournamentCount[0].value}
             icon={Trophy}
+            accent="secondary"
           />
           <StatCard
             label="Recent Tournaments"
             value={recentTournaments.length}
             icon={Calendar}
+            accent="primary"
           />
         </div>
       )}
@@ -226,41 +223,28 @@ export default async function DashboardPage() {
               />
             ) : (
               <div className="space-y-2">
-                {recentTournaments.map((t) => {
-                  const archived = isTournamentArchived(t.date);
-                  return (
-                    <Link
-                      key={t.id}
-                      href={`/tournaments/${t.slug}`}
-                      className="flex items-center justify-between rounded-md border p-3 transition-colors hover:bg-muted/40"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{t.name}</p>
-                        <p className="truncate text-sm text-muted-foreground">
-                          {t.location}
-                          <span className="mx-1.5">&middot;</span>
-                          {t.date}
-                        </p>
-                      </div>
-                      <Badge
-                        variant={
-                          archived
-                            ? "outline"
-                            : t.status === "in_progress"
-                              ? "default"
-                              : "secondary"
-                        }
-                        className={
-                          archived
-                            ? "ml-3 shrink-0 border-dashed border-muted-foreground/40 bg-muted/40 text-muted-foreground"
-                            : "ml-3 shrink-0"
-                        }
-                      >
-                        {statusBadgeLabel(t.status, t.date)}
-                      </Badge>
-                    </Link>
-                  );
-                })}
+                {recentTournaments.map((t) => (
+                  <Link
+                    key={t.id}
+                    href={`/tournaments/${t.slug}`}
+                    className="flex items-center justify-between rounded-md border p-3 transition-colors hover:bg-muted/40"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{t.name}</p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {t.location}
+                        <span className="mx-1.5">&middot;</span>
+                        {t.date}
+                      </p>
+                    </div>
+                    <StatusBadge
+                      kind="tournament"
+                      status={t.status}
+                      date={t.date}
+                      className="ml-3 shrink-0"
+                    />
+                  </Link>
+                ))}
               </div>
             )}
           </CardContent>
@@ -274,19 +258,37 @@ function StatCard({
   label,
   value,
   icon: Icon,
+  accent = "primary",
 }: {
   label: string;
   value: number;
   icon: React.ComponentType<{ className?: string }>;
+  accent?: "primary" | "secondary";
 }) {
+  const accentClasses =
+    accent === "primary"
+      ? "from-primary/15 to-primary/5 text-primary"
+      : "from-secondary/15 to-secondary/5 text-secondary";
   return (
-    <Card>
+    <Card className="relative overflow-hidden transition-shadow hover:shadow-md">
+      <span
+        aria-hidden
+        className={`pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br ${accentClasses} opacity-50 blur-xl`}
+      />
       <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0">
-        <CardTitle className="text-sm font-medium">{label}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {label}
+        </CardTitle>
+        <span
+          className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${accentClasses} ring-1 ring-inset ring-foreground/5`}
+        >
+          <Icon className="h-4 w-4" />
+        </span>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold tracking-tight">{value}</div>
+        <div className="font-heading text-3xl font-bold tracking-tight">
+          {value}
+        </div>
       </CardContent>
     </Card>
   );

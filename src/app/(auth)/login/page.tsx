@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PoolPlayMark } from "@/components/layout/poolplay-mark";
 import { login } from "../actions";
 
 export default function LoginPage() {
@@ -36,7 +37,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-muted/30 px-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 text-foreground/[0.06] bg-dot-grid [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,black,transparent)]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-24 top-1/4 -z-10 h-80 w-80 rounded-full bg-primary/20 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-24 bottom-1/4 -z-10 h-80 w-80 rounded-full bg-secondary/20 blur-3xl"
+      />
       {isPending && (
         <div
           className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-background/75 backdrop-blur-sm"
@@ -47,11 +60,15 @@ export default function LoginPage() {
           <p className="text-sm font-medium text-foreground">Signing you in…</p>
         </div>
       )}
-      <Card className="relative z-[1] w-full max-w-md">
+      <div className="relative z-[1] w-full max-w-md">
+        <div className="mb-6 text-center">
+          <PoolPlayMark href="/" wordmarkClassName="text-2xl" />
+        </div>
+        <Card className="shadow-xl shadow-primary/5">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
           <CardDescription>
-            Sign in to PoolPlay
+            Sign in to your PoolPlay account
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -96,12 +113,16 @@ export default function LoginPage() {
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <Link href="/signup" className="text-primary underline">
+            <Link
+              href="/signup"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
               Sign up
             </Link>
           </p>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

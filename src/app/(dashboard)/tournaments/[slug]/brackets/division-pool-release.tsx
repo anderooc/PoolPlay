@@ -46,10 +46,10 @@ export function DivisionPoolRelease({
 
   if (released) {
     return (
-      <div className="flex flex-wrap items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2 rounded-md border border-success/30 bg-success/5 px-3 py-2 text-sm">
         <Badge
-          variant="secondary"
-          className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"
+          variant="outline"
+          className="border-success/25 bg-success/10 text-success"
         >
           Released
         </Badge>
@@ -98,7 +98,7 @@ export function DivisionPoolRelease({
           Save seeding on the Pools tab to generate matches before releasing.
         </p>
       ) : !poolPlayComplete ? (
-        <p className="text-xs text-amber-700 dark:text-amber-400">
+        <p className="text-xs text-warning">
           {completedMatchCount} of {matchCount} pool matches complete — you can
           still release early if needed.
         </p>

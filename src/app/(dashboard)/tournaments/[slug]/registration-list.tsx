@@ -1,7 +1,7 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -11,7 +11,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Building2, Check, Loader2, Trash2, UserCheck, X } from "lucide-react";
+import {
+  Building2,
+  Check,
+  ClipboardList,
+  Loader2,
+  Trash2,
+  UserCheck,
+  Users,
+  X,
+} from "lucide-react";
 import {
   setRegistrationDivision,
   updateRegistrationStatus,
@@ -23,7 +32,6 @@ import { withdrawRegistration } from "./register/actions";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { formatRegistrationStatusLabel } from "@/lib/labels/registration";
 import { groupPendingRegistrationsBySchool } from "@/lib/tournaments/group-pending-registrations";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -434,23 +442,11 @@ export function RegistrationList({
               </Select>
             </div>
           )}
-          <Badge
-            variant={
-              applicantView
-                ? "secondary"
-                : reg.status === "confirmed" || reg.status === "checked_in"
-                  ? "default"
-                  : "secondary"
-            }
-            className={cn(
-              "h-8 shrink-0 px-2.5 text-xs font-medium",
-              applicantView &&
-                reg.status === "pending" &&
-                "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300"
-            )}
-          >
-            {formatRegistrationStatusLabel(reg.status)}
-          </Badge>
+          <StatusBadge
+            kind="registration"
+            status={reg.status}
+            className="h-7 shrink-0 self-center px-2.5"
+          />
           {listKind === "pending" &&
             canManageRegistrations &&
             reg.status === "pending" && (
@@ -505,17 +501,23 @@ export function RegistrationList({
 
   if (registrations.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground">
-            {listKind === "pending"
-              ? applicantView
-                ? "No pending application for your team."
-                : "No teams awaiting approval."
-              : "No confirmed teams yet."}
-          </p>
-        </CardContent>
-      </Card>
+      <EmptyState
+        icon={listKind === "pending" ? ClipboardList : Users}
+        title={
+          listKind === "pending"
+            ? applicantView
+              ? "No pending application"
+              : "No teams awaiting approval"
+            : "No confirmed teams yet"
+        }
+        description={
+          listKind === "pending"
+            ? applicantView
+              ? "Your team doesn't have a pending application for this tournament."
+              : "New registrations will appear here for you to review and confirm."
+            : "Once you confirm registrations, teams will show up here."
+        }
+      />
     );
   }
 

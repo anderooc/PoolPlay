@@ -78,18 +78,19 @@ export function NewTournamentForm({
       <BackLink href="/tournaments">All tournaments</BackLink>
 
       <div className="mx-auto max-w-lg">
-        <Card size="sm">
-          <CardHeader className="pb-1">
-            <CardTitle className="text-base">Create Tournament</CardTitle>
-            <CardDescription className="text-xs">
-              Gender and region are set from your school.
+        <Card>
+          <CardHeader>
+            <CardTitle>Create tournament</CardTitle>
+            <CardDescription>
+              You&apos;ll be set as the organizer. Gender and region are
+              inherited from your hosting school.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={onSubmit} className="space-y-2.5" aria-busy={isPending}>
-              <div className="space-y-1">
-                <Label className="text-xs">Hosting school</Label>
-                <div className="rounded-lg border bg-muted/40 px-2.5 py-2">
+            <form onSubmit={onSubmit} className="space-y-4" aria-busy={isPending}>
+              <div className="space-y-2">
+                <Label>Hosting school</Label>
+                <div className="rounded-lg border bg-muted/30 px-3 py-2">
                   <p className="text-sm font-medium">{hostSchool.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {hostSchool.university}
@@ -104,7 +105,7 @@ export function NewTournamentForm({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="name">Tournament Name</Label>
+                <Label htmlFor="name">Tournament name</Label>
                 <Input
                   id="name"
                   name="name"
@@ -113,16 +114,18 @@ export function NewTournamentForm({
                   disabled={isPending}
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="description" className="text-xs">
-                  Description
+              <div className="space-y-2">
+                <Label htmlFor="description">
+                  Description{" "}
+                  <span className="text-xs text-muted-foreground">
+                    (optional)
+                  </span>
                 </Label>
                 <Textarea
                   id="description"
                   name="description"
                   placeholder="Start time, fees, format, and other details for teams..."
                   rows={3}
-                  className="min-h-0 text-sm"
                   disabled={isPending}
                 />
               </div>
@@ -150,7 +153,12 @@ export function NewTournamentForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="address">Address (optional)</Label>
+                <Label htmlFor="address">
+                  Address{" "}
+                  <span className="text-xs text-muted-foreground">
+                    (optional)
+                  </span>
+                </Label>
                 <Input
                   id="address"
                   name="address"
@@ -168,7 +176,7 @@ export function NewTournamentForm({
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full" disabled={isPending}>
                 {isPending && <Loader2 className="size-4 animate-spin" />}
-                {isPending ? "Creating..." : "Create Tournament"}
+                {isPending ? "Creating..." : "Create tournament"}
               </Button>
             </form>
           </CardContent>

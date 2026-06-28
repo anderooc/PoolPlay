@@ -4,11 +4,10 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Separator } from "@/components/ui/separator";
 import { updateScore, finalizeMatch, startMatch } from "./actions";
 import { format } from "date-fns";
-import { formatMatchStatusLabel } from "@/lib/labels/match";
 import {
   formatMatchFormatLabel,
   type MatchFormat,
@@ -119,17 +118,7 @@ export function ScoringCard({
           <CardTitle className="text-base">
             {match.teamA?.name ?? "TBD"} vs {match.teamB?.name ?? "TBD"}
           </CardTitle>
-          <Badge
-            variant={
-              match.status === "in_progress"
-                ? "default"
-                : match.status === "completed"
-                  ? "secondary"
-                  : "outline"
-            }
-          >
-            {formatMatchStatusLabel(match.status)}
-          </Badge>
+          <StatusBadge kind="match" status={match.status} />
         </div>
         <p className="text-xs text-muted-foreground">
           {match.courtName && `${match.courtName}`}

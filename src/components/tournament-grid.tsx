@@ -11,7 +11,7 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { TournamentHostSchoolLink } from "@/components/tournament-host-school-link";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -35,11 +35,7 @@ import {
 } from "@/components/tournament-list-filters";
 import { Calendar, MapPin, Search, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  isTournamentArchived,
-  statusBadgeLabel,
-  todayISO,
-} from "@/lib/tournament-status";
+import { isTournamentArchived, todayISO } from "@/lib/tournament-status";
 import type { TeamGender, TeamRegion } from "@/types";
 import type { TournamentHostSchool } from "@/lib/tournaments/host-school";
 
@@ -86,16 +82,6 @@ function toggleSetValue<T extends string>(
   return next;
 }
 
-function statusVariant(
-  status: string,
-  archived: boolean
-): "default" | "secondary" | "outline" {
-  if (archived) return "outline";
-  if (status === "in_progress") return "default";
-  if (status === "registration_open") return "default";
-  return "secondary";
-}
-
 function formatDate(dateStr: string) {
   return formatTournamentDateDisplay(dateStr, { weekday: true });
 }
@@ -128,7 +114,6 @@ function TournamentRow({
   tournament: Tournament;
   linkPrefix: string;
 }) {
-  const archived = isTournamentArchived(t.date);
   return (
     <div className="min-w-0 max-w-full rounded-lg border bg-card px-4 py-3.5 transition-colors hover:bg-muted/40">
       <Link href={`${linkPrefix}/${t.slug}`} className="block min-w-0">
@@ -136,16 +121,12 @@ function TournamentRow({
           <span className="min-w-0 truncate font-medium leading-tight">
             {t.name}
           </span>
-          <Badge
-            variant={statusVariant(t.status, archived)}
-            className={
-              archived
-                ? "shrink-0 border-dashed border-muted-foreground/40 bg-muted/40 text-xs text-muted-foreground"
-                : "shrink-0 text-xs"
-            }
-          >
-            {statusBadgeLabel(t.status, t.date)}
-          </Badge>
+          <StatusBadge
+            kind="tournament"
+            status={t.status}
+            date={t.date}
+            className="shrink-0"
+          />
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
           <span className="flex items-center gap-1">
@@ -595,11 +576,7 @@ export function TournamentGrid({
             placeholder="Search tournaments..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className={cn(
-              "h-10 rounded-md border-neutral-200 bg-white pl-9 shadow-sm",
-              "focus-visible:border-neutral-300 focus-visible:ring-2 focus-visible:ring-neutral-200/60 focus-visible:ring-offset-0",
-              "dark:border-neutral-200 dark:bg-white dark:focus-visible:border-neutral-300 dark:focus-visible:ring-neutral-200/60"
-            )}
+            className="h-10 rounded-md pl-9 shadow-sm"
           />
         </div>
 

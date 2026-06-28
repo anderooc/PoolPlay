@@ -5,10 +5,11 @@ import { eq } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { PageHeader } from "@/components/layout/page-header";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Building2, Plus, Users } from "lucide-react";
-import { TEAM_VERIFICATION_STATUS_LABELS } from "@/lib/constants/team";
 import { isStandaloneTeam } from "@/lib/teams/verification";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -38,23 +39,19 @@ export default async function TeamsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Teams
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Manage your club volleyball teams.
-          </p>
-        </div>
-        <Link
-          href="/teams/new"
-          className={buttonVariants({ className: "w-full sm:w-auto" })}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          New Team
-        </Link>
-      </div>
+      <PageHeader
+        title="Teams"
+        description="Manage your club volleyball teams."
+        actions={
+          <Link
+            href="/teams/new"
+            className={buttonVariants({ className: "w-full sm:w-auto" })}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            New Team
+          </Link>
+        }
+      />
 
       {userTeams.length === 0 ? (
         <EmptyState
@@ -82,20 +79,10 @@ export default async function TeamsPage() {
                       <Badge variant="secondary">{team.role}</Badge>
                       {isStandaloneTeam(team.schoolId) &&
                         team.verificationStatus !== "verified" && (
-                          <Badge
-                            variant={
-                              team.verificationStatus === "rejected"
-                                ? "destructive"
-                                : "outline"
-                            }
-                            className="text-xs"
-                          >
-                            {
-                              TEAM_VERIFICATION_STATUS_LABELS[
-                                team.verificationStatus
-                              ]
-                            }
-                          </Badge>
+                          <StatusBadge
+                            kind="verification"
+                            status={team.verificationStatus}
+                          />
                         )}
                     </div>
                   </div>

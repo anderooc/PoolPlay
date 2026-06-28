@@ -6,10 +6,11 @@ import { db } from "@/lib/db";
 import { schoolMembers, schools, teams } from "@/lib/db/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { buttonVariants } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Building2, CheckCircle2, Plus } from "lucide-react";
-import { SCHOOL_VERIFICATION_STATUS_LABELS } from "@/lib/constants/school";
+import { Building2, Plus } from "lucide-react";
 import { formatTeamGender, formatTeamRegion } from "@/lib/labels/team";
 
 export const dynamic = "force-dynamic";
@@ -46,24 +47,19 @@ export default async function SchoolsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Schools
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Browse club programs. Schools manage rosters and host their
-            men&apos;s and women&apos;s teams from one place.
-          </p>
-        </div>
-        <Link
-          href="/schools/new"
-          className={buttonVariants({ className: "w-full sm:w-auto" })}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          New school
-        </Link>
-      </div>
+      <PageHeader
+        title="Schools"
+        description="Browse club programs. Schools manage rosters and host their men's and women's teams from one place."
+        actions={
+          <Link
+            href="/schools/new"
+            className={buttonVariants({ className: "w-full sm:w-auto" })}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            New school
+          </Link>
+        }
+      />
 
       {rows.length === 0 ? (
         <EmptyState
@@ -98,21 +94,10 @@ export default async function SchoolsPage() {
                     <Badge variant="outline">
                       {formatTeamRegion(school.region)}
                     </Badge>
-                    <Badge
-                      variant={
-                        school.verificationStatus === "verified"
-                          ? "default"
-                          : school.verificationStatus === "rejected"
-                            ? "destructive"
-                            : "secondary"
-                      }
-                      className="gap-1"
-                    >
-                      {school.verificationStatus === "verified" && (
-                        <CheckCircle2 className="h-3 w-3" />
-                      )}
-                      {SCHOOL_VERIFICATION_STATUS_LABELS[school.verificationStatus]}
-                    </Badge>
+                    <StatusBadge
+                      kind="verification"
+                      status={school.verificationStatus}
+                    />
                     <span className="text-xs text-muted-foreground">
                       {school.teamCount} team
                       {school.teamCount === 1 ? "" : "s"}

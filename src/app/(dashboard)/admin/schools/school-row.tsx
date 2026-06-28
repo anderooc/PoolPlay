@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
   Dialog,
@@ -29,7 +30,6 @@ import {
   adminRejectSchool,
   adminResetSchoolToPending,
 } from "../actions";
-import { SCHOOL_VERIFICATION_STATUS_LABELS } from "@/lib/constants/school";
 import type { SchoolVerificationStatus } from "@/types";
 
 interface Props {
@@ -93,13 +93,6 @@ export function SchoolRow({ school }: Props) {
     });
   }
 
-  const statusVariant =
-    school.verificationStatus === "verified"
-      ? "default"
-      : school.verificationStatus === "rejected"
-        ? "destructive"
-        : "secondary";
-
   return (
     <>
       <TableRow>
@@ -132,16 +125,14 @@ export function SchoolRow({ school }: Props) {
         </TableCell>
         <TableCell className="min-w-0">
           <div className="flex flex-wrap items-center gap-1">
-            <Badge variant={statusVariant} className="gap-1 capitalize">
-              {school.verificationStatus === "verified" && (
-                <CheckCircle2 className="h-3 w-3" />
-              )}
-              {SCHOOL_VERIFICATION_STATUS_LABELS[school.verificationStatus]}
-            </Badge>
+            <StatusBadge
+              kind="verification"
+              status={school.verificationStatus}
+            />
             {school.domainMatched && (
               <Badge
                 variant="outline"
-                className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                className="border-success/25 bg-success/10 text-success"
               >
                 Domain match
               </Badge>

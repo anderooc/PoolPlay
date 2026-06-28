@@ -25,9 +25,9 @@ import {
   updateTournamentListingDetails,
 } from "../actions";
 import { formatTournamentDateDisplay } from "@/lib/date-iso";
-import { isTournamentArchived, statusBadgeLabel } from "@/lib/tournament-status";
+import { isTournamentArchived } from "@/lib/tournament-status";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -286,13 +286,6 @@ export function TournamentPageHeading({
   const nameMatches =
     confirmText.trim() === name.trim() && confirmText.trim() !== "";
 
-  const badgeLabel = statusBadgeLabel(status, date);
-  const badgeVariant: "default" | "secondary" | "outline" = archived
-    ? "outline"
-    : status === "in_progress"
-      ? "default"
-      : "secondary";
-
   async function commitListingDetails() {
     setDetailsSaving(true);
     setDetailsError(null);
@@ -391,16 +384,12 @@ export function TournamentPageHeading({
               {name}
             </h1>
           )}
-          <Badge
-            variant={badgeVariant}
-            className={cn(
-              "shrink-0",
-              archived &&
-                "border-dashed border-muted-foreground/40 bg-muted/40 text-muted-foreground"
-            )}
-          >
-            {badgeLabel}
-          </Badge>
+          <StatusBadge
+            kind="tournament"
+            status={status}
+            date={date}
+            className="shrink-0"
+          />
         </div>
         <div
           className={cn(
@@ -739,7 +728,7 @@ export function TournamentPageHeading({
                   system are not deleted.
                 </DialogDescription>
               </DialogHeader>
-              <DialogFooter className="gap-2 sm:gap-0">
+              <DialogFooter className="gap-2 sm:gap-3">
                 <Button
                   type="button"
                   variant="outline"
@@ -800,7 +789,7 @@ export function TournamentPageHeading({
                 >
                   Back
                 </Button>
-                <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+                <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:gap-3">
                   <Button
                     type="button"
                     variant="outline"

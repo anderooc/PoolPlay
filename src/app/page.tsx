@@ -4,8 +4,41 @@ import { HeaderNav } from "@/components/layout/header-nav";
 import { PoolPlayMark } from "@/components/layout/poolplay-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
-import { Trophy, Users, Calendar, Zap } from "lucide-react";
+import { Trophy, Users, Calendar, Zap, ArrowRight, Volleyball } from "lucide-react";
 import { getCurrentAuthProfile } from "@/lib/auth";
+
+const FEATURES = [
+  {
+    icon: Trophy,
+    title: "Tournament Management",
+    desc: "Spin up divisions, pools, and brackets, then run the whole event from draft to finals.",
+    accent: "from-primary/15 to-primary/5 text-primary",
+  },
+  {
+    icon: Users,
+    title: "Team Registration",
+    desc: "Register your club, manage rosters and jersey numbers, and track application status.",
+    accent: "from-secondary/15 to-secondary/5 text-secondary",
+  },
+  {
+    icon: Calendar,
+    title: "Smart Scheduling",
+    desc: "Auto-generate court assignments and time slots with warmup windows built in.",
+    accent: "from-primary/15 to-primary/5 text-primary",
+  },
+  {
+    icon: Zap,
+    title: "Live Scoring",
+    desc: "Real-time set scores and standings so players, captains, and fans never lose the thread.",
+    accent: "from-secondary/15 to-secondary/5 text-secondary",
+  },
+];
+
+const STATS = [
+  { value: "4", label: "Bracket formats" },
+  { value: "9", label: "Regions covered" },
+  { value: "Live", label: "Real-time scoring" },
+];
 
 export default async function HomePage() {
   const user = await getCurrentAuthProfile();
@@ -40,90 +73,169 @@ export default async function HomePage() {
       </header>
 
       <main className="flex-1">
-        <section className="container mx-auto px-4 py-14 text-center sm:py-20">
-          <div className="mx-auto max-w-4xl rounded-3xl border bg-card px-5 py-10 shadow-md shadow-secondary/5 sm:px-8 sm:py-12 md:px-10">
-            <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl md:text-6xl">
-              <PoolPlayMark
-                wordmarkClassName="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight"
-              />
-              <br />
-              <span className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl md:text-4xl">
-                Collegiate club volleyball
+        <section className="relative overflow-hidden">
+          {/* Decorative backdrop */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10 text-foreground/[0.07] bg-dot-grid [mask-image:radial-gradient(ellipse_80%_60%_at_50%_0%,black,transparent)]"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -left-32 top-[-10%] -z-10 h-96 w-96 rounded-full bg-primary/20 blur-3xl"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-32 top-[10%] -z-10 h-96 w-96 rounded-full bg-secondary/20 blur-3xl"
+          />
+
+          <div className="container mx-auto px-4 py-20 text-center sm:py-28">
+            <div className="mx-auto flex max-w-3xl flex-col items-center">
+              <span className="inline-flex items-center gap-2 rounded-full border bg-card/70 px-4 py-1.5 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur-sm">
+                <Volleyball className="h-3.5 w-3.5 text-primary" />
+                Built for collegiate club volleyball
               </span>
-            </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg">
-              The all-in-one platform for organizing tournaments, managing teams,
-              and tracking live scores for college club volleyball.
-            </p>
-            {!user && (
-              <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
-                <Link
-                  href="/signup"
-                  className={buttonVariants({ size: "lg" })}
-                >
-                  Create Account
-                </Link>
-                <Link
-                  href="/explore"
-                  className={buttonVariants({
-                    size: "lg",
-                    variant: "outline",
-                  })}
-                >
-                  Browse Tournaments
-                </Link>
-              </div>
-            )}
+
+              <h1 className="mt-6 text-balance text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl">
+                Run the whole
+                <br />
+                tournament on{" "}
+                <span className="text-gradient-brand">PoolPlay</span>
+              </h1>
+
+              <p className="mx-auto mt-6 max-w-xl text-pretty text-base text-muted-foreground sm:text-lg">
+                Pools, brackets, court scheduling, and live scores in one place —
+                so hosts, teams, and fans can ditch the spreadsheets and group
+                chats.
+              </p>
+
+              {!user && (
+                <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row">
+                  <Link
+                    href="/signup"
+                    className={buttonVariants({
+                      size: "lg",
+                      className: "group h-11 px-6 text-sm shadow-lg shadow-primary/20",
+                    })}
+                  >
+                    Create Account
+                    <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                  <Link
+                    href="/explore"
+                    className={buttonVariants({
+                      size: "lg",
+                      variant: "outline",
+                      className: "h-11 px-6 text-sm",
+                    })}
+                  >
+                    Browse Tournaments
+                  </Link>
+                </div>
+              )}
+
+              <dl className="mt-14 grid w-full max-w-lg grid-cols-3 gap-px overflow-hidden rounded-2xl border bg-border/60 shadow-sm">
+                {STATS.map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="flex flex-col items-center gap-1 bg-card/80 px-3 py-5 backdrop-blur-sm"
+                  >
+                    <dt className="order-2 text-xs text-muted-foreground">
+                      {stat.label}
+                    </dt>
+                    <dd className="order-1 font-heading text-2xl font-bold text-gradient-brand sm:text-3xl">
+                      {stat.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
           </div>
         </section>
 
-        <section className="border-t bg-muted/20">
-          <div className="container mx-auto grid gap-5 px-4 py-14 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
-            {[
-              {
-                icon: Trophy,
-                title: "Tournament Management",
-                desc: "Create and manage tournaments with pools, groups, and brackets.",
-              },
-              {
-                icon: Users,
-                title: "Team Registration",
-                desc: "Register your club team, manage rosters, and sign up for events.",
-              },
-              {
-                icon: Calendar,
-                title: "Smart Scheduling",
-                desc: "Auto-generate schedules with court assignments and time slots.",
-              },
-              {
-                icon: Zap,
-                title: "Live Scoring",
-                desc: "Real-time score updates so everyone can follow the action.",
-              },
-            ].map((feature, idx) => (
-              <div
-                key={feature.title}
-                className="space-y-2 rounded-2xl border bg-card p-5 transition-shadow hover:shadow-md"
-              >
+        <section className="relative border-t bg-muted/20">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-line-grid [mask-image:radial-gradient(ellipse_70%_80%_at_50%_50%,black,transparent)]"
+          />
+          <div className="container relative mx-auto px-4 py-20">
+            <div className="mx-auto mb-12 max-w-2xl text-center">
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                Everything to run game day
+              </h2>
+              <p className="mt-3 text-muted-foreground">
+                From the first registration to the final point.
+              </p>
+            </div>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {FEATURES.map((feature) => (
                 <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                    idx % 2 === 0
-                      ? "bg-primary/10 text-primary"
-                      : "bg-secondary/10 text-secondary"
-                  }`}
+                  key={feature.title}
+                  className="group relative overflow-hidden rounded-2xl border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5"
                 >
-                  <feature.icon className="h-5 w-5" />
+                  <div
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${feature.accent} ring-1 ring-inset ring-foreground/5 transition-transform duration-300 group-hover:scale-110`}
+                  >
+                    <feature.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="mt-4 font-heading text-lg font-semibold">
+                    {feature.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    {feature.desc}
+                  </p>
                 </div>
-                <h3 className="font-semibold">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground">{feature.desc}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </section>
+
+        {!user && (
+          <section className="container mx-auto px-4 py-20">
+            <div className="relative overflow-hidden rounded-3xl border bg-gradient-to-br from-primary/10 via-card to-secondary/10 px-6 py-14 text-center shadow-sm sm:px-12">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 text-foreground/[0.05] bg-dot-grid"
+              />
+              <div className="relative mx-auto max-w-xl">
+                <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                  Ready for your next tournament?
+                </h2>
+                <p className="mt-3 text-muted-foreground">
+                  Create a free account and host your first event in minutes.
+                </p>
+                <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                  <Link
+                    href="/signup"
+                    className={buttonVariants({
+                      size: "lg",
+                      className: "group h-11 px-6 text-sm shadow-lg shadow-primary/20",
+                    })}
+                  >
+                    Get Started
+                    <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                  <Link
+                    href="/login"
+                    className={buttonVariants({
+                      size: "lg",
+                      variant: "outline",
+                      className: "h-11 px-6 text-sm",
+                    })}
+                  >
+                    Sign In
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
       </main>
 
-      <footer className="border-t py-6 text-center text-sm text-muted-foreground">
+      <footer className="border-t py-8 text-center text-sm text-muted-foreground">
         <PoolPlayMark wordmarkClassName="text-sm font-bold" />
+        <p className="mt-2 text-xs">
+          Tournament hub for collegiate club volleyball.
+        </p>
       </footer>
     </div>
   );

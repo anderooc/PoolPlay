@@ -4,6 +4,7 @@ import { asc, count, eq } from "drizzle-orm";
 import {
   Table,
   TableBody,
+  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -64,9 +65,18 @@ export async function AdminTournamentsPanel({ page }: { page: number }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((t) => (
-              <TournamentRow key={t.id} tournament={t} />
-            ))}
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="py-8 text-center text-muted-foreground"
+                >
+                  No tournaments yet.
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((t) => <TournamentRow key={t.id} tournament={t} />)
+            )}
           </TableBody>
         </Table>
         <AdminTablePagination

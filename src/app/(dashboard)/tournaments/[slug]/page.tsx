@@ -9,22 +9,21 @@ import {
   teams,
   schools,
   users,
-  brackets,
-  matches,
   teamMembers,
 } from "@/lib/db/schema";
-import { eq, asc, and, count, isNotNull, inArray } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buttonVariants } from "@/components/ui/button";
-import { Calendar, User } from "lucide-react";
+import { Calendar, LayoutGrid, Trophy, User, Users } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { TournamentLocationLink } from "@/components/tournament-location-link";
 import Link from "next/link";
 import { BackLink } from "@/components/layout/back-link";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { TournamentHostSchoolLink } from "@/components/tournament-host-school-link";
 import { formatTournamentDateDisplay } from "@/lib/date-iso";
-import { isTournamentArchived, statusBadgeLabel } from "@/lib/tournament-status";
 import {
   canAssignTeamsToPools,
   canCheckInRegistrations,
@@ -36,7 +35,7 @@ import {
   isTournamentOrganizer,
   poolAssignmentBlockedMessage,
 } from "@/lib/tournaments/permissions";
-import { getTournamentMatchIds } from "@/lib/tournaments/match-query";
+import { tournamentHasScheduledMatches } from "@/lib/tournaments/match-query";
 import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import { TournamentPageHeading } from "./tournament-page-heading";
@@ -50,8 +49,6 @@ import { BracketView } from "./brackets/bracket-view";
 import { PoolSeedingPanel } from "./brackets/pool-seeding-panel";
 import { DivisionPoolRelease } from "./brackets/division-pool-release";
 import { ensureDivisionBracketSkeleton } from "@/lib/tournaments/bracket-structure";
-import { poolMatchesHaveStarted } from "@/lib/tournaments/pool-matches";
-
 interface Props {
   params: Promise<{ slug: string }>;
 }
@@ -70,84 +67,8 @@ export default async function TournamentDetailPage({ params }: Props) {
   const tournament = tournamentRow;
   const id = tournament.id;
 
-  // Sequential queries: parallel `Promise.all` on one Supabase pooler connection
-  // (transaction mode) fails intermittently; the error often surfaces on an
-  // unrelated query in the batch (e.g. registrations).
-  const organizer =
-    (
-      await db
-        .select({ fullName: users.fullName })
-        .from(users)
-        .where(eq(users.id, tournament.organizerId))
-        .limit(1)
-    )[0] ?? null;
-
-  const tournamentDivisions = await db
-    .select()
-    .from(divisions)
-    .where(eq(divisions.tournamentId, id))
-    .orderBy(asc(divisions.name), asc(divisions.id));
-
-  const courtRows = await db
-    .select({ id: courts.id, name: courts.name })
-    .from(courts)
-    .where(eq(courts.tournamentId, id))
-    .orderBy(asc(courts.name), asc(courts.id));
-
-  const courtDivisionLinks = await db
-    .select({
-      courtId: courtDivisions.courtId,
-      divisionId: courtDivisions.divisionId,
-      divisionName: divisions.name,
-    })
-    .from(courtDivisions)
-    .innerJoin(courts, eq(courtDivisions.courtId, courts.id))
-    .innerJoin(divisions, eq(courtDivisions.divisionId, divisions.id))
-    .where(eq(courts.tournamentId, id));
-
-  const tournamentRegistrations = await db
-    .select({
-      id: registrations.id,
-      status: registrations.status,
-      registeredAt: registrations.registeredAt,
-      teamId: teams.id,
-      teamName: teams.name,
-      teamUniversity: teams.university,
-      schoolId: teams.schoolId,
-      schoolName: schools.name,
-      divisionId: divisions.id,
-      divisionName: divisions.name,
-    })
-    .from(registrations)
-    .innerJoin(teams, eq(registrations.teamId, teams.id))
-    .leftJoin(schools, eq(teams.schoolId, schools.id))
-    .leftJoin(divisions, eq(registrations.divisionId, divisions.id))
-    .where(eq(registrations.tournamentId, id))
-    .orderBy(asc(registrations.registeredAt), asc(teams.name));
-
-  type CourtDivPair = { divisionId: string; divisionName: string };
-  const pairsByCourt = new Map<string, CourtDivPair[]>();
-  for (const row of courtDivisionLinks) {
-    const list = pairsByCourt.get(row.courtId) ?? [];
-    list.push({
-      divisionId: row.divisionId,
-      divisionName: row.divisionName,
-    });
-    pairsByCourt.set(row.courtId, list);
-  }
-
-  const tournamentCourts = courtRows.map((c) => {
-    const pairs = (pairsByCourt.get(c.id) ?? [])
-      .slice()
-      .sort((a, b) => a.divisionName.localeCompare(b.divisionName));
-    return {
-      id: c.id,
-      name: c.name,
-      divisionIds: pairs.map((p) => p.divisionId),
-      divisionNames: pairs.map((p) => p.divisionName),
-    };
-  });
-
+  // Permissions are pure functions of the tournament + user (no I/O), so we
+  // resolve them before firing the data queries.
   const isOrganizer = isTournamentOrganizer(tournament, user);
   const canEditSetup =
     isOrganizer && canEditTournamentSetup(tournament, user);
@@ -157,44 +78,105 @@ export default async function TournamentDetailPage({ params }: Props) {
     isOrganizer && canCheckInRegistrations(tournament, user);
   const showRegisterLink = canRegisterTeams(tournament);
 
-  const bracketRow = await db
-    .select({ id: brackets.id })
-    .from(brackets)
-    .innerJoin(divisions, eq(brackets.divisionId, divisions.id))
-    .where(eq(divisions.tournamentId, id))
-    .limit(1);
+  // These reads are independent of each other, so fan them out across the
+  // connection pool in one batch instead of serializing. `getDivisionPlayData`
+  // is the long pole (its own internal waves), so running it alongside the
+  // simple queries overlaps that work.
+  const [
+    organizerRows,
+    tournamentDivisions,
+    courtJoinRows,
+    tournamentRegistrations,
+    memberRows,
+    hostSchool,
+    divisionPlayData,
+    hasScheduledMatches,
+  ] = await Promise.all([
+    db
+      .select({ fullName: users.fullName })
+      .from(users)
+      .where(eq(users.id, tournament.organizerId))
+      .limit(1),
+    db
+      .select()
+      .from(divisions)
+      .where(eq(divisions.tournamentId, id))
+      .orderBy(asc(divisions.name), asc(divisions.id)),
+    // Courts + their division links in one left-join (courts with no divisions
+    // still come back, with null division columns).
+    db
+      .select({
+        courtId: courts.id,
+        courtName: courts.name,
+        divisionId: divisions.id,
+        divisionName: divisions.name,
+      })
+      .from(courts)
+      .leftJoin(courtDivisions, eq(courtDivisions.courtId, courts.id))
+      .leftJoin(divisions, eq(courtDivisions.divisionId, divisions.id))
+      .where(eq(courts.tournamentId, id))
+      .orderBy(asc(courts.name), asc(courts.id)),
+    db
+      .select({
+        id: registrations.id,
+        status: registrations.status,
+        registeredAt: registrations.registeredAt,
+        teamId: teams.id,
+        teamName: teams.name,
+        teamUniversity: teams.university,
+        schoolId: teams.schoolId,
+        schoolName: schools.name,
+        divisionId: divisions.id,
+        divisionName: divisions.name,
+      })
+      .from(registrations)
+      .innerJoin(teams, eq(registrations.teamId, teams.id))
+      .leftJoin(schools, eq(teams.schoolId, schools.id))
+      .leftJoin(divisions, eq(registrations.divisionId, divisions.id))
+      .where(eq(registrations.tournamentId, id))
+      .orderBy(asc(registrations.registeredAt), asc(teams.name)),
+    // This user's team memberships; the captain subset is derived in memory.
+    db
+      .select({ teamId: teamMembers.teamId, role: teamMembers.role })
+      .from(teamMembers)
+      .where(eq(teamMembers.userId, user.id)),
+    getHostSchoolById(tournament.hostSchoolId),
+    getDivisionPlayData(id, { forOrganizer: isOrganizer }),
+    tournamentHasScheduledMatches(id),
+  ]);
 
-  const userTeamRows = await db
-    .select({ teamId: teamMembers.teamId })
-    .from(teamMembers)
-    .where(eq(teamMembers.userId, user.id));
+  const organizer = organizerRows[0] ?? null;
 
-  const captainTeamIds = await db
-    .select({ teamId: teamMembers.teamId })
-    .from(teamMembers)
-    .where(
-      and(eq(teamMembers.userId, user.id), eq(teamMembers.role, "captain"))
-    );
-
-  const matchIds = await getTournamentMatchIds(id);
-  const hostSchool = await getHostSchoolById(tournament.hostSchoolId);
-  const divisionPlayData = await getDivisionPlayData(id, {
-    forOrganizer: isOrganizer,
-  });
-
-  let hasScheduledMatches = false;
-  if (matchIds.length > 0) {
-    const [scheduled] = await db
-      .select({ value: count() })
-      .from(matches)
-      .where(
-        and(
-          inArray(matches.id, matchIds),
-          isNotNull(matches.scheduledTime)
-        )
-      );
-    hasScheduledMatches = (scheduled?.value ?? 0) > 0;
+  type CourtDivPair = { divisionId: string; divisionName: string };
+  const courtOrder: string[] = [];
+  const courtNameById = new Map<string, string>();
+  const pairsByCourt = new Map<string, CourtDivPair[]>();
+  for (const row of courtJoinRows) {
+    if (!courtNameById.has(row.courtId)) {
+      courtNameById.set(row.courtId, row.courtName);
+      courtOrder.push(row.courtId);
+    }
+    if (row.divisionId && row.divisionName) {
+      const list = pairsByCourt.get(row.courtId) ?? [];
+      list.push({
+        divisionId: row.divisionId,
+        divisionName: row.divisionName,
+      });
+      pairsByCourt.set(row.courtId, list);
+    }
   }
+
+  const tournamentCourts = courtOrder.map((cid) => {
+    const pairs = (pairsByCourt.get(cid) ?? [])
+      .slice()
+      .sort((a, b) => a.divisionName.localeCompare(b.divisionName));
+    return {
+      id: cid,
+      name: courtNameById.get(cid)!,
+      divisionIds: pairs.map((p) => p.divisionId),
+      divisionNames: pairs.map((p) => p.divisionName),
+    };
+  });
 
   const allPendingTeams = tournamentRegistrations.filter(
     (r) => r.status === "pending"
@@ -204,8 +186,10 @@ export default async function TournamentDetailPage({ params }: Props) {
     (r) => r.status === "confirmed" || r.status === "checked_in"
   );
 
-  const myTeamIds = new Set(userTeamRows.map((r) => r.teamId));
-  const captainIds = new Set(captainTeamIds.map((r) => r.teamId));
+  const myTeamIds = new Set(memberRows.map((r) => r.teamId));
+  const captainIds = new Set(
+    memberRows.filter((r) => r.role === "captain").map((r) => r.teamId)
+  );
 
   const pendingCount = allPendingTeams.length;
 
@@ -269,27 +253,37 @@ export default async function TournamentDetailPage({ params }: Props) {
         registrationCount: tournamentRegistrations.length,
         pendingCount,
         hasPools: hasAnyPoolMatches,
-        hasBracket: bracketRow.length > 0,
+        hasBracket: hasAnyBrackets,
         hasScheduledMatches,
       })
     : [];
 
   const emptySetup =
-    tournamentDivisions.length === 0 && courtRows.length === 0;
+    tournamentDivisions.length === 0 && tournamentCourts.length === 0;
 
   if (isOrganizer && tournamentDivisions.length > 0) {
+    // `divisionPlayData` already reflects existing brackets, so skip the
+    // per-division existence check for divisions that are already set up
+    // (ensureDivisionBracketSkeleton is a no-op for them anyway).
+    const divsWithBracket = new Set(
+      divisionPlayData.filter((d) => d.brackets.length > 0).map((d) => d.id)
+    );
     for (const div of tournamentDivisions) {
+      if (divsWithBracket.has(div.id)) continue;
       await ensureDivisionBracketSkeleton(div.id, div.format, div.teamCap);
     }
   }
 
+  // `divisionPlayData` already carries every pool's matches (with status), so
+  // we can derive "have matches started" in memory instead of issuing one
+  // query per pool.
   const poolMatchesStartedByPoolId = new Map<string, boolean>();
   if (isOrganizer) {
     for (const div of divisionPlayData) {
       for (const pool of div.pools) {
         poolMatchesStartedByPoolId.set(
           pool.id,
-          await poolMatchesHaveStarted(pool.id)
+          pool.matches.some((m) => m.status !== "upcoming")
         );
       }
     }
@@ -325,27 +319,12 @@ export default async function TournamentDetailPage({ params }: Props) {
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
                 {tournament.name}
               </h1>
-              {(() => {
-                const archived = isTournamentArchived(tournament.date);
-                return (
-                  <Badge
-                    variant={
-                      archived
-                        ? "outline"
-                        : tournament.status === "in_progress"
-                          ? "default"
-                          : "secondary"
-                    }
-                    className={
-                      archived
-                        ? "shrink-0 border-dashed border-muted-foreground/40 bg-muted/40 text-muted-foreground"
-                        : "shrink-0"
-                    }
-                  >
-                    {statusBadgeLabel(tournament.status, tournament.date)}
-                  </Badge>
-                );
-              })()}
+              <StatusBadge
+                kind="tournament"
+                status={tournament.status}
+                date={tournament.date}
+                className="shrink-0"
+              />
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <TournamentLocationLink
@@ -551,10 +530,15 @@ export default async function TournamentDetailPage({ params }: Props) {
               });
               if (eligibleDivisions.length === 0) {
                 return (
-                  <p className="text-sm text-muted-foreground">
-                    No pool play yet. Add a pool with the
-                    &ldquo;Pool to bracket&rdquo; format in the Setup tab.
-                  </p>
+                  <EmptyState
+                    icon={LayoutGrid}
+                    title="No pool play yet"
+                    description={
+                      isOrganizer
+                        ? "Add a pool with the “Pool to bracket” format in the Setup tab to get started."
+                        : "Pools haven’t been released for this tournament yet. Check back soon."
+                    }
+                  />
                 );
               }
               return (
@@ -596,10 +580,15 @@ export default async function TournamentDetailPage({ params }: Props) {
                       )}
                       {div.pools.length === 0 ||
                       div.pools.every((p) => p.teams.length === 0) ? (
-                        <p className="text-sm text-muted-foreground">
-                          No teams assigned to this pool yet. Add confirmed
-                          teams from the Teams tab.
-                        </p>
+                        <EmptyState
+                          icon={Users}
+                          title="No teams in this pool yet"
+                          description={
+                            isOrganizer
+                              ? "Assign confirmed teams to this pool from the Teams tab."
+                              : "Teams will appear here once the host assigns them."
+                          }
+                        />
                       ) : (
                         <div className="space-y-4">
                           {div.pools.map((pool) => (
@@ -666,10 +655,15 @@ export default async function TournamentDetailPage({ params }: Props) {
               });
               if (eligibleDivisions.length === 0) {
                 return (
-                  <p className="text-sm text-muted-foreground">
-                    No bracket-style pools yet. Pick a bracket format in the
-                    Setup tab.
-                  </p>
+                  <EmptyState
+                    icon={Trophy}
+                    title="No brackets yet"
+                    description={
+                      isOrganizer
+                        ? "Pick a bracket format for a division in the Setup tab."
+                        : "Brackets haven’t been released for this tournament yet. Check back soon."
+                    }
+                  />
                 );
               }
               return (
@@ -710,10 +704,11 @@ export default async function TournamentDetailPage({ params }: Props) {
                         />
                       )}
                       {div.brackets.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          No bracket yet for this pool. Add the pool again in
-                          Setup or contact support if this persists.
-                        </p>
+                        <EmptyState
+                          icon={Trophy}
+                          title="No bracket for this division yet"
+                          description="Add the pool again in Setup, or contact support if this persists."
+                        />
                       ) : (
                         <div className="space-y-4">
                           {div.brackets.map((bracket) => (

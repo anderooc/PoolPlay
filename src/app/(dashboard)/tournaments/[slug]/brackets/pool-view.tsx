@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Select,
   SelectContent,
@@ -20,7 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatMatchStatusLabel } from "@/lib/labels/match";
 import { calculatePoolStandings } from "@/lib/utils/pool";
 import { cn } from "@/lib/utils";
 import { updateMatchRef } from "./actions";
@@ -256,9 +255,7 @@ export function PoolView({
                         </span>
                       ))
                     ) : (
-                      <Badge variant="secondary" className="text-xs">
-                        {formatMatchStatusLabel(match.status)}
-                      </Badge>
+                      <StatusBadge kind="match" status={match.status} />
                     )}
                   </div>
                   <span

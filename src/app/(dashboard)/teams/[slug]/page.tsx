@@ -13,10 +13,10 @@ import { and, eq } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SmartBackLink } from "@/components/layout/smart-back-link";
+import { PageHeader } from "@/components/layout/page-header";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Building2, CheckCircle2 } from "lucide-react";
-import { TEAM_VERIFICATION_STATUS_LABELS } from "@/lib/constants/team";
 import { isStandaloneTeam } from "@/lib/teams/verification";
 import { AddMemberForm } from "./add-member-form";
 import { RosterRow } from "./roster-row";
@@ -104,7 +104,7 @@ export default async function TeamDetailPage({ params }: Props) {
           className={
             team.verificationStatus === "rejected"
               ? "rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm"
-              : "rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm"
+              : "rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm"
           }
         >
           <p className="font-medium">
@@ -117,37 +117,38 @@ export default async function TeamDetailPage({ params }: Props) {
               ? "Standalone teams must be verified before they can register for tournaments. An admin will review this team soon."
               : "This team was rejected and cannot register for tournaments. Contact an admin if you believe this was a mistake."}
           </p>
-          <Badge variant="secondary" className="mt-2">
-            {TEAM_VERIFICATION_STATUS_LABELS[team.verificationStatus]}
-          </Badge>
-        </div>
-      )}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">{team.name}</h1>
-          <p className="text-muted-foreground">{team.university}</p>
-          <TeamAttributesBadges
-            gender={team.gender}
-            region={team.region}
+          <StatusBadge
+            kind="verification"
+            status={team.verificationStatus}
             className="mt-2"
           />
+        </div>
+      )}
+      <PageHeader
+        title={team.name}
+        description={team.university}
+        actions={
+          isCaptain ? (
+            <TeamDeleteButton teamId={id} teamName={team.name} />
+          ) : undefined
+        }
+      >
+        <div className="mt-1 flex flex-col gap-2">
+          <TeamAttributesBadges gender={team.gender} region={team.region} />
           {schoolRow && (
             <Link
               href={`/schools/${schoolRow.slug}`}
-              className="mt-2 inline-flex items-center gap-1.5 rounded-full border bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              className="inline-flex w-fit items-center gap-1.5 rounded-full border bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground"
             >
               <Building2 className="h-3 w-3" />
               <span>Part of {schoolRow.name}</span>
               {schoolRow.verificationStatus === "verified" && (
-                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                <CheckCircle2 className="h-3 w-3 text-success" />
               )}
             </Link>
           )}
         </div>
-        {isCaptain && (
-          <TeamDeleteButton teamId={id} teamName={team.name} />
-        )}
-      </div>
+      </PageHeader>
 
       <Card>
         <CardHeader>

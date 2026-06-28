@@ -2,13 +2,13 @@ import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { matches, teams, courts, tournaments, pools, brackets, divisions } from "@/lib/db/schema";
 import { eq, isNotNull, asc } from "drizzle-orm";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalendarClock } from "lucide-react";
 import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { ScheduleControls } from "./schedule-controls";
-import { formatMatchStatusLabel } from "@/lib/labels/match";
 import { warmupMinutesForFormat, type WarmupFormat } from "@/lib/labels/warmup-format";
 
 export default async function SchedulePage() {
@@ -128,14 +128,10 @@ export default async function SchedulePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          Schedule
-        </h1>
-        <p className="mt-1 text-muted-foreground">
-          View all scheduled matches across tournaments.
-        </p>
-      </div>
+      <PageHeader
+        title="Schedule"
+        description="View all scheduled matches across tournaments."
+      />
 
       {userTournaments.length > 0 && (
         <ScheduleControls tournaments={userTournaments} />
@@ -183,18 +179,11 @@ export default async function SchedulePage() {
                       </p>
                     </div>
                   </div>
-                  <Badge
-                    variant={
-                      match.status === "in_progress"
-                        ? "default"
-                        : match.status === "completed"
-                          ? "secondary"
-                          : "outline"
-                    }
+                  <StatusBadge
+                    kind="match"
+                    status={match.status}
                     className="shrink-0"
-                  >
-                    {formatMatchStatusLabel(match.status)}
-                  </Badge>
+                  />
                 </div>
               ))}
             </div>

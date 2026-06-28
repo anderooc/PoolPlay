@@ -59,7 +59,7 @@ export function AddMemberForm({ teamId }: { teamId: string }) {
       </form>
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
       {success && (
-        <p className="mt-2 text-sm text-green-600">Player added!</p>
+        <p className="mt-2 text-sm text-success">Player added!</p>
       )}
     </div>
   );

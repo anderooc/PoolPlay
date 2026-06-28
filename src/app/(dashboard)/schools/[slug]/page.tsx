@@ -12,20 +12,13 @@ import {
 } from "@/lib/db/schema";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { BackLink } from "@/components/layout/back-link";
+import { EmptyState } from "@/components/ui/empty-state";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
-import {
-  Building2,
-  CheckCircle2,
-  ExternalLink,
-  Globe,
-  Plus,
-} from "lucide-react";
-import {
-  SCHOOL_VERIFICATION_STATUS_LABELS,
-} from "@/lib/constants/school";
+import { Building2, ExternalLink, Globe, Plus } from "lucide-react";
 import { formatTeamGender, formatTeamRegion } from "@/lib/labels/team";
 import {
   canManageSchool,
@@ -129,13 +122,6 @@ export default async function SchoolDetailPage({ params }: Props) {
   const canLeaveFromMenu =
     isMyOwnSchool && !isSchoolPresident(membershipForPermissions);
 
-  const verificationBadgeVariant =
-    school.verificationStatus === "verified"
-      ? "default"
-      : school.verificationStatus === "rejected"
-        ? "destructive"
-        : "secondary";
-
   // The president-or-officer can also see the precomputed domain match,
   // useful before submitting.
   const myDomainMatches = emailMatchesDomain(user.email, school.domainHint);
@@ -150,15 +136,10 @@ export default async function SchoolDetailPage({ params }: Props) {
             <h1 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
               {school.name}
             </h1>
-            <Badge
-              variant={verificationBadgeVariant}
-              className="gap-1 capitalize"
-            >
-              {school.verificationStatus === "verified" && (
-                <CheckCircle2 className="h-3 w-3" />
-              )}
-              {SCHOOL_VERIFICATION_STATUS_LABELS[school.verificationStatus]}
-            </Badge>
+            <StatusBadge
+              kind="verification"
+              status={school.verificationStatus}
+            />
           </div>
 
           <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end sm:pt-1">
@@ -190,7 +171,7 @@ export default async function SchoolDetailPage({ params }: Props) {
               />
             </div>
             {myDomainMatches && school.domainHint && (canManage || canSubmit) && (
-              <p className="text-xs text-emerald-600">
+              <p className="text-xs text-success">
                 Your email matches @{school.domainHint}
               </p>
             )}
@@ -274,14 +255,26 @@ export default async function SchoolDetailPage({ params }: Props) {
           </div>
 
           {teamRows.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <Building2 className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  No teams under this school yet.
-                </p>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={Building2}
+              title="No teams under this school yet"
+              description={
+                canRosterManage
+                  ? "Create a team to pull players from the school's master roster."
+                  : "Teams created under this school will appear here."
+              }
+              action={
+                canRosterManage ? (
+                  <Link
+                    href={`/teams/new?schoolId=${school.id}`}
+                    className={buttonVariants({ size: "sm" })}
+                  >
+                    <Plus className="mr-1 h-4 w-4" />
+                    New team in this school
+                  </Link>
+                ) : undefined
+              }
+            />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {teamRows.map((team) => (

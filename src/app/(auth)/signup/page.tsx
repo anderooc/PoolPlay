@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PoolPlayMark } from "@/components/layout/poolplay-mark";
 import { signup } from "../actions";
 
 export default function SignupPage() {
@@ -36,7 +37,19 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-muted/30 px-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 text-foreground/[0.06] bg-dot-grid [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,black,transparent)]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-24 top-1/4 -z-10 h-80 w-80 rounded-full bg-primary/20 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-24 bottom-1/4 -z-10 h-80 w-80 rounded-full bg-secondary/20 blur-3xl"
+      />
       {isPending && (
         <div
           className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-background/75 backdrop-blur-sm"
@@ -49,9 +62,13 @@ export default function SignupPage() {
           </p>
         </div>
       )}
-      <Card className="relative z-[1] w-full max-w-md">
+      <div className="relative z-[1] w-full max-w-md">
+        <div className="mb-6 text-center">
+          <PoolPlayMark href="/" wordmarkClassName="text-2xl" />
+        </div>
+        <Card className="shadow-xl shadow-primary/5">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
+          <CardTitle className="text-2xl font-bold">Create account</CardTitle>
           <CardDescription>
             Create your PoolPlay account with a school or institutional email.
           </CardDescription>
@@ -120,12 +137,16 @@ export default function SignupPage() {
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/login" className="text-primary underline">
+            <Link
+              href="/login"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
               Sign in
             </Link>
           </p>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

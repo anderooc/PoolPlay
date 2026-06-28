@@ -9,7 +9,8 @@ import {
 } from "@/lib/db/schema";
 import { eq, asc, inArray } from "drizzle-orm";
 import { BackLink } from "@/components/layout/back-link";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Radio, Clock, CheckCircle2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScoringCard } from "./scoring-card";
 import { LiveScoreViewer } from "./live-score-viewer";
@@ -156,13 +157,11 @@ export default async function ScoringPage({ params }: Props) {
 
         <TabsContent value="live" className="mt-4">
           {inProgress.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <p className="text-muted-foreground">
-                  No matches in progress.
-                </p>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={Radio}
+              title="No matches in progress"
+              description="Start an upcoming match to begin tracking sets and scores live."
+            />
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
               {inProgress.map((match) => (
@@ -183,11 +182,11 @@ export default async function ScoringPage({ params }: Props) {
 
         <TabsContent value="upcoming" className="mt-4">
           {upcoming.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <p className="text-muted-foreground">No upcoming matches.</p>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={Clock}
+              title="No upcoming matches"
+              description="Generate pools or brackets and schedule matches to see them here."
+            />
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
               {upcoming.map((match) => (
@@ -208,13 +207,11 @@ export default async function ScoringPage({ params }: Props) {
 
         <TabsContent value="completed" className="mt-4">
           {completed.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <p className="text-muted-foreground">
-                  No completed matches yet.
-                </p>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={CheckCircle2}
+              title="No completed matches yet"
+              description="Finalized matches and their set scores will appear here."
+            />
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
               {completed.map((match) => (

@@ -97,7 +97,7 @@ export function ScheduleControls({
           match format.
         </p>
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-        {result && <p className="mt-2 text-sm text-green-600">{result}</p>}
+        {result && <p className="mt-2 text-sm text-success">{result}</p>}
       </CardContent>
     </Card>
   );
