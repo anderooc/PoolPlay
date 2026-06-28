@@ -56,6 +56,121 @@ export function targetForSet(
   return settings.targetScore;
 }
 
+export type MatchPhase = "upcoming" | "warmup" | "in_progress" | "completed";
+
+/**
+ * Derive the lifecycle phase from a match row. "warmup" is not a stored status;
+ * it's the window after `warmupStartedAt` is set but before play begins.
+ */
+export function matchPhase(match: {
+  status: string;
+  warmupStartedAt: Date | null;
+}): MatchPhase {
+  if (match.status === "completed") return "completed";
+  if (match.status === "in_progress") return "in_progress";
+  if (match.warmupStartedAt) return "warmup";
+  return "upcoming";
+}
+
+/**
+ * A set is complete once a team reaches the target score with at least a
+ * two-point lead (standard volleyball win-by-two, no hard cap).
+ */
+export function isSetComplete(
+  teamAScore: number,
+  teamBScore: number,
+  target: number
+): boolean {
+  const top = Math.max(teamAScore, teamBScore);
+  return top >= target && Math.abs(teamAScore - teamBScore) >= 2;
+}
+
+export interface SetTrackerEntry {
+  setNumber: number;
+  target: number;
+  teamAScore: number;
+  teamBScore: number;
+  complete: boolean;
+  /** True for the set currently being scored. */
+  current: boolean;
+}
+
+export interface MatchScoreState {
+  setsWonA: number;
+  setsWonB: number;
+  requiredSets: number;
+  maxSets: number;
+  /** 1-based number of the set currently being scored. */
+  currentSetNumber: number;
+  currentTarget: number;
+  /** Per-set breakdown sized to the format's max sets. */
+  tracker: SetTrackerEntry[];
+}
+
+/**
+ * Build the live scoring/tracker state for a match from its stored sets and the
+ * tournament's format settings. Pure + UI-facing; the server still uses
+ * `evaluateMatchOutcome` as the source of truth for finalizing.
+ */
+export function buildMatchScoreState(
+  settings: Pick<
+    MatchFormatSettings,
+    "format" | "targetScore" | "tiebreakTargetScore"
+  >,
+  storedSets: CompletedSet[]
+): MatchScoreState {
+  const { required, max } = totalSetsForFormat(settings.format);
+
+  let setsWonA = 0;
+  let setsWonB = 0;
+  let currentSetNumber = max;
+  let foundCurrent = false;
+
+  const tracker: SetTrackerEntry[] = [];
+  for (let i = 0; i < max; i++) {
+    const setNumber = i + 1;
+    const target = targetForSet(settings, setNumber);
+    const stored = storedSets[i];
+    const teamAScore = stored?.teamAScore ?? 0;
+    const teamBScore = stored?.teamBScore ?? 0;
+    const complete = stored
+      ? isSetComplete(teamAScore, teamBScore, target)
+      : false;
+
+    if (complete) {
+      if (teamAScore > teamBScore) setsWonA++;
+      else if (teamBScore > teamAScore) setsWonB++;
+    }
+
+    tracker.push({
+      setNumber,
+      target,
+      teamAScore,
+      teamBScore,
+      complete,
+      current: false,
+    });
+
+    if (!foundCurrent && !complete) {
+      currentSetNumber = setNumber;
+      foundCurrent = true;
+    }
+  }
+
+  const currentEntry = tracker[currentSetNumber - 1];
+  if (currentEntry) currentEntry.current = true;
+
+  return {
+    setsWonA,
+    setsWonB,
+    requiredSets: required,
+    maxSets: max,
+    currentSetNumber,
+    currentTarget: targetForSet(settings, currentSetNumber),
+    tracker,
+  };
+}
+
 /**
  * Resolve the current outcome of a match given the completed set scores. Used
  * after an incremental score save so the server can auto-finalize the match.

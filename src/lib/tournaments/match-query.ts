@@ -5,7 +5,7 @@ import {
   brackets,
   divisions,
 } from "@/lib/db/schema";
-import { eq, or } from "drizzle-orm";
+import { and, count, eq, isNotNull, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 const divFromPool = alias(divisions, "match_div_pool");
@@ -30,6 +30,33 @@ export async function getTournamentMatchIds(
     );
 
   return rows.map((r) => r.id);
+}
+
+/**
+ * Whether the tournament has any match with a scheduled time. Folds the
+ * match-id lookup and the scheduled count into a single query.
+ */
+export async function tournamentHasScheduledMatches(
+  tournamentId: string
+): Promise<boolean> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(matches)
+    .leftJoin(pools, eq(matches.poolId, pools.id))
+    .leftJoin(divFromPool, eq(pools.divisionId, divFromPool.id))
+    .leftJoin(brackets, eq(matches.bracketId, brackets.id))
+    .leftJoin(divFromBracket, eq(brackets.divisionId, divFromBracket.id))
+    .where(
+      and(
+        or(
+          eq(divFromPool.tournamentId, tournamentId),
+          eq(divFromBracket.tournamentId, tournamentId)
+        ),
+        isNotNull(matches.scheduledTime)
+      )
+    );
+
+  return (row?.value ?? 0) > 0;
 }
 
 export async function matchBelongsToTournament(

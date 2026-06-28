@@ -43,6 +43,7 @@ import { PoolManager } from "./pool-manager";
 import { CourtManager } from "./court-manager";
 import { RegistrationList } from "./registration-list";
 import { getDivisionPlayData } from "./brackets/data";
+import { MatchBoard } from "./match-board";
 import { PoolView } from "./brackets/pool-view";
 import { PoolMatchFormatPanel } from "./brackets/pool-match-format-panel";
 import { BracketView } from "./brackets/bracket-view";
@@ -206,6 +207,16 @@ export default async function TournamentDetailPage({ params }: Props) {
   );
   const hasReleasedBracket = divisionPlayData.some(
     (d) => d.poolsReleasedAt != null && d.brackets.length > 0
+  );
+
+  // The Matches tab is a read-friendly board of every visible match. For
+  // participants, `divisionPlayData` already excludes unreleased divisions.
+  const showMatchesTab = divisionPlayData.some(
+    (d) =>
+      d.pools.some((p) => p.matches.length > 0) ||
+      d.brackets.some((b) =>
+        b.matches.some((m) => m.teamAName || m.teamBName)
+      )
   );
 
   const hasPoolPlayFormat = tournamentDivisions.some(
@@ -399,6 +410,9 @@ export default async function TournamentDetailPage({ params }: Props) {
           )}
           {showBracketTab && (
             <TabsTrigger value="bracket">Bracket</TabsTrigger>
+          )}
+          {showMatchesTab && (
+            <TabsTrigger value="matches">Matches</TabsTrigger>
           )}
         </TabsList>
 
@@ -612,8 +626,10 @@ export default async function TournamentDetailPage({ params }: Props) {
                               {pool.matches.length > 0 ? (
                                 <PoolView
                                   tournamentId={tournament.id}
+                                  slug={tournament.slug}
                                   pool={pool}
                                   canEditRefs={isOrganizer}
+                                  canEditSchedule={isOrganizer}
                                   tiebreakCriteria={tournament.poolTiebreakCriteria}
                                 />
                               ) : isOrganizer &&
@@ -712,7 +728,11 @@ export default async function TournamentDetailPage({ params }: Props) {
                       ) : (
                         <div className="space-y-4">
                           {div.brackets.map((bracket) => (
-                            <BracketView key={bracket.id} bracket={bracket} />
+                            <BracketView
+                              key={bracket.id}
+                              bracket={bracket}
+                              slug={tournament.slug}
+                            />
                           ))}
                         </div>
                       )}
@@ -721,6 +741,12 @@ export default async function TournamentDetailPage({ params }: Props) {
                 </Tabs>
               );
             })()}
+          </TabsContent>
+        )}
+
+        {showMatchesTab && (
+          <TabsContent value="matches" className="mt-4">
+            <MatchBoard slug={tournament.slug} divisions={divisionPlayData} />
           </TabsContent>
         )}
       </Tabs>

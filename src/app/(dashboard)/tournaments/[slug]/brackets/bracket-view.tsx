@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatBracketTypeLabel } from "@/lib/labels/bracket";
@@ -23,7 +24,13 @@ interface Bracket {
   matches: BracketMatch[];
 }
 
-export function BracketView({ bracket }: { bracket: Bracket }) {
+export function BracketView({
+  bracket,
+  slug,
+}: {
+  bracket: Bracket;
+  slug: string;
+}) {
   const rounds = new Map<number, BracketMatch[]>();
   for (const match of bracket.matches) {
     const round = match.bracketRound ?? 1;
@@ -68,9 +75,10 @@ export function BracketView({ bracket }: { bracket: Bracket }) {
                 style={{ minHeight: `${roundMatches.length * 80}px` }}
               >
                 {roundMatches.map((match) => (
-                  <div
+                  <Link
                     key={match.id}
-                    className="w-48 rounded border bg-card overflow-hidden"
+                    href={`/tournaments/${slug}/matches/${match.id}`}
+                    className="block w-48 overflow-hidden rounded border bg-card transition-colors hover:border-primary/50 hover:bg-muted/40"
                   >
                     <MatchupSlot
                       name={match.teamAName}
@@ -81,7 +89,7 @@ export function BracketView({ bracket }: { bracket: Bracket }) {
                       name={match.teamBName}
                       isWinner={match.winnerId === match.teamBId && !!match.winnerId}
                     />
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>

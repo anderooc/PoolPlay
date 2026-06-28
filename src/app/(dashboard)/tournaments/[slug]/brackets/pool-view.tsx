@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { format as formatDate } from "date-fns";
+import { ArrowUpRight, Clock, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { MatchStartTimeEditor } from "../matches/match-start-time-editor";
 import {
   Select,
   SelectContent,
@@ -43,6 +46,7 @@ interface PoolMatch {
   refTeamId: string | null;
   winnerId: string | null;
   status: string;
+  scheduledTime: Date | string | null;
   teamA: { id: string; name: string } | null;
   teamB: { id: string; name: string } | null;
   ref: { id: string; name: string } | null;
@@ -60,13 +64,17 @@ const REF_NONE_VALUE = "";
 
 export function PoolView({
   tournamentId,
+  slug,
   pool,
   canEditRefs,
+  canEditSchedule = false,
   tiebreakCriteria,
 }: {
   tournamentId: string;
+  slug: string;
   pool: Pool;
   canEditRefs: boolean;
+  canEditSchedule?: boolean;
   tiebreakCriteria: Array<
     "match_record" | "set_record" | "point_diff" | "head_to_head"
   >;
@@ -236,6 +244,36 @@ export function PoolView({
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       Saving…
                     </div>
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3 shrink-0" />
+                    {match.scheduledTime
+                      ? formatDate(new Date(match.scheduledTime), "EEE h:mm a")
+                      : "No start time"}
+                  </span>
+                  <Link
+                    href={`/tournaments/${slug}/matches/${match.id}`}
+                    className="flex items-center gap-0.5 font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    Open
+                    <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                </div>
+                {canEditSchedule && (
+                  <div className="flex justify-start">
+                    <MatchStartTimeEditor
+                      matchId={match.id}
+                      scheduledTime={
+                        match.scheduledTime
+                          ? new Date(match.scheduledTime).toISOString()
+                          : null
+                      }
+                      triggerLabel={
+                        match.scheduledTime ? "Edit time" : "Set start time"
+                      }
+                    />
                   </div>
                 )}
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">

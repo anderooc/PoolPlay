@@ -33,6 +33,7 @@ export type DivisionPlayData = {
       refTeamId: string | null;
       winnerId: string | null;
       status: string;
+      scheduledTime: Date | null;
       teamA: { id: string; name: string } | null;
       teamB: { id: string; name: string } | null;
       ref: { id: string; name: string } | null;
@@ -54,6 +55,7 @@ export type DivisionPlayData = {
       bracketPosition: number | null;
       winnerId: string | null;
       status: string;
+      scheduledTime: Date | null;
     }[];
   }[];
   /** All confirmed registrations for the division, used for context. */
@@ -281,6 +283,7 @@ export async function getDivisionPlayData(
           refTeamId: m.refTeamId,
           winnerId: m.winnerId,
           status: m.status,
+          scheduledTime: m.scheduledTime,
           sets: setsByMatch.get(m.id) ?? [],
           teamA: teamA ? { id: teamA.id, name: teamA.name } : null,
           teamB: teamB ? { id: teamB.id, name: teamB.name } : null,
@@ -312,6 +315,7 @@ export async function getDivisionPlayData(
         bracketPosition: m.bracketPosition,
         winnerId: m.winnerId,
         status: m.status,
+        scheduledTime: m.scheduledTime,
       })),
     }));
 

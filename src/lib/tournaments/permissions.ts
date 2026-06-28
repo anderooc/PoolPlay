@@ -161,6 +161,29 @@ export function canScoreMatches(
   );
 }
 
+/**
+ * Who may run a single match's warmup/start/scorekeeping. The host always can
+ * (full control / fallback). Otherwise any member of the assigned ref team can,
+ * but only while the tournament is in progress.
+ */
+export function canRefereeMatch(
+  tournament: Pick<
+    TournamentForPermissions,
+    "organizerId" | "status" | "date"
+  >,
+  user: UserForPermissions,
+  match: { refTeamId: string | null },
+  userTeamIds: Iterable<string>
+): boolean {
+  if (isTournamentArchived(tournament.date)) return false;
+  if (isTournamentOrganizer(tournament, user)) return true;
+  if (tournament.status !== "in_progress") return false;
+  if (!match.refTeamId) return false;
+  const ids =
+    userTeamIds instanceof Set ? userTeamIds : new Set(userTeamIds);
+  return ids.has(match.refTeamId);
+}
+
 export function canCheckInRegistrations(
   tournament: TournamentForPermissions,
   user: UserForPermissions

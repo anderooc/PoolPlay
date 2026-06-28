@@ -347,6 +347,13 @@ export const matches = pgTable("matches", {
   bracketPosition: integer("bracket_position"),
   scheduledTime: timestamp("scheduled_time"),
   status: matchStatusEnum("status").default("upcoming").notNull(),
+  /** Set when the ref/host starts the pre-match warmup. Drives the warmup
+   * countdown; the match is in its "warmup" phase while this is set and
+   * `startedAt` / a non-upcoming status are not. */
+  warmupStartedAt: timestamp("warmup_started_at"),
+  /** Set when play actually begins (distinct from `scheduledTime`, which is the
+   * planned start). */
+  startedAt: timestamp("started_at"),
   winnerId: uuid("winner_id").references(() => teams.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
