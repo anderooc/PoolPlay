@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { matches, sets, teams, courts, teamMembers } from "@/lib/db/schema";
+import { sets, teams, courts, teamMembers } from "@/lib/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { BackLink } from "@/components/layout/back-link";
 import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
@@ -9,7 +9,8 @@ import {
   canRefereeMatch,
   isTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
-import { getMatchTournamentId } from "@/lib/tournaments/match-query";
+import { resolveMatchInTournament } from "@/lib/tournaments/match-query";
+import { isUuid } from "@/lib/tournaments/match-slug";
 import {
   getMatchDivisionIdMap,
   getUnreleasedDivisionIds,
@@ -17,7 +18,7 @@ import {
 import { MatchConsole } from "./match-console";
 
 interface Props {
-  params: Promise<{ slug: string; matchId: string }>;
+  params: Promise<{ slug: string; matchSlug: string }>;
 }
 
 async function loadTeam(teamId: string | null) {
@@ -31,22 +32,20 @@ async function loadTeam(teamId: string | null) {
 }
 
 export default async function MatchPage({ params }: Props) {
-  const { slug, matchId } = await params;
+  const { slug, matchSlug } = await params;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const tournament = await getTournamentBySlugIfVisible(slug, user);
   if (!tournament) notFound();
 
-  const [match] = await db
-    .select()
-    .from(matches)
-    .where(eq(matches.id, matchId))
-    .limit(1);
+  const match = await resolveMatchInTournament(tournament.id, matchSlug);
   if (!match) notFound();
 
-  const matchTournamentId = await getMatchTournamentId(match.id);
-  if (matchTournamentId !== tournament.id) notFound();
+  // Canonicalize legacy UUID links to the readable slug URL.
+  if (isUuid(matchSlug) && match.slug !== matchSlug) {
+    redirect(`/tournaments/${slug}/matches/${match.slug}`);
+  }
 
   const isOrganizer = isTournamentOrganizer(tournament, user);
 

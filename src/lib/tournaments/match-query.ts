@@ -7,6 +7,7 @@ import {
 } from "@/lib/db/schema";
 import { and, count, eq, isNotNull, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { isUuid } from "@/lib/tournaments/match-slug";
 
 const divFromPool = alias(divisions, "match_div_pool");
 const divFromBracket = alias(divisions, "match_div_bracket");
@@ -72,6 +73,7 @@ export async function getMatchTournamentId(
 ): Promise<string | null> {
   const [row] = await db
     .select({
+      tournamentId: matches.tournamentId,
       poolTournamentId: divFromPool.tournamentId,
       bracketTournamentId: divFromBracket.tournamentId,
     })
@@ -84,5 +86,50 @@ export async function getMatchTournamentId(
     .limit(1);
 
   if (!row) return null;
-  return row.poolTournamentId ?? row.bracketTournamentId ?? null;
+  return (
+    row.tournamentId ?? row.poolTournamentId ?? row.bracketTournamentId ?? null
+  );
+}
+
+/** Slugs already used in a tournament; optionally exclude specific match rows. */
+export async function getTakenMatchSlugsInTournament(
+  tournamentId: string,
+  excludeMatchIds: string[] = [],
+  client: typeof db = db
+): Promise<Set<string>> {
+  const exclude = new Set(excludeMatchIds);
+  const rows = await client
+    .select({ id: matches.id, slug: matches.slug })
+    .from(matches)
+    .where(eq(matches.tournamentId, tournamentId));
+
+  const taken = new Set<string>();
+  for (const row of rows) {
+    if (!exclude.has(row.id)) taken.add(row.slug);
+  }
+  return taken;
+}
+
+/** Resolve a match by URL slug or legacy UUID within a tournament. */
+export async function resolveMatchInTournament(
+  tournamentId: string,
+  slugOrId: string
+) {
+  if (isUuid(slugOrId)) {
+    const [row] = await db
+      .select()
+      .from(matches)
+      .where(and(eq(matches.id, slugOrId), eq(matches.tournamentId, tournamentId)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  const [row] = await db
+    .select()
+    .from(matches)
+    .where(
+      and(eq(matches.tournamentId, tournamentId), eq(matches.slug, slugOrId))
+    )
+    .limit(1);
+  return row ?? null;
 }

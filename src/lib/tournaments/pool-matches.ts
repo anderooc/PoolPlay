@@ -1,7 +1,14 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { matches, poolTeams } from "@/lib/db/schema";
+import { divisions, matches, poolTeams, pools, teams } from "@/lib/db/schema";
 import { assignRefsToMatchups, generatePoolMatches } from "@/lib/utils/pool";
+import {
+  getTakenMatchSlugsInTournament,
+} from "@/lib/tournaments/match-query";
+import {
+  matchupSlugFromTeamSlugs,
+  reserveMatchSlug,
+} from "@/lib/tournaments/match-slug";
 
 type DbClient = typeof db;
 
@@ -40,11 +47,50 @@ export async function regeneratePoolMatchesFromSeeds(
     await client.delete(matches).where(eq(matches.poolId, poolId));
   }
 
+  const [poolRow] = await client
+    .select({ divisionId: pools.divisionId })
+    .from(pools)
+    .where(eq(pools.id, poolId))
+    .limit(1);
+  if (!poolRow) return { error: "Pool not found" };
+
+  const [division] = await client
+    .select({ tournamentId: divisions.tournamentId })
+    .from(divisions)
+    .where(eq(divisions.id, poolRow.divisionId))
+    .limit(1);
+  if (!division) return { error: "Division not found" };
+
   const teamIds = members.map((m) => m.teamId);
+  const teamSlugRows =
+    teamIds.length > 0
+      ? await client
+          .select({ id: teams.id, slug: teams.slug })
+          .from(teams)
+          .where(inArray(teams.id, teamIds))
+      : [];
+  const slugByTeamId = new Map(teamSlugRows.map((t) => [t.id, t.slug]));
+
+  const taken = await getTakenMatchSlugsInTournament(
+    division.tournamentId,
+    [],
+    client
+  );
+
   const matchups = assignRefsToMatchups(teamIds, generatePoolMatches(teamIds));
 
   for (const matchup of matchups) {
+    const teamASlug = slugByTeamId.get(matchup.teamAId);
+    const teamBSlug = slugByTeamId.get(matchup.teamBId);
+    const base =
+      teamASlug && teamBSlug
+        ? matchupSlugFromTeamSlugs(teamASlug, teamBSlug)
+        : "match";
+    const slug = reserveMatchSlug(base, taken);
+
     await client.insert(matches).values({
+      tournamentId: division.tournamentId,
+      slug,
       poolId,
       teamAId: matchup.teamAId,
       teamBId: matchup.teamBId,

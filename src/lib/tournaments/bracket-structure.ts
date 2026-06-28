@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   brackets,
@@ -6,6 +6,7 @@ import {
   matches,
   poolTeams,
   sets,
+  teams,
   tournaments,
 } from "@/lib/db/schema";
 import {
@@ -17,6 +18,12 @@ import {
 import { calculatePoolStandings } from "@/lib/utils/pool";
 import { ensureDivisionAutoPool } from "./division-pools";
 import { isPoolPlayComplete } from "./pool-matches";
+import { getTakenMatchSlugsInTournament } from "@/lib/tournaments/match-query";
+import {
+  bracketPlaceholderSlug,
+  matchupSlugFromTeamSlugs,
+  reserveMatchSlug,
+} from "@/lib/tournaments/match-slug";
 
 type DbClient = typeof db;
 
@@ -46,6 +53,13 @@ export async function ensureDivisionBracketSkeleton(
 
   if (existing.length > 0) return;
 
+  const [division] = await client
+    .select({ tournamentId: divisions.tournamentId })
+    .from(divisions)
+    .where(eq(divisions.id, divisionId))
+    .limit(1);
+  if (!division) return;
+
   const slots = bracketSlotCount(teamCap);
   const bracketType =
     format === "double_elimination"
@@ -63,43 +77,25 @@ export async function ensureDivisionBracketSkeleton(
 
   if (!bracket) return;
 
-  if (format === "double_elimination") {
-    const { winners, losers, grandFinal } =
-      createEmptyDoubleEliminationBracket(slots);
-    for (const m of winners) {
-      await client.insert(matches).values({
-        bracketId: bracket.id,
-        teamAId: m.teamAId,
-        teamBId: m.teamBId,
-        bracketRound: m.round,
-        bracketPosition: m.position,
-        status: "upcoming",
-      });
-    }
-    for (const m of losers) {
-      await client.insert(matches).values({
-        bracketId: bracket.id,
-        teamAId: m.teamAId,
-        teamBId: m.teamBId,
-        bracketRound: m.round,
-        bracketPosition: m.position,
-        status: "upcoming",
-      });
-    }
-    await client.insert(matches).values({
-      bracketId: bracket.id,
-      teamAId: grandFinal.teamAId,
-      teamBId: grandFinal.teamBId,
-      bracketRound: grandFinal.round,
-      bracketPosition: grandFinal.position,
-      status: "upcoming",
-    });
-    return;
-  }
+  const taken = await getTakenMatchSlugsInTournament(
+    division.tournamentId,
+    [],
+    client
+  );
 
-  const skeleton = createEmptySingleEliminationBracket(slots);
-  for (const m of skeleton) {
+  async function insertBracketMatch(m: {
+    teamAId: string | null;
+    teamBId: string | null;
+    round: number;
+    position: number;
+  }) {
+    const slug = reserveMatchSlug(
+      bracketPlaceholderSlug(m.round, m.position),
+      taken
+    );
     await client.insert(matches).values({
+      tournamentId: division.tournamentId,
+      slug,
       bracketId: bracket.id,
       teamAId: m.teamAId,
       teamBId: m.teamBId,
@@ -107,6 +103,24 @@ export async function ensureDivisionBracketSkeleton(
       bracketPosition: m.position,
       status: "upcoming",
     });
+  }
+
+  if (format === "double_elimination") {
+    const { winners, losers, grandFinal } =
+      createEmptyDoubleEliminationBracket(slots);
+    for (const m of winners) {
+      await insertBracketMatch(m);
+    }
+    for (const m of losers) {
+      await insertBracketMatch(m);
+    }
+    await insertBracketMatch(grandFinal);
+    return;
+  }
+
+  const skeleton = createEmptySingleEliminationBracket(slots);
+  for (const m of skeleton) {
+    await insertBracketMatch(m);
   }
 }
 
@@ -161,15 +175,58 @@ export async function fillBracketRoundOne(
     return { error: "Bracket structure does not match team count" };
   }
 
+  const [bracketRow] = await client
+    .select({ tournamentId: matches.tournamentId })
+    .from(matches)
+    .where(eq(matches.bracketId, bracketId))
+    .limit(1);
+  if (!bracketRow) return { error: "Bracket not found" };
+
+  const teamIds = [
+    ...new Set(
+      roundOne
+        .flatMap((s) => [s.teamAId, s.teamBId])
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  const teamSlugRows =
+    teamIds.length > 0
+      ? await client
+          .select({ id: teams.id, slug: teams.slug })
+          .from(teams)
+          .where(inArray(teams.id, teamIds))
+      : [];
+  const slugByTeamId = new Map(teamSlugRows.map((t) => [t.id, t.slug]));
+
   for (let i = 0; i < existing.length; i++) {
     const slot = roundOne[i];
+    const matchId = existing[i].id;
+
+    let slug: string | undefined;
+    if (slot.teamAId && slot.teamBId) {
+      const teamASlug = slugByTeamId.get(slot.teamAId);
+      const teamBSlug = slugByTeamId.get(slot.teamBId);
+      if (teamASlug && teamBSlug) {
+        const taken = await getTakenMatchSlugsInTournament(
+          bracketRow.tournamentId,
+          [matchId],
+          client
+        );
+        slug = reserveMatchSlug(
+          matchupSlugFromTeamSlugs(teamASlug, teamBSlug),
+          taken
+        );
+      }
+    }
+
     await client
       .update(matches)
       .set({
         teamAId: slot.teamAId,
         teamBId: slot.teamBId,
+        ...(slug ? { slug } : {}),
       })
-      .where(eq(matches.id, existing[i].id));
+      .where(eq(matches.id, matchId));
   }
 
   await client

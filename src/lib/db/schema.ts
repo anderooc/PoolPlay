@@ -327,37 +327,49 @@ export const courtDivisions = pgTable(
   (t) => [primaryKey({ columns: [t.courtId, t.divisionId] })]
 );
 
-export const matches = pgTable("matches", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  poolId: uuid("pool_id").references(() => pools.id, { onDelete: "set null" }),
-  bracketId: uuid("bracket_id").references(() => brackets.id, {
-    onDelete: "set null",
-  }),
-  courtId: uuid("court_id").references(() => courts.id, {
-    onDelete: "set null",
-  }),
-  teamAId: uuid("team_a_id").references(() => teams.id),
-  teamBId: uuid("team_b_id").references(() => teams.id),
-  /** Working team responsible for reffing this match. Defaults to a lower-seeded
-   * pool team that is not playing; host can override. */
-  refTeamId: uuid("ref_team_id").references(() => teams.id, {
-    onDelete: "set null",
-  }),
-  bracketRound: integer("bracket_round"),
-  bracketPosition: integer("bracket_position"),
-  scheduledTime: timestamp("scheduled_time"),
-  status: matchStatusEnum("status").default("upcoming").notNull(),
-  /** Set when the ref/host starts the pre-match warmup. Drives the warmup
-   * countdown; the match is in its "warmup" phase while this is set and
-   * `startedAt` / a non-upcoming status are not. */
-  warmupStartedAt: timestamp("warmup_started_at"),
-  /** Set when play actually begins (distinct from `scheduledTime`, which is the
-   * planned start). */
-  startedAt: timestamp("started_at"),
-  winnerId: uuid("winner_id").references(() => teams.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const matches = pgTable(
+  "matches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Denormalized for slug uniqueness and tournament-scoped queries. */
+    tournamentId: uuid("tournament_id")
+      .references(() => tournaments.id, { onDelete: "cascade" })
+      .notNull(),
+    /** URL segment under `/tournaments/{slug}/matches/…`, unique per tournament. */
+    slug: text("slug").notNull(),
+    poolId: uuid("pool_id").references(() => pools.id, { onDelete: "set null" }),
+    bracketId: uuid("bracket_id").references(() => brackets.id, {
+      onDelete: "set null",
+    }),
+    courtId: uuid("court_id").references(() => courts.id, {
+      onDelete: "set null",
+    }),
+    teamAId: uuid("team_a_id").references(() => teams.id),
+    teamBId: uuid("team_b_id").references(() => teams.id),
+    /** Working team responsible for reffing this match. Defaults to a lower-seeded
+     * pool team that is not playing; host can override. */
+    refTeamId: uuid("ref_team_id").references(() => teams.id, {
+      onDelete: "set null",
+    }),
+    bracketRound: integer("bracket_round"),
+    bracketPosition: integer("bracket_position"),
+    scheduledTime: timestamp("scheduled_time"),
+    status: matchStatusEnum("status").default("upcoming").notNull(),
+    /** Set when the ref/host starts the pre-match warmup. Drives the warmup
+     * countdown; the match is in its "warmup" phase while this is set and
+     * `startedAt` / a non-upcoming status are not. */
+    warmupStartedAt: timestamp("warmup_started_at"),
+    /** Set when play actually begins (distinct from `scheduledTime`, which is the
+     * planned start). */
+    startedAt: timestamp("started_at"),
+    winnerId: uuid("winner_id").references(() => teams.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("matches_tournament_slug_unique").on(t.tournamentId, t.slug),
+  ]
+);
 
 export const sets = pgTable("sets", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -511,6 +523,10 @@ export const courtDivisionsRelations = relations(courtDivisions, ({ one }) => ({
 }));
 
 export const matchesRelations = relations(matches, ({ one, many }) => ({
+  tournament: one(tournaments, {
+    fields: [matches.tournamentId],
+    references: [tournaments.id],
+  }),
   pool: one(pools, { fields: [matches.poolId], references: [pools.id] }),
   bracket: one(brackets, {
     fields: [matches.bracketId],

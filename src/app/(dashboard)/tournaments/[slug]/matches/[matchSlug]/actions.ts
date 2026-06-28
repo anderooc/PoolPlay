@@ -102,7 +102,7 @@ export async function startWarmup(matchId: string) {
     .set({ warmupStartedAt: new Date(), updatedAt: new Date() })
     .where(eq(matches.id, matchId));
 
-  revalidatePath(`/tournaments/[slug]/matches/[matchId]`, "page");
+  revalidatePath(`/tournaments/[slug]/matches/[matchSlug]`, "page");
   revalidatePath("/tournaments/[slug]", "page");
   return { success: true as const };
 }
@@ -126,7 +126,7 @@ export async function startMatch(matchId: string) {
     })
     .where(eq(matches.id, matchId));
 
-  revalidatePath(`/tournaments/[slug]/matches/[matchId]`, "page");
+  revalidatePath(`/tournaments/[slug]/matches/[matchSlug]`, "page");
   revalidatePath("/tournaments/[slug]", "page");
   return { success: true as const };
 }
@@ -232,7 +232,7 @@ export async function saveSetScore(formData: FormData) {
     }
   }
 
-  revalidatePath(`/tournaments/[slug]/matches/[matchId]`, "page");
+  revalidatePath(`/tournaments/[slug]/matches/[matchSlug]`, "page");
   revalidatePath("/tournaments/[slug]", "page");
   return { success: true as const };
 }
@@ -257,7 +257,7 @@ export async function finalizeMatch(matchId: string, winnerId: string | null) {
     await tryFillBracketFromPoolPlay(row.divisionId);
   }
 
-  revalidatePath(`/tournaments/[slug]/matches/[matchId]`, "page");
+  revalidatePath(`/tournaments/[slug]/matches/[matchSlug]`, "page");
   revalidatePath("/tournaments/[slug]", "page");
   return { success: true as const };
 }
@@ -275,7 +275,7 @@ export async function reopenMatch(matchId: string) {
     .set({ status: "in_progress", winnerId: null, updatedAt: new Date() })
     .where(eq(matches.id, matchId));
 
-  revalidatePath(`/tournaments/[slug]/matches/[matchId]`, "page");
+  revalidatePath(`/tournaments/[slug]/matches/[matchSlug]`, "page");
   revalidatePath("/tournaments/[slug]", "page");
   return { success: true as const };
 }
@@ -316,7 +316,7 @@ export async function updateMatchScheduledTime(
     .set({ scheduledTime, updatedAt: new Date() })
     .where(eq(matches.id, matchId));
 
-  revalidatePath(`/tournaments/[slug]/matches/[matchId]`, "page");
+  revalidatePath(`/tournaments/[slug]/matches/[matchSlug]`, "page");
   revalidatePath("/tournaments/[slug]", "page");
   return { success: true as const };
 }

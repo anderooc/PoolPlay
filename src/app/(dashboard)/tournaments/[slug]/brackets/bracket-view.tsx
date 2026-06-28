@@ -7,6 +7,7 @@ import { formatBracketTypeLabel } from "@/lib/labels/bracket";
 
 interface BracketMatch {
   id: string;
+  slug: string;
   teamAId: string | null;
   teamBId: string | null;
   teamAName: string | null;
@@ -77,7 +78,7 @@ export function BracketView({
                 {roundMatches.map((match) => (
                   <Link
                     key={match.id}
-                    href={`/tournaments/${slug}/matches/${match.id}`}
+                    href={`/tournaments/${slug}/matches/${match.slug}`}
                     className="block w-48 overflow-hidden rounded border bg-card transition-colors hover:border-primary/50 hover:bg-muted/40"
                   >
                     <MatchupSlot

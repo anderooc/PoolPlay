@@ -28,6 +28,7 @@ export type DivisionPlayData = {
     }[];
     matches: {
       id: string;
+      slug: string;
       teamAId: string | null;
       teamBId: string | null;
       refTeamId: string | null;
@@ -47,6 +48,7 @@ export type DivisionPlayData = {
     seedCount: number;
     matches: {
       id: string;
+      slug: string;
       teamAId: string | null;
       teamBId: string | null;
       teamAName: string | null;
@@ -278,6 +280,7 @@ export async function getDivisionPlayData(
           : null;
         return {
           id: m.id,
+          slug: m.slug,
           teamAId: m.teamAId,
           teamBId: m.teamBId,
           refTeamId: m.refTeamId,
@@ -307,6 +310,7 @@ export async function getDivisionPlayData(
       seedCount: bracket.seedCount,
       matches: (matchesByBracket.get(bracket.id) ?? []).map((m) => ({
         id: m.id,
+        slug: m.slug,
         teamAId: m.teamAId,
         teamBId: m.teamBId,
         teamAName: m.teamAId ? (bracketTeamName.get(m.teamAId) ?? null) : null,

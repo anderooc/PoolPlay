@@ -8,6 +8,7 @@ import type { DivisionPlayData } from "./brackets/data";
 
 interface BoardMatch {
   id: string;
+  slug: string;
   status: string;
   scheduledTime: Date | null;
   label: string;
@@ -26,6 +27,7 @@ function flattenMatches(divisions: DivisionPlayData[]): BoardMatch[] {
       for (const m of pool.matches) {
         out.push({
           id: m.id,
+          slug: m.slug,
           status: m.status,
           scheduledTime: m.scheduledTime,
           label: `${m.teamA?.name ?? "TBD"} vs ${m.teamB?.name ?? "TBD"}`,
@@ -43,6 +45,7 @@ function flattenMatches(divisions: DivisionPlayData[]): BoardMatch[] {
         if (!m.teamAName && !m.teamBName) continue;
         out.push({
           id: m.id,
+          slug: m.slug,
           status: m.status,
           scheduledTime: m.scheduledTime,
           label: `${m.teamAName ?? "TBD"} vs ${m.teamBName ?? "TBD"}`,
@@ -68,7 +71,7 @@ function sortByTime(a: BoardMatch, b: BoardMatch): number {
 function MatchRow({ slug, match }: { slug: string; match: BoardMatch }) {
   return (
     <Link
-      href={`/tournaments/${slug}/matches/${match.id}`}
+      href={`/tournaments/${slug}/matches/${match.slug}`}
       className="flex items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3 transition-colors hover:border-primary/50 hover:bg-muted/40"
     >
       <div className="min-w-0">

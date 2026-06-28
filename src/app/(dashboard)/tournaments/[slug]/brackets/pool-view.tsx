@@ -41,6 +41,7 @@ interface MatchSet {
 
 interface PoolMatch {
   id: string;
+  slug: string;
   teamAId: string | null;
   teamBId: string | null;
   refTeamId: string | null;
@@ -254,7 +255,7 @@ export function PoolView({
                       : "No start time"}
                   </span>
                   <Link
-                    href={`/tournaments/${slug}/matches/${match.id}`}
+                    href={`/tournaments/${slug}/matches/${match.slug}`}
                     className="flex items-center gap-0.5 font-medium text-primary underline-offset-4 hover:underline"
                   >
                     Open
