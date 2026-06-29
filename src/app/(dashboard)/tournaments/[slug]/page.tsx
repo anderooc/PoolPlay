@@ -746,7 +746,15 @@ export default async function TournamentDetailPage({ params }: Props) {
 
         {showMatchesTab && (
           <TabsContent value="matches" className="mt-4">
-            <MatchBoard slug={tournament.slug} divisions={divisionPlayData} />
+            <MatchBoard
+              slug={tournament.slug}
+              divisions={divisionPlayData}
+              settings={{
+                format: tournament.matchFormat,
+                targetScore: tournament.setTargetScore,
+                tiebreakTargetScore: tournament.tiebreakTargetScore,
+              }}
+            />
           </TabsContent>
         )}
       </Tabs>

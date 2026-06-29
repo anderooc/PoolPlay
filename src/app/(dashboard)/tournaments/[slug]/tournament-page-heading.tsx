@@ -462,15 +462,6 @@ export function TournamentPageHeading({
             Add / register teams
           </Link>
         )}
-        <Link
-          href={`/tournaments/${slug}/scoring`}
-          className={buttonVariants({
-            variant: "outline",
-            size: compact ? "sm" : "default",
-          })}
-        >
-          Live Scoring
-        </Link>
         <StatusControls
           tournamentId={tournamentId}
           currentStatus={status}

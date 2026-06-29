@@ -58,6 +58,7 @@ export type DivisionPlayData = {
       winnerId: string | null;
       status: string;
       scheduledTime: Date | null;
+      sets: { teamAScore: number; teamBScore: number }[];
     }[];
   }[];
   /** All confirmed registrations for the division, used for context. */
@@ -165,6 +166,9 @@ export async function getDivisionPlayData(
   ]);
 
   const poolMatchIds = poolMatchRows.map((m) => m.id);
+  const bracketMatchIds = bracketMatchRows.map((m) => m.id);
+  // Sets back both the pool and bracket match cards on the Matches board.
+  const setMatchIds = [...poolMatchIds, ...bracketMatchIds];
   const bracketTeamIds = [
     ...new Set(
       bracketMatchRows
@@ -174,11 +178,11 @@ export async function getDivisionPlayData(
   ];
 
   const [setRows, bracketTeamRows] = await Promise.all([
-    poolMatchIds.length
+    setMatchIds.length
       ? db
           .select()
           .from(sets)
-          .where(inArray(sets.matchId, poolMatchIds))
+          .where(inArray(sets.matchId, setMatchIds))
           .orderBy(asc(sets.setNumber))
       : Promise.resolve([]),
     bracketTeamIds.length
@@ -320,6 +324,7 @@ export async function getDivisionPlayData(
         winnerId: m.winnerId,
         status: m.status,
         scheduledTime: m.scheduledTime,
+        sets: setsByMatch.get(m.id) ?? [],
       })),
     }));
 
