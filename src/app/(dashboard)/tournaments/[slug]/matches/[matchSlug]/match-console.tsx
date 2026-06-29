@@ -39,7 +39,7 @@ import {
   saveSetScore,
   finalizeMatch,
   reopenMatch,
-} from "./actions";
+} from "../actions";
 import { MatchStartTimeEditor } from "../match-start-time-editor";
 
 interface ConsoleMatch {

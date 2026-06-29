@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { updateMatchScheduledTime } from "./[matchSlug]/actions";
+import { updateMatchScheduledTime } from "./actions";
 
 /** Convert an ISO string to a value usable by <input type="datetime-local">. */
 function toLocalInput(iso: string | null): string {

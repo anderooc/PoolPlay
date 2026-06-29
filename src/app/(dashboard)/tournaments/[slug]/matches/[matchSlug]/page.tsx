@@ -1,19 +1,19 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { sets, teams, courts, teamMembers } from "@/lib/db/schema";
+import { divisions, sets, teams, courts, teamMembers } from "@/lib/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { BackLink } from "@/components/layout/back-link";
 import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import {
   canRefereeMatch,
+  canViewDivisionPoolPlay,
   isTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
 import { resolveMatchInTournament } from "@/lib/tournaments/match-query";
 import { isUuid } from "@/lib/tournaments/match-slug";
 import {
   getMatchDivisionIdMap,
-  getUnreleasedDivisionIds,
 } from "@/lib/tournaments/unreleased-divisions";
 import { MatchConsole } from "./match-console";
 
@@ -32,7 +32,8 @@ async function loadTeam(teamId: string | null) {
 }
 
 export default async function MatchPage({ params }: Props) {
-  const { slug, matchSlug } = await params;
+  const { slug, matchSlug: rawMatchSlug } = await params;
+  const matchSlug = decodeURIComponent(rawMatchSlug).trim();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -49,13 +50,23 @@ export default async function MatchPage({ params }: Props) {
 
   const isOrganizer = isTournamentOrganizer(tournament, user);
 
-  if (!isOrganizer) {
-    const [unreleased, divisionByMatch] = await Promise.all([
-      getUnreleasedDivisionIds(tournament.id),
-      getMatchDivisionIdMap(tournament.id),
-    ]);
-    const divisionId = divisionByMatch.get(match.id);
-    if (divisionId && unreleased.has(divisionId)) notFound();
+  const divisionByMatch = await getMatchDivisionIdMap(tournament.id);
+  const divisionId = divisionByMatch.get(match.id);
+  if (divisionId) {
+    const [division] = await db
+      .select({ poolsReleasedAt: divisions.poolsReleasedAt })
+      .from(divisions)
+      .where(eq(divisions.id, divisionId))
+      .limit(1);
+    if (
+      !canViewDivisionPoolPlay(
+        tournament,
+        user,
+        division?.poolsReleasedAt ?? null
+      )
+    ) {
+      notFound();
+    }
   }
 
   const [teamA, teamB, refTeam, courtRow, matchSets, memberRows] =

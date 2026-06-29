@@ -5,7 +5,7 @@ import {
   brackets,
   divisions,
 } from "@/lib/db/schema";
-import { and, count, eq, isNotNull, or } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { isUuid } from "@/lib/tournaments/match-slug";
 
@@ -115,21 +115,43 @@ export async function resolveMatchInTournament(
   tournamentId: string,
   slugOrId: string
 ) {
-  if (isUuid(slugOrId)) {
-    const [row] = await db
+  const key = slugOrId.trim();
+
+  if (isUuid(key)) {
+    const [byDenorm] = await db
       .select()
       .from(matches)
-      .where(and(eq(matches.id, slugOrId), eq(matches.tournamentId, tournamentId)))
+      .where(and(eq(matches.id, key), eq(matches.tournamentId, tournamentId)))
       .limit(1);
-    return row ?? null;
+    if (byDenorm) return byDenorm;
+
+    const tournamentMatchIds = await getTournamentMatchIds(tournamentId);
+    if (!tournamentMatchIds.includes(key)) return null;
+
+    const [byId] = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, key))
+      .limit(1);
+    return byId ?? null;
   }
 
-  const [row] = await db
+  const [byDenorm] = await db
     .select()
     .from(matches)
-    .where(
-      and(eq(matches.tournamentId, tournamentId), eq(matches.slug, slugOrId))
-    )
+    .where(and(eq(matches.tournamentId, tournamentId), eq(matches.slug, key)))
     .limit(1);
-  return row ?? null;
+  if (byDenorm) return byDenorm;
+
+  // Fallback when denormalized tournament_id is stale but the match still
+  // belongs to this tournament via its pool/bracket division.
+  const tournamentMatchIds = await getTournamentMatchIds(tournamentId);
+  if (tournamentMatchIds.length === 0) return null;
+
+  const [byDivision] = await db
+    .select()
+    .from(matches)
+    .where(and(inArray(matches.id, tournamentMatchIds), eq(matches.slug, key)))
+    .limit(1);
+  return byDivision ?? null;
 }
