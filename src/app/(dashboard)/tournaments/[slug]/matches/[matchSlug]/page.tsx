@@ -109,6 +109,7 @@ export default async function MatchPage({ params }: Props) {
       <MatchConsole
         slug={slug}
         tournamentId={tournament.id}
+        tournamentDate={tournament.date}
         match={{
           id: match.id,
           status: match.status,

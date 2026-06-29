@@ -66,6 +66,7 @@ const REF_NONE_VALUE = "";
 export function PoolView({
   tournamentId,
   slug,
+  tournamentDate,
   pool,
   canEditRefs,
   canEditSchedule = false,
@@ -73,6 +74,7 @@ export function PoolView({
 }: {
   tournamentId: string;
   slug: string;
+  tournamentDate: string;
   pool: Pool;
   canEditRefs: boolean;
   canEditSchedule?: boolean;
@@ -248,12 +250,24 @@ export function PoolView({
                   </div>
                 )}
                 <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3 shrink-0" />
-                    {match.scheduledTime
-                      ? formatDate(new Date(match.scheduledTime), "EEE h:mm a")
-                      : "No start time"}
-                  </span>
+                  {canEditSchedule ? (
+                    <MatchStartTimeEditor
+                      matchId={match.id}
+                      scheduledTime={
+                        match.scheduledTime
+                          ? new Date(match.scheduledTime).toISOString()
+                          : null
+                      }
+                      tournamentDate={tournamentDate}
+                    />
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3 shrink-0" />
+                      {match.scheduledTime
+                        ? formatDate(new Date(match.scheduledTime), "h:mm a")
+                        : "No start time"}
+                    </span>
+                  )}
                   <Link
                     href={`/tournaments/${slug}/matches/${match.slug}`}
                     className="flex items-center gap-0.5 font-medium text-primary underline-offset-4 hover:underline"
@@ -262,21 +276,6 @@ export function PoolView({
                     <ArrowUpRight className="h-3 w-3" />
                   </Link>
                 </div>
-                {canEditSchedule && (
-                  <div className="flex justify-start">
-                    <MatchStartTimeEditor
-                      matchId={match.id}
-                      scheduledTime={
-                        match.scheduledTime
-                          ? new Date(match.scheduledTime).toISOString()
-                          : null
-                      }
-                      triggerLabel={
-                        match.scheduledTime ? "Edit time" : "Set start time"
-                      }
-                    />
-                  </div>
-                )}
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                   <span
                     className={cn(

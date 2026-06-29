@@ -68,6 +68,7 @@ const SAVE_DEBOUNCE_MS = 1000;
 
 export function MatchConsole({
   slug,
+  tournamentDate,
   match,
   settings,
   canControl,
@@ -76,6 +77,7 @@ export function MatchConsole({
 }: {
   slug: string;
   tournamentId: string;
+  tournamentDate: string;
   match: ConsoleMatch;
   settings: ConsoleSettings;
   canControl: boolean;
@@ -218,11 +220,19 @@ export function MatchConsole({
                 {match.courtName}
               </span>
             )}
-            {match.scheduledTime && (
-              <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                {formatDate(new Date(match.scheduledTime), "EEE h:mm a")}
-              </span>
+            {isOrganizer ? (
+              <MatchStartTimeEditor
+                matchId={match.id}
+                scheduledTime={match.scheduledTime}
+                tournamentDate={tournamentDate}
+              />
+            ) : (
+              match.scheduledTime && (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" />
+                  {formatDate(new Date(match.scheduledTime), "h:mm a")}
+                </span>
+              )
             )}
             {match.refTeamName && (
               <span className="flex items-center gap-1">
@@ -242,14 +252,6 @@ export function MatchConsole({
               You&apos;re on the working/ref team for this match — you can run
               warmup, start play, and keep score.
             </p>
-          )}
-          {isOrganizer && (
-            <div className="self-start">
-              <MatchStartTimeEditor
-                matchId={match.id}
-                scheduledTime={match.scheduledTime}
-              />
-            </div>
           )}
         </CardHeader>
       </Card>

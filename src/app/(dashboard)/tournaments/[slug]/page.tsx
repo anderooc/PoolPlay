@@ -627,6 +627,7 @@ export default async function TournamentDetailPage({ params }: Props) {
                                 <PoolView
                                   tournamentId={tournament.id}
                                   slug={tournament.slug}
+                                  tournamentDate={tournament.date}
                                   pool={pool}
                                   canEditRefs={isOrganizer}
                                   canEditSchedule={isOrganizer}
