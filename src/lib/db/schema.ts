@@ -226,7 +226,7 @@ export const tournaments = pgTable("tournaments", {
   setTargetScore: integer("set_target_score").default(25).notNull(),
   /** Target score for the tiebreak third set (commonly 15). */
   tiebreakTargetScore: integer("tiebreak_target_score").default(15).notNull(),
-  /** Warmup convention used between matches. three_three_one = 3-3-1 (7 min). */
+  /** Warmup convention used between matches. three_three_one = 3-3-1-1 (8 min). */
   warmupFormat: warmupFormatEnum("warmup_format")
     .default("three_three_one")
     .notNull(),
