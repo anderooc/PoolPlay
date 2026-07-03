@@ -69,7 +69,7 @@ export default async function TeamsPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {userTeams.map((team) => (
             <Link key={team.id} href={`/teams/${team.slug}`}>
-              <Card className="h-full cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5">
+              <Card className="h-full cursor-pointer transition-colors duration-150 hover:bg-muted/30">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-lg leading-tight">

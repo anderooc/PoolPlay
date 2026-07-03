@@ -77,7 +77,7 @@ export default async function SchoolsPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((school) => (
             <Link key={school.id} href={`/schools/${school.slug}`}>
-              <Card className="h-full cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md">
+              <Card className="h-full cursor-pointer transition-colors duration-150 hover:bg-muted/30">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg leading-tight">
                     {school.name}

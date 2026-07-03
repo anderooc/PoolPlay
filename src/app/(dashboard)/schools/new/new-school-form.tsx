@@ -50,10 +50,12 @@ export function NewSchoolForm() {
     <div className="space-y-3">
       <BackLink href="/schools">All schools</BackLink>
       <div className="mx-auto max-w-lg">
-        <Card>
+        <Card className="shadow-sm shadow-primary/5">
           <CardHeader>
-            <CardTitle>Create school</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl font-semibold tracking-tight">
+              Create school
+            </CardTitle>
+            <CardDescription className="text-pretty">
               You&apos;ll be added as president. Add officers from the school
               page after creation; the school becomes eligible for verification
               once it has a president and at least one officer. Teams created

@@ -86,10 +86,12 @@ export function NewTeamForm({
     <div className="space-y-3">
       <SmartBackLink fallbackHref={backFallback}>Back</SmartBackLink>
       <div className="mx-auto max-w-lg">
-        <Card>
+        <Card className="shadow-sm shadow-primary/5">
           <CardHeader>
-            <CardTitle>Create team</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl font-semibold tracking-tight">
+              Create team
+            </CardTitle>
+            <CardDescription className="text-pretty">
               You&apos;ll be added as captain. Linking the team to a school
               lets you draw players from the school&apos;s master roster, and
               the team inherits the school&apos;s gender and region.
