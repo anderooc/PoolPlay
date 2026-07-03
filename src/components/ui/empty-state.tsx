@@ -9,6 +9,8 @@ interface EmptyStateProps {
   action?: React.ReactNode;
   className?: string;
   variant?: "card" | "inline";
+  /** Brand accent for the icon well. Defaults to primary. */
+  accent?: "primary" | "secondary";
 }
 
 export function EmptyState({
@@ -18,27 +20,46 @@ export function EmptyState({
   action,
   className,
   variant = "card",
+  accent = "primary",
 }: EmptyStateProps) {
+  const accentClasses =
+    accent === "primary"
+      ? "from-primary/15 to-primary/5 text-primary"
+      : "from-secondary/15 to-secondary/5 text-secondary";
+
   const inner = (
     <div
       className={cn(
-        "flex flex-col items-center justify-center text-center",
-        variant === "card" ? "py-10 px-6" : "py-6",
+        "relative flex flex-col items-center justify-center overflow-hidden text-center",
+        variant === "card" ? "px-6 py-12" : "py-8",
         className
       )}
     >
-      {Icon && (
-        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-          <Icon className="h-5 w-5" />
-        </div>
+      {variant === "card" && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 text-foreground/[0.05] bg-dot-grid [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,black,transparent)]"
+        />
       )}
-      <p className="text-sm font-medium text-foreground">{title}</p>
+      {Icon && (
+        <span
+          className={cn(
+            "mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br ring-1 ring-inset ring-border/60",
+            accentClasses
+          )}
+        >
+          <Icon className="h-5 w-5" aria-hidden />
+        </span>
+      )}
+      <p className="font-heading text-base font-semibold tracking-tight text-foreground">
+        {title}
+      </p>
       {description && (
-        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+        <p className="mt-1.5 max-w-sm text-pretty text-sm text-muted-foreground">
           {description}
         </p>
       )}
-      {action && <div className="mt-4">{action}</div>}
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 

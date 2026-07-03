@@ -30,11 +30,13 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0 space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-balance sm:text-3xl">
+        <h1 className="text-balance text-2xl font-bold tracking-tight sm:text-3xl">
           {title}
         </h1>
         {description && (
-          <p className="text-pretty text-muted-foreground">{description}</p>
+          <p className="text-pretty text-sm text-muted-foreground sm:text-base">
+            {description}
+          </p>
         )}
         {children}
       </div>
