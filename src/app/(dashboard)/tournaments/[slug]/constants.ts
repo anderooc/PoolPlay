@@ -30,11 +30,16 @@ export function parseTournamentTab(
   return DEFAULT_TOURNAMENT_TAB;
 }
 
-/** Tournament detail URL; setup omits `tab`. */
+/** Tournament detail URL; setup omits `tab`. Optional division/pool deep links. */
 export function tournamentTabUrl(
   slug: string,
-  tab: TournamentTabId = DEFAULT_TOURNAMENT_TAB
+  tab: TournamentTabId = DEFAULT_TOURNAMENT_TAB,
+  opts?: { division?: string; pool?: string }
 ): string {
-  if (tab === DEFAULT_TOURNAMENT_TAB) return `/tournaments/${slug}`;
-  return `/tournaments/${slug}?tab=${tab}`;
+  const params = new URLSearchParams();
+  if (tab !== DEFAULT_TOURNAMENT_TAB) params.set("tab", tab);
+  if (opts?.division) params.set("division", opts.division);
+  if (opts?.pool) params.set("pool", opts.pool);
+  const q = params.toString();
+  return q ? `/tournaments/${slug}?${q}` : `/tournaments/${slug}`;
 }

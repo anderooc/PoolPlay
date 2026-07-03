@@ -50,7 +50,7 @@ import { TournamentPanelSkeleton } from "./panels/panel-skeleton";
 
 interface Props {
   params: Promise<{ slug: string }>;
-  searchParams?: Promise<{ tab?: string }>;
+  searchParams?: Promise<{ tab?: string; division?: string; pool?: string }>;
 }
 
 export default async function TournamentDetailPage({
@@ -331,7 +331,12 @@ export default async function TournamentDetailPage({
           />
         )}
         {activeTab === "pool-play" && showPoolPlayTab && (
-          <TournamentPoolPlayPanel tournament={tournament} user={user} />
+          <TournamentPoolPlayPanel
+            tournament={tournament}
+            user={user}
+            initialDivisionId={sp.division ?? null}
+            focusPoolId={sp.pool ?? null}
+          />
         )}
         {activeTab === "bracket" && showBracketTab && (
           <TournamentBracketPanel tournament={tournament} user={user} />

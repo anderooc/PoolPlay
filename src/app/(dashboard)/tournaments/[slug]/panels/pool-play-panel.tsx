@@ -17,13 +17,20 @@ import { DivisionPoolRelease } from "../brackets/division-pool-release";
 import { PoolMatchFormatPanel } from "../brackets/pool-match-format-panel";
 import { PoolSeedingPanel } from "../brackets/pool-seeding-panel";
 import { PoolView } from "../brackets/pool-view";
+import { ScrollToPool } from "./scroll-to-pool";
 
 export async function TournamentPoolPlayPanel({
   tournament,
   user,
+  initialDivisionId = null,
+  focusPoolId = null,
 }: {
   tournament: InferSelectModel<typeof tournaments>;
   user: UserForPermissions;
+  /** Division tab to open when deep-linking from a match. */
+  initialDivisionId?: string | null;
+  /** Pool section to scroll into view when deep-linking from a match. */
+  focusPoolId?: string | null;
 }) {
   const isOrganizer = isTournamentOrganizer(tournament, user);
 
@@ -89,8 +96,15 @@ export async function TournamentPoolPlayPanel({
     return isOrganizer || d.pools.some((p) => p.matches.length > 0);
   });
 
+  const defaultDivisionId =
+    (initialDivisionId &&
+      eligibleDivisions.some((d) => d.id === initialDivisionId) &&
+      initialDivisionId) ||
+    eligibleDivisions[0]?.id;
+
   return (
     <div className="space-y-6">
+      {focusPoolId ? <ScrollToPool poolId={focusPoolId} /> : null}
       {isOrganizer && (
         <PoolMatchFormatPanel
           tournamentId={tournament.id}
@@ -116,7 +130,7 @@ export async function TournamentPoolPlayPanel({
           }
         />
       ) : (
-        <Tabs defaultValue={eligibleDivisions[0].id}>
+        <Tabs defaultValue={defaultDivisionId}>
           {eligibleDivisions.length > 1 && (
             <TabsList>
               {eligibleDivisions.map((div) => (
@@ -164,7 +178,11 @@ export async function TournamentPoolPlayPanel({
               ) : (
                 <div className="space-y-4">
                   {div.pools.map((pool) => (
-                    <div key={pool.id} className="space-y-4">
+                    <div
+                      key={pool.id}
+                      id={`pool-${pool.id}`}
+                      className="scroll-mt-4 space-y-4"
+                    >
                       {isOrganizer && div.format === "pool_to_bracket" && (
                         <PoolSeedingPanel
                           key={`${pool.id}-${pool.teams.map((t) => t.id).join(",")}`}

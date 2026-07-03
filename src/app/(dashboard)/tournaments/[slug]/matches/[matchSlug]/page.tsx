@@ -15,6 +15,7 @@ import { isUuid } from "@/lib/tournaments/match-slug";
 import {
   getMatchDivisionIdMap,
 } from "@/lib/tournaments/unreleased-divisions";
+import { tournamentTabUrl } from "../../constants";
 import { MatchConsole } from "./match-console";
 
 interface Props {
@@ -103,9 +104,19 @@ export default async function MatchPage({ params }: Props) {
     match.refTeamId != null &&
     userTeamIds.has(match.refTeamId);
 
+  const backHref =
+    match.poolId && divisionId
+      ? tournamentTabUrl(slug, "pool-play", {
+          division: divisionId,
+          pool: match.poolId,
+        })
+      : `/tournaments/${slug}`;
+  const backLabel =
+    match.poolId && divisionId ? "Back to pool" : "Back to tournament";
+
   return (
     <div className="space-y-6">
-      <BackLink href={`/tournaments/${slug}`}>Back to tournament</BackLink>
+      <BackLink href={backHref}>{backLabel}</BackLink>
       <MatchConsole
         slug={slug}
         tournamentId={tournament.id}
