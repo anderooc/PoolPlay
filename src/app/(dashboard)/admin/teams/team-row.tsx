@@ -4,9 +4,9 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
   Dialog,
@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dialog";
 import { AdminDialogContent } from "../admin-dialog-content";
 import {
-  CheckCircle2,
   ExternalLink,
   Loader2,
   Pencil,
@@ -33,7 +32,6 @@ import {
   adminRenameTeam,
   adminResetStandaloneTeamToPending,
 } from "../actions";
-import { TEAM_VERIFICATION_STATUS_LABELS } from "@/lib/constants/team";
 import type { TeamVerificationStatus } from "@/types";
 
 interface Props {
@@ -125,13 +123,6 @@ export function TeamRow({ team }: Props) {
     });
   }
 
-  const statusVariant =
-    team.verificationStatus === "verified"
-      ? "default"
-      : team.verificationStatus === "rejected"
-        ? "destructive"
-        : "secondary";
-
   return (
     <>
       <TableRow>
@@ -146,12 +137,10 @@ export function TeamRow({ team }: Props) {
         </TableCell>
         <TableCell className="text-muted-foreground">{team.university}</TableCell>
         <TableCell>
-          <Badge variant={statusVariant} className="gap-1">
-            {team.verificationStatus === "verified" && (
-              <CheckCircle2 className="h-3 w-3" />
-            )}
-            {TEAM_VERIFICATION_STATUS_LABELS[team.verificationStatus]}
-          </Badge>
+          <StatusBadge
+            kind="verification"
+            status={team.verificationStatus}
+          />
         </TableCell>
         <TableCell className="text-right tabular-nums">
           {team.memberCount}

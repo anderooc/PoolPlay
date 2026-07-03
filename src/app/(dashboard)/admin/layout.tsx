@@ -15,14 +15,14 @@ export default async function AdminLayout({
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-3">
-        <div className="rounded-md bg-primary/10 p-2 text-primary">
-          <ShieldAlert className="h-5 w-5" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-primary/15 to-primary/5 text-primary ring-1 ring-inset ring-border/60">
+          <ShieldAlert className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-balance text-2xl font-bold tracking-tight sm:text-3xl">
             Admin
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="text-pretty text-sm text-muted-foreground">
             Site-wide controls. Visible only to admins.
           </p>
         </div>

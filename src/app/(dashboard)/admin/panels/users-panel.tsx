@@ -51,7 +51,7 @@ export async function AdminUsersPanel({ page }: { page: number }) {
         </p>
       </div>
 
-      <div className="rounded-md border">
+      <div className="overflow-hidden rounded-md border border-border/80">
         <Table>
           <TableHeader>
             <TableRow>

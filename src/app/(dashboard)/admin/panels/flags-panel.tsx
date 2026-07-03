@@ -54,11 +54,11 @@ export async function AdminFlagsPanel({ page }: { page: number }) {
       </div>
 
       {total === 0 ? (
-        <p className="rounded-md border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-md border border-border/80 bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
           No flagged content yet.
         </p>
       ) : (
-        <div className="rounded-md border">
+        <div className="overflow-hidden rounded-md border border-border/80">
           <Table>
             <TableHeader>
               <TableRow>

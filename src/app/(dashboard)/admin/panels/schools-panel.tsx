@@ -81,7 +81,7 @@ export async function AdminSchoolsPanel({ page }: { page: number }) {
         </p>
       </div>
 
-      <div className="rounded-md border">
+      <div className="overflow-hidden rounded-md border border-border/80">
         <Table className="table-fixed">
           <colgroup>
             <col />

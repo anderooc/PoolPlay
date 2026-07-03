@@ -107,18 +107,26 @@ export async function AdminOverviewPanel() {
   return (
     <div className="space-y-8">
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {stats.map((s) => {
+        {stats.map((s, i) => {
           const Icon = s.icon;
+          const accent =
+            i % 2 === 0
+              ? "from-primary/15 to-primary/5 text-primary"
+              : "from-secondary/15 to-secondary/5 text-secondary";
           return (
             <Card key={s.label} size="sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-xs font-medium text-muted-foreground">
                   {s.label}
                 </CardTitle>
-                <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                <span
+                  className={`flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br ${accent} ring-1 ring-inset ring-border/60`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </span>
               </CardHeader>
               <CardContent className="pt-0 pb-4">
-                <div className="text-2xl font-bold tabular-nums tracking-tight">
+                <div className="font-heading text-2xl font-bold tabular-nums tracking-tight">
                   {s.value}
                 </div>
                 {s.hint && (
@@ -144,11 +152,11 @@ export async function AdminOverviewPanel() {
             {recentUsers.length === 0 ? (
               <p className="text-sm text-muted-foreground">No users yet.</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="list-stack">
                 {recentUsers.map((u) => (
                   <li
                     key={u.id}
-                    className="flex items-center justify-between gap-3 rounded-md border p-2 text-sm"
+                    className="list-row text-sm"
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium">{u.fullName}</p>
@@ -156,7 +164,7 @@ export async function AdminOverviewPanel() {
                         {u.email}
                       </p>
                     </div>
-                    <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-xs">
+                    <span className="shrink-0 rounded-full border bg-muted/40 px-2 py-0.5 text-xs">
                       {formatSnakeCaseLabel(u.role)}
                     </span>
                   </li>
@@ -181,11 +189,11 @@ export async function AdminOverviewPanel() {
                 No flagged content right now.
               </p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="list-stack">
                 {recentFlags.map((f) => (
                   <li
                     key={f.id}
-                    className="rounded-md border p-2 text-sm"
+                    className="px-1 py-3 text-sm"
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive">
