@@ -46,3 +46,6 @@ CLAUDE.md
 
 # Cursor IDE (local debug logs, etc.)
 .cursor/
+
+.agents/
+skills-lock.json
