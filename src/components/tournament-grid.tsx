@@ -115,7 +115,7 @@ function TournamentRow({
   linkPrefix: string;
 }) {
   return (
-    <div className="min-w-0 max-w-full rounded-lg border bg-card px-4 py-3.5 transition-colors hover:bg-muted/40">
+    <div className="min-w-0 max-w-full px-1 py-3.5 transition-colors duration-150 hover:bg-muted/40">
       <Link href={`${linkPrefix}/${t.slug}`} className="block min-w-0">
         <div className="flex items-start justify-between gap-3">
           <span className="min-w-0 truncate font-medium leading-tight">
@@ -409,7 +409,7 @@ function ChronologicalSchedule({
                         No tournaments scheduled.
                       </p>
                     ) : (
-                      <div className={cn("w-full space-y-2", SELECTED_PANEL_MIN_H)}>
+                      <div className={cn("list-stack w-full border-t border-border/70", SELECTED_PANEL_MIN_H)}>
                         {group.tournaments.map((t) => (
                           <TournamentRow
                             key={t.id}

@@ -325,9 +325,9 @@ export default async function TournamentDetailPage({ params }: Props) {
         />
       ) : (
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-balance text-2xl font-bold tracking-tight sm:text-3xl">
                 {tournament.name}
               </h1>
               <StatusBadge
@@ -337,7 +337,7 @@ export default async function TournamentDetailPage({ params }: Props) {
                 className="shrink-0"
               />
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
               <TournamentLocationLink
                 location={tournament.location}
                 address={tournament.address}
@@ -351,7 +351,7 @@ export default async function TournamentDetailPage({ params }: Props) {
                 {organizer?.fullName ?? "Unknown organizer"}
               </span>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <TeamAttributesBadges
                 gender={tournament.gender}
                 region={tournament.region}
@@ -359,7 +359,7 @@ export default async function TournamentDetailPage({ params }: Props) {
               <TournamentHostSchoolLink school={hostSchool} />
             </div>
             {tournament.description && (
-              <p className="mt-3 max-w-2xl whitespace-pre-wrap text-sm text-muted-foreground">
+              <p className="max-w-2xl whitespace-pre-wrap text-pretty text-sm text-muted-foreground">
                 {tournament.description}
               </p>
             )}
@@ -385,7 +385,7 @@ export default async function TournamentDetailPage({ params }: Props) {
       )}
 
       <Tabs defaultValue={defaultTab}>
-        <TabsList>
+        <TabsList className="h-auto max-w-full flex-wrap justify-start">
           <TabsTrigger value="setup">Setup</TabsTrigger>
           {showTeamsTab && (
             <TabsTrigger value="teams">

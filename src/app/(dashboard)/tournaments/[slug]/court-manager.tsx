@@ -240,7 +240,7 @@ export function CourtManager({
       {showForm && (
         <form
           action={handleAdd}
-          className="relative space-y-2 overflow-hidden rounded-lg border border-border bg-card/30 p-3"
+          className="relative space-y-2 overflow-hidden rounded-md border border-border/80 bg-card/30 p-3"
           style={{
             animation:
               "ui-enter-soft 300ms cubic-bezier(0.22, 1, 0.36, 1) both",

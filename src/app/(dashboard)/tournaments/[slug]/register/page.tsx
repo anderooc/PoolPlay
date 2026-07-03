@@ -49,9 +49,16 @@ export default async function RegisterPage({ params }: Props) {
           Back to tournament
         </BackLink>
         <div className="mx-auto max-w-lg">
-          <Card>
-            <CardContent className="py-10 text-center">
-              <p className="text-muted-foreground">
+          <Card className="relative overflow-hidden">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 text-foreground/[0.05] bg-dot-grid [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,black,transparent)]"
+            />
+            <CardContent className="relative py-12 text-center">
+              <p className="font-heading text-base font-semibold tracking-tight">
+                Registration closed
+              </p>
+              <p className="mt-1.5 text-pretty text-sm text-muted-foreground">
                 Registration is not currently open for this tournament.
               </p>
             </CardContent>

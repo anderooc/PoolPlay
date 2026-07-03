@@ -377,7 +377,7 @@ export function TournamentPageHeading({
           ) : (
             <h1
               className={cn(
-                "font-bold tracking-tight",
+                "text-balance font-bold tracking-tight",
                 compact ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"
               )}
             >

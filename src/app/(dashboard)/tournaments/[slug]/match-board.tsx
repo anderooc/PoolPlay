@@ -104,9 +104,9 @@ function MatchCard({
   return (
     <Link
       href={`/tournaments/${slug}/matches/${match.slug}`}
-      className="group block h-full rounded-xl outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/60"
+      className="group block h-full rounded-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/60"
     >
-      <Card className="h-full gap-0 py-0 transition-[box-shadow,background-color] group-hover:bg-muted/30 group-hover:ring-primary/40">
+      <Card className="h-full gap-0 py-0 transition-colors duration-150 group-hover:border-primary/35 group-hover:bg-muted/30">
         <CardHeader className="gap-2 p-4 pb-3">
           <div className="flex items-start justify-between gap-2">
             <h4 className="text-sm font-semibold leading-tight">
@@ -178,7 +178,7 @@ function MatchCard({
           ) : (
             <p className="mt-3 text-center text-xs text-muted-foreground">
               {match.status === "in_progress"
-                ? "In progress — no sets recorded yet"
+                ? "In progress, no sets recorded yet"
                 : "Not started"}
             </p>
           )}

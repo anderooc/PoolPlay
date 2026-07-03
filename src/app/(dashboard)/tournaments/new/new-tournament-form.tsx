@@ -54,15 +54,21 @@ export function NewTournamentForm({
     return (
       <div className="space-y-6">
         <BackLink href="/tournaments">All tournaments</BackLink>
-        <Card className="mx-auto max-w-lg">
-          <CardHeader>
-            <CardTitle>Join or create a school first</CardTitle>
-            <CardDescription>
+        <Card className="relative mx-auto max-w-lg overflow-hidden">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 text-foreground/[0.05] bg-dot-grid [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black,transparent)]"
+          />
+          <CardHeader className="relative">
+            <CardTitle className="text-xl font-semibold tracking-tight">
+              Join or create a school first
+            </CardTitle>
+            <CardDescription className="text-pretty">
               Tournaments are hosted by a school. You need to be a school
               president or officer, then return here to host an event.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
+          <CardContent className="relative flex flex-wrap gap-2">
             <Button render={<Link href="/schools/new" />}>Create school</Button>
             <Button variant="outline" render={<Link href="/schools" />}>
               Browse schools
@@ -78,10 +84,12 @@ export function NewTournamentForm({
       <BackLink href="/tournaments">All tournaments</BackLink>
 
       <div className="mx-auto max-w-lg">
-        <Card>
+        <Card className="shadow-sm shadow-primary/5">
           <CardHeader>
-            <CardTitle>Create tournament</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl font-semibold tracking-tight">
+              Create tournament
+            </CardTitle>
+            <CardDescription className="text-pretty">
               You&apos;ll be set as the organizer. Gender and region are
               inherited from your hosting school.
             </CardDescription>
@@ -90,7 +98,7 @@ export function NewTournamentForm({
             <form onSubmit={onSubmit} className="space-y-4" aria-busy={isPending}>
               <div className="space-y-2">
                 <Label>Hosting school</Label>
-                <div className="rounded-lg border bg-muted/30 px-3 py-2">
+                <div className="rounded-md border border-border/80 bg-muted/30 px-3 py-2">
                   <p className="text-sm font-medium">{hostSchool.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {hostSchool.university}

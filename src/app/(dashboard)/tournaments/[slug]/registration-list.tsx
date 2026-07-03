@@ -363,7 +363,7 @@ export function RegistrationList({
       <div
         key={reg.id}
         className={cn(
-          "relative flex flex-col gap-2 rounded-md border bg-background px-3 py-2 transition-opacity duration-150 sm:flex-row sm:items-center sm:justify-between sm:gap-3",
+          "relative flex flex-col gap-2 px-1 py-3 transition-[opacity,background-color] duration-150 sm:flex-row sm:items-center sm:justify-between sm:gap-3",
           isBusy && "opacity-60",
           isSelected && "border-primary/60 bg-primary/[0.04]"
         )}
@@ -542,11 +542,11 @@ export function RegistrationList({
             <section
               key={group.key}
               className={cn(
-                "overflow-hidden rounded-lg border",
+                "overflow-hidden rounded-md border border-border/80",
                 groupBusy && "opacity-80"
               )}
             >
-              <div className="flex flex-col gap-2 border-b bg-muted/30 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 border-b border-border/70 bg-muted/30 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     {group.registrations[0]?.schoolId ? (
@@ -581,7 +581,7 @@ export function RegistrationList({
                   </Button>
                 )}
               </div>
-              <div className="space-y-2 p-2">
+              <div className="list-stack px-2">
                 {group.registrations.map((reg) => renderRegistrationRow(reg))}
               </div>
             </section>
@@ -676,7 +676,7 @@ export function RegistrationList({
           {bulkError}
         </p>
       )}
-      <div className="space-y-3">
+      <div className="list-stack border-y border-border/70">
         {registrations.map((reg) => renderRegistrationRow(reg))}
       </div>
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
