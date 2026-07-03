@@ -80,21 +80,27 @@ export default async function DashboardPage() {
       />
 
       {isNewUser ? (
-        <Card className="border-dashed">
-          <CardContent className="py-10">
+        <Card className="relative overflow-hidden border-dashed">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 text-foreground/[0.05] bg-dot-grid [mask-image:radial-gradient(ellipse_70%_60%_at_50%_30%,black,transparent)]"
+          />
+          <CardContent className="relative py-10">
             <div className="mx-auto max-w-xl text-center">
-              <h2 className="text-xl font-semibold">Get started</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <h2 className="font-heading text-xl font-semibold tracking-tight">
+                Get started
+              </h2>
+              <p className="mt-2 text-pretty text-sm text-muted-foreground">
                 Create your first team, run a tournament, or explore what other
                 clubs are up to.
               </p>
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="mt-6 grid divide-y border border-border/80 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
                 <Link
                   href="/teams/new"
-                  className="group flex flex-col items-start gap-1 rounded-lg border p-4 text-left transition-colors hover:bg-muted/40"
+                  className="group flex flex-col items-start gap-1 p-4 text-left transition-colors duration-150 hover:bg-muted/40"
                 >
-                  <Users className="h-5 w-5 text-primary" />
-                  <span className="font-medium">Create a team</span>
+                  <Users className="h-4 w-4 text-primary" />
+                  <span className="mt-2 font-medium">Create a team</span>
                   <span className="text-xs text-muted-foreground">
                     Add your roster and set up invites.
                   </span>
@@ -105,10 +111,10 @@ export default async function DashboardPage() {
                 </Link>
                 <Link
                   href="/tournaments/new"
-                  className="group flex flex-col items-start gap-1 rounded-lg border p-4 text-left transition-colors hover:bg-muted/40"
+                  className="group flex flex-col items-start gap-1 p-4 text-left transition-colors duration-150 hover:bg-muted/40"
                 >
-                  <Trophy className="h-5 w-5 text-primary" />
-                  <span className="font-medium">Run a tournament</span>
+                  <Trophy className="h-4 w-4 text-primary" />
+                  <span className="mt-2 font-medium">Run a tournament</span>
                   <span className="text-xs text-muted-foreground">
                     Configure pools, courts, and brackets.
                   </span>
@@ -119,10 +125,10 @@ export default async function DashboardPage() {
                 </Link>
                 <Link
                   href="/explore"
-                  className="group flex flex-col items-start gap-1 rounded-lg border p-4 text-left transition-colors hover:bg-muted/40"
+                  className="group flex flex-col items-start gap-1 p-4 text-left transition-colors duration-150 hover:bg-muted/40"
                 >
-                  <Compass className="h-5 w-5 text-secondary" />
-                  <span className="font-medium">Browse tournaments</span>
+                  <Compass className="h-4 w-4 text-secondary" />
+                  <span className="mt-2 font-medium">Browse tournaments</span>
                   <span className="text-xs text-muted-foreground">
                     See what&apos;s happening across clubs.
                   </span>
@@ -179,12 +185,12 @@ export default async function DashboardPage() {
                 description="Create a team to manage your roster and register for tournaments."
               />
             ) : (
-              <div className="space-y-2">
+              <div className="list-stack">
                 {userTeams.map((team) => (
                   <Link
                     key={team.id}
                     href={`/teams/${team.slug}`}
-                    className="flex items-center justify-between rounded-md border p-3 transition-colors hover:bg-muted/40"
+                    className="list-row"
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium">{team.name}</p>
@@ -222,12 +228,12 @@ export default async function DashboardPage() {
                 description="Once tournaments are created, they&apos;ll show up here."
               />
             ) : (
-              <div className="space-y-2">
+              <div className="list-stack">
                 {recentTournaments.map((t) => (
                   <Link
                     key={t.id}
                     href={`/tournaments/${t.slug}`}
-                    className="flex items-center justify-between rounded-md border p-3 transition-colors hover:bg-muted/40"
+                    className="list-row"
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium">{t.name}</p>
@@ -270,17 +276,13 @@ function StatCard({
       ? "from-primary/15 to-primary/5 text-primary"
       : "from-secondary/15 to-secondary/5 text-secondary";
   return (
-    <Card className="relative overflow-hidden transition-shadow hover:shadow-md">
-      <span
-        aria-hidden
-        className={`pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br ${accentClasses} opacity-50 blur-xl`}
-      />
-      <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0">
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {label}
         </CardTitle>
         <span
-          className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${accentClasses} ring-1 ring-inset ring-foreground/5`}
+          className={`flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br ${accentClasses} ring-1 ring-inset ring-border/60`}
         >
           <Icon className="h-4 w-4" />
         </span>
