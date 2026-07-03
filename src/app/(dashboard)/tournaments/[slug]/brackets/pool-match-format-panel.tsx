@@ -235,7 +235,13 @@ export function PoolMatchFormatPanel({
                 disabled={saving}
               >
                 <SelectTrigger id="pool-match-format" className="w-full">
-                  <SelectValue placeholder="Choose a format" />
+                  <SelectValue placeholder="Choose a format">
+                    {(v) =>
+                      v
+                        ? formatMatchFormatLabel(v as MatchFormat)
+                        : "Choose a format"
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {MATCH_FORMATS.map((option) => (
@@ -290,10 +296,6 @@ export function PoolMatchFormatPanel({
                 />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Pool play often starts at 4-4 and runs to 21. Bracket play
-              usually goes 0-0 to 25.
-            </p>
             <div className="space-y-2">
               <Label htmlFor="pool-warmup-format">Warmup before each match</Label>
               <Select
@@ -304,7 +306,13 @@ export function PoolMatchFormatPanel({
                 disabled={saving}
               >
                 <SelectTrigger id="pool-warmup-format" className="w-full">
-                  <SelectValue placeholder="Choose a warmup format" />
+                  <SelectValue placeholder="Choose a warmup format">
+                    {(v) =>
+                      v
+                        ? formatWarmupFormatLabel(v as WarmupFormat)
+                        : "Choose a warmup format"
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {WARMUP_FORMATS.map((option) => (
@@ -317,7 +325,7 @@ export function PoolMatchFormatPanel({
               <p className="text-xs text-muted-foreground">
                 {warmupMinutesForFormat(draftWarmupFormat) === 0
                   ? "No warmup is reserved between matches."
-                  : `Reserves ${warmupMinutesForFormat(draftWarmupFormat)} min before each match when auto-scheduling.`}
+                  : `Runs as timed segments on the match console and reserves ${warmupMinutesForFormat(draftWarmupFormat)} min when auto-scheduling.`}
               </p>
             </div>
             <div className="space-y-2">
