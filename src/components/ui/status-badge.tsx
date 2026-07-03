@@ -78,6 +78,8 @@ function matchTone(status: string): Tone {
       return "live";
     case "completed":
       return "info";
+    case "paused":
+      return "warning";
     case "upcoming":
     default:
       return "neutral";

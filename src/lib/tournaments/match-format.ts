@@ -56,19 +56,28 @@ export function targetForSet(
   return settings.targetScore;
 }
 
-export type MatchPhase = "upcoming" | "warmup" | "in_progress" | "completed";
+export type MatchPhase =
+  | "upcoming"
+  | "warmup"
+  | "paused"
+  | "in_progress"
+  | "completed";
 
 /**
- * Derive the lifecycle phase from a match row. "warmup" is not a stored status;
- * it's the window after `warmupStartedAt` is set but before play begins.
+ * Derive the lifecycle phase from a match row. "warmup" and "paused" are not
+ * stored statuses: warmup is the window after `warmupStartedAt` is set but
+ * before play begins; paused is an in-progress match returned to `upcoming`
+ * while keeping scores (`startedAt` set, no active warmup).
  */
 export function matchPhase(match: {
   status: string;
   warmupStartedAt: Date | null;
+  startedAt?: Date | null;
 }): MatchPhase {
   if (match.status === "completed") return "completed";
   if (match.status === "in_progress") return "in_progress";
   if (match.warmupStartedAt) return "warmup";
+  if (match.startedAt) return "paused";
   return "upcoming";
 }
 

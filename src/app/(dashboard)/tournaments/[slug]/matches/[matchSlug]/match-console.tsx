@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { format as formatDate } from "date-fns";
 import {
+  ArrowLeft,
   ArrowLeftRight,
+  ArrowRight,
   Minus,
   Pause,
   Plus,
@@ -26,6 +28,8 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import {
   buildMatchScoreState,
+  matchPhase,
+  targetForSet,
   type MatchPhase,
 } from "@/lib/tournaments/match-format";
 import {
@@ -41,6 +45,7 @@ import {
 import {
   startWarmup,
   startMatch,
+  pauseMatch,
   saveSetScore,
   finalizeMatch,
   reopenMatch,
@@ -91,14 +96,13 @@ export function MatchConsole({
 }) {
   const router = useRouter();
 
-  const phase: MatchPhase =
-    match.status === "completed"
-      ? "completed"
-      : match.status === "in_progress"
-        ? "in_progress"
-        : match.warmupStartedAt
-          ? "warmup"
-          : "upcoming";
+  const phase: MatchPhase = matchPhase({
+    status: match.status,
+    warmupStartedAt: match.warmupStartedAt
+      ? new Date(match.warmupStartedAt)
+      : null,
+    startedAt: match.startedAt ? new Date(match.startedAt) : null,
+  });
 
   const scoreState = buildMatchScoreState(
     {
@@ -112,14 +116,8 @@ export function MatchConsole({
     }))
   );
 
-  const currentSetNumber = scoreState.currentSetNumber;
-  const storedCurrent = match.sets.find(
-    (s) => s.setNumber === currentSetNumber
-  );
+  const liveSetNumber = scoreState.currentSetNumber;
   const startingScore = settings.setStartingScore;
-
-  const storedA = storedCurrent?.teamAScore ?? startingScore;
-  const storedB = storedCurrent?.teamBScore ?? startingScore;
 
   const teamAName = match.teamA?.name ?? "TBD";
   const teamBName = match.teamB?.name ?? "TBD";
@@ -128,6 +126,42 @@ export function MatchConsole({
   const [busy, setBusy] = useState(false);
   /** Local only: which side is left/right for the ref's view of the court. */
   const [sidesFlipped, setSidesFlipped] = useState(false);
+  /** Set shown in the scorekeeper; may be a previous set for corrections. */
+  const [selectedSetNumber, setSelectedSetNumber] = useState(liveSetNumber);
+  const prevLiveSetRef = useRef(liveSetNumber);
+
+  useEffect(() => {
+    setSelectedSetNumber(liveSetNumber);
+  }, [match.id]);
+
+  // Follow the live set when it advances, unless the ref is editing an older set.
+  useEffect(() => {
+    const prevLive = prevLiveSetRef.current;
+    if (
+      liveSetNumber !== prevLive &&
+      selectedSetNumber === prevLive
+    ) {
+      setSelectedSetNumber(liveSetNumber);
+    }
+    prevLiveSetRef.current = liveSetNumber;
+  }, [liveSetNumber, selectedSetNumber]);
+
+  const activeSetNumber = Math.min(
+    Math.max(selectedSetNumber, 1),
+    liveSetNumber
+  );
+  const activeSet = match.sets.find((s) => s.setNumber === activeSetNumber);
+  const activeTarget = targetForSet(
+    {
+      format: settings.matchFormat,
+      targetScore: settings.setTargetScore,
+      tiebreakTargetScore: settings.tiebreakTargetScore,
+    },
+    activeSetNumber
+  );
+  const storedA = activeSet?.teamAScore ?? startingScore;
+  const storedB = activeSet?.teamBScore ?? startingScore;
+  const editingPastSet = activeSetNumber < liveSetNumber;
 
   const leftName = sidesFlipped ? teamBName : teamAName;
   const rightName = sidesFlipped ? teamAName : teamBName;
@@ -211,7 +245,13 @@ export function MatchConsole({
             </CardTitle>
             <StatusBadge
               kind="match"
-              status={phase === "warmup" ? "in_progress" : match.status}
+              status={
+                phase === "warmup"
+                  ? "in_progress"
+                  : phase === "paused"
+                    ? "paused"
+                    : match.status
+              }
             />
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -257,7 +297,173 @@ export function MatchConsole({
         </CardHeader>
       </Card>
 
-      {/* Match score summary */}
+      {/* Lifecycle / scorekeeper — live score sits above sets */}
+      {phase === "completed" ? (
+        <Card>
+          <CardContent className="space-y-3 py-6 text-center">
+            <Trophy className="mx-auto h-8 w-8 text-info" />
+            <p className="text-lg font-semibold">
+              {winnerName ? `${winnerName} wins` : "Match complete (tie)"}
+            </p>
+            {isOrganizer && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={() => void runLifecycle(() => reopenMatch(match.id))}
+              >
+                <RotateCcw className="h-4 w-4" />
+                Reopen for corrections
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      ) : !canControl ? (
+        <Card>
+          <CardContent className="py-6 text-center text-sm text-muted-foreground">
+            {phase === "warmup"
+              ? "Warmup in progress."
+              : phase === "in_progress"
+                ? "Match in progress — scores update live."
+                : phase === "paused"
+                  ? "Match is paused. Scores are saved until the ref resumes."
+                  : "Waiting for the ref team or host to start the match."}
+          </CardContent>
+        </Card>
+      ) : phase === "paused" ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-6">
+            <p className="text-sm text-muted-foreground">
+              Match paused. Set scores are saved.
+            </p>
+            <Button
+              disabled={busy || !hasTeams}
+              onClick={() => void runLifecycle(() => startMatch(match.id))}
+            >
+              <Play className="h-4 w-4" />
+              Resume match
+            </Button>
+          </CardContent>
+        </Card>
+      ) : phase === "upcoming" ? (
+        <Card>
+          <CardContent className="flex flex-col gap-3 py-6 sm:flex-row sm:justify-center">
+            <Button
+              disabled={busy || !hasTeams}
+              onClick={() => void runLifecycle(() => startWarmup(match.id))}
+            >
+              <Timer className="h-4 w-4" />
+              Start warmup
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy || !hasTeams}
+              onClick={() => void runLifecycle(() => startMatch(match.id))}
+            >
+              <Play className="h-4 w-4" />
+              Start match
+            </Button>
+          </CardContent>
+        </Card>
+      ) : phase === "warmup" ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-4 py-6">
+            <WarmupTimer
+              format={settings.warmupFormat}
+              teamAName={teamAName}
+              teamBName={teamBName}
+            />
+            <Button
+              disabled={busy}
+              onClick={() => void runLifecycle(() => startMatch(match.id))}
+            >
+              <Play className="h-4 w-4" />
+              Start match
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        // in_progress + canControl → scorekeeper
+        <Card>
+          <Scorekeeper
+            key={`${match.id}-${activeSetNumber}`}
+            matchId={match.id}
+            setNumber={activeSetNumber}
+            liveSetNumber={liveSetNumber}
+            target={activeTarget}
+            initialA={storedA}
+            initialB={storedB}
+            teamAName={teamAName}
+            teamBName={teamBName}
+            sidesFlipped={sidesFlipped}
+            onFlipSides={() => setSidesFlipped((f) => !f)}
+            onSelectSet={setSelectedSetNumber}
+            editingPastSet={editingPastSet}
+          />
+          <CardContent className="space-y-4 pt-0">
+            <Separator />
+
+            <div className="space-y-2">
+              <p className="text-center text-xs text-muted-foreground">
+                Pause play or record the result
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => void runLifecycle(() => pauseMatch(match.id))}
+                >
+                  <Pause className="h-4 w-4" />
+                  Pause match
+                </Button>
+                {match.teamA && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() =>
+                      void runLifecycle(() =>
+                        finalizeMatch(match.id, match.teamA!.id)
+                      )
+                    }
+                  >
+                    {teamAName} wins
+                  </Button>
+                )}
+                {match.teamB && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() =>
+                      void runLifecycle(() =>
+                        finalizeMatch(match.id, match.teamB!.id)
+                      )
+                    }
+                  >
+                    {teamBName} wins
+                  </Button>
+                )}
+                {settings.matchFormat === "best_of_2" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() =>
+                      void runLifecycle(() => finalizeMatch(match.id, null))
+                    }
+                  >
+                    Record tie
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Sets won — below live score */}
       <Card>
         <CardContent className="grid grid-cols-[minmax(0,1fr)_5.5rem_minmax(0,1fr)] items-center gap-2 py-6 sm:gap-4">
           <ScoreColumn
@@ -305,14 +511,29 @@ export function MatchConsole({
             const rightScore = sidesFlipped
               ? entry.teamAScore
               : entry.teamBScore;
+            const selectable =
+              canControl &&
+              phase === "in_progress" &&
+              entry.setNumber <= liveSetNumber;
+            const selected =
+              phase === "in_progress" &&
+              canControl &&
+              entry.setNumber === activeSetNumber;
+            const isLive =
+              entry.setNumber === liveSetNumber && phase !== "completed";
             return (
-              <div
+              <button
                 key={entry.setNumber}
+                type="button"
+                disabled={!selectable}
+                onClick={() => setSelectedSetNumber(entry.setNumber)}
                 className={cn(
-                  "flex items-center justify-between rounded-md px-3 py-1.5 text-sm",
-                  entry.current && phase !== "completed"
+                  "flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left text-sm transition-colors",
+                  selected
                     ? "bg-primary/10 ring-1 ring-primary/20"
-                    : "bg-muted/40"
+                    : "bg-muted/40",
+                  selectable && !selected && "hover:bg-muted/70",
+                  !selectable && "cursor-default"
                 )}
               >
                 <span className="flex items-center gap-2">
@@ -320,9 +541,14 @@ export function MatchConsole({
                   <span className="text-xs text-muted-foreground">
                     to {entry.target}
                   </span>
-                  {entry.current && phase !== "completed" && (
+                  {selected && (
                     <span className="text-xs font-medium text-primary">
-                      current
+                      {editingPastSet ? "editing" : "current"}
+                    </span>
+                  )}
+                  {!selected && isLive && (
+                    <span className="text-xs font-medium text-muted-foreground">
+                      live
                     </span>
                   )}
                 </span>
@@ -343,148 +569,11 @@ export function MatchConsole({
                     {rightScore}
                   </span>
                 </span>
-              </div>
+              </button>
             );
           })}
         </CardContent>
       </Card>
-
-      {/* Lifecycle / scorekeeper */}
-      {phase === "completed" ? (
-        <Card>
-          <CardContent className="space-y-3 py-6 text-center">
-            <Trophy className="mx-auto h-8 w-8 text-info" />
-            <p className="text-lg font-semibold">
-              {winnerName ? `${winnerName} wins` : "Match complete (tie)"}
-            </p>
-            {isOrganizer && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={busy}
-                onClick={() => void runLifecycle(() => reopenMatch(match.id))}
-              >
-                <RotateCcw className="h-4 w-4" />
-                Reopen for corrections
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : !canControl ? (
-        <Card>
-          <CardContent className="py-6 text-center text-sm text-muted-foreground">
-            {phase === "warmup"
-              ? "Warmup in progress."
-              : phase === "in_progress"
-                ? "Match in progress — scores update live."
-                : "Waiting for the ref team or host to start the match."}
-          </CardContent>
-        </Card>
-      ) : phase === "upcoming" ? (
-        <Card>
-          <CardContent className="flex flex-col gap-3 py-6 sm:flex-row sm:justify-center">
-            <Button
-              disabled={busy || !hasTeams}
-              onClick={() => void runLifecycle(() => startWarmup(match.id))}
-            >
-              <Timer className="h-4 w-4" />
-              Start warmup
-            </Button>
-            <Button
-              variant="outline"
-              disabled={busy || !hasTeams}
-              onClick={() => void runLifecycle(() => startMatch(match.id))}
-            >
-              <Play className="h-4 w-4" />
-              Start match
-            </Button>
-          </CardContent>
-        </Card>
-      ) : phase === "warmup" ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-4 py-6">
-            <WarmupTimer
-              format={settings.warmupFormat}
-              teamAName={teamAName}
-              teamBName={teamBName}
-            />
-            <Button
-              disabled={busy}
-              onClick={() => void runLifecycle(() => startMatch(match.id))}
-            >
-              <Play className="h-4 w-4" />
-              Start match
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        // in_progress + canControl → scorekeeper
-        <Card>
-          <Scorekeeper
-            key={currentSetNumber}
-            matchId={match.id}
-            setNumber={currentSetNumber}
-            target={scoreState.currentTarget}
-            initialA={storedA}
-            initialB={storedB}
-            teamAName={teamAName}
-            teamBName={teamBName}
-            sidesFlipped={sidesFlipped}
-            onFlipSides={() => setSidesFlipped((f) => !f)}
-          />
-          <CardContent className="space-y-4 pt-0">
-            <Separator />
-
-            <div className="space-y-2">
-              <p className="text-center text-xs text-muted-foreground">
-                End the match early or record the result
-              </p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {match.teamA && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() =>
-                      void runLifecycle(() =>
-                        finalizeMatch(match.id, match.teamA!.id)
-                      )
-                    }
-                  >
-                    {teamAName} wins
-                  </Button>
-                )}
-                {match.teamB && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() =>
-                      void runLifecycle(() =>
-                        finalizeMatch(match.id, match.teamB!.id)
-                      )
-                    }
-                  >
-                    {teamBName} wins
-                  </Button>
-                )}
-                {settings.matchFormat === "best_of_2" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() =>
-                      void runLifecycle(() => finalizeMatch(match.id, null))
-                    }
-                  >
-                    Record tie
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
@@ -497,6 +586,7 @@ export function MatchConsole({
 function Scorekeeper({
   matchId,
   setNumber,
+  liveSetNumber,
   target,
   initialA,
   initialB,
@@ -504,9 +594,12 @@ function Scorekeeper({
   teamBName,
   sidesFlipped,
   onFlipSides,
+  onSelectSet,
+  editingPastSet,
 }: {
   matchId: string;
   setNumber: number;
+  liveSetNumber: number;
   target: number;
   initialA: number;
   initialB: number;
@@ -514,6 +607,8 @@ function Scorekeeper({
   teamBName: string;
   sidesFlipped: boolean;
   onFlipSides: () => void;
+  onSelectSet: (setNumber: number) => void;
+  editingPastSet: boolean;
 }) {
   const router = useRouter();
   const [a, setA] = useState(initialA);
@@ -564,10 +659,39 @@ function Scorekeeper({
   return (
     <>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
-        <CardTitle className="text-sm">
-          Set {setNumber} · to {target}
-        </CardTitle>
-        <div className="flex items-center gap-2">
+        <div className="min-w-0">
+          <CardTitle className="text-sm">
+            Set {setNumber} · to {target}
+          </CardTitle>
+          {editingPastSet && (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Editing a previous set
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="flex items-center gap-0.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Previous set"
+              disabled={setNumber <= 1}
+              onClick={() => onSelectSet(setNumber - 1)}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Next set"
+              disabled={setNumber >= liveSetNumber}
+              onClick={() => onSelectSet(setNumber + 1)}
+            >
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
           <Button
             type="button"
             variant="outline"
@@ -585,7 +709,7 @@ function Scorekeeper({
           </span>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-4">
           <div className="min-w-0">
             <Stepper
@@ -602,6 +726,19 @@ function Scorekeeper({
             />
           </div>
         </div>
+        {editingPastSet && (
+          <div className="flex justify-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={() => onSelectSet(liveSetNumber)}
+            >
+              Back to live set {liveSetNumber}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </>
   );

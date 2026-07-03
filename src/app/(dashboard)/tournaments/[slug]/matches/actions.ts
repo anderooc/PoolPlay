@@ -132,6 +132,34 @@ export async function startMatch(matchId: string) {
 }
 
 /**
+ * Take a live match out of in-progress. Scores and `startedAt` are kept so the
+ * ref can resume later; status returns to `upcoming` and warmup is cleared.
+ */
+export async function pauseMatch(matchId: string) {
+  const gate = await assertCanControlMatch(matchId);
+  if (gate.error || !gate.match) return { error: gate.error };
+
+  if (gate.match.status !== "in_progress") {
+    return { error: "Only an in-progress match can be paused." };
+  }
+
+  await db
+    .update(matches)
+    .set({
+      status: "upcoming",
+      warmupStartedAt: null,
+      // Preserve startedAt so the console treats this as paused, not fresh.
+      startedAt: gate.match.startedAt ?? new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(matches.id, matchId));
+
+  revalidatePath(`/tournaments/[slug]/matches/[matchSlug]`, "page");
+  revalidatePath("/tournaments/[slug]", "page");
+  return { success: true as const };
+}
+
+/**
  * Save absolute scores for a single set. The client scorekeeper debounces +1/-1
  * taps and sends the resulting totals here. Auto-finalizes the match when the
  * format says enough sets have been played.
