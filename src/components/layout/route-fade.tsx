@@ -15,7 +15,7 @@ export function RouteFade({ children }: { children: ReactNode }) {
   return (
     <div
       key={isAdmin ? "admin" : pathname}
-      className="h-full"
+      className="min-h-full"
       style={
         isAdmin
           ? undefined
