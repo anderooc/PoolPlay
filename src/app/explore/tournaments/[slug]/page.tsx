@@ -5,6 +5,7 @@ import { tournaments, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { buttonVariants } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { HeaderNav } from "@/components/layout/header-nav";
 import { PoolPlayMark } from "@/components/layout/poolplay-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -15,7 +16,7 @@ import { getCurrentAuthProfile } from "@/lib/auth";
 import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import { isTournamentPublishedForPublic } from "@/lib/tournaments/permissions";
 import { formatTournamentDateDisplay } from "@/lib/date-iso";
-import { Calendar, User } from "lucide-react";
+import { ArrowRight, Calendar, User } from "lucide-react";
 import { TournamentLocationLink } from "@/components/tournament-location-link";
 
 interface Props {
@@ -78,18 +79,22 @@ export default async function ExploreTournamentPage({ params }: Props) {
         </div>
       </header>
 
-      <main className="flex-1">
+      <main className="relative flex-1">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-56 text-foreground/[0.05] bg-dot-grid [mask-image:linear-gradient(to_bottom,black,transparent)]"
+        />
         <div className="container mx-auto max-w-3xl space-y-6 px-4 py-10">
           <Link
             href="/explore"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             ← All tournaments
           </Link>
 
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-balance text-2xl font-bold tracking-tight sm:text-3xl">
                 {tournament.name}
               </h1>
               <StatusBadge
@@ -98,7 +103,7 @@ export default async function ExploreTournamentPage({ params }: Props) {
                 date={tournament.date}
               />
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
               <TournamentLocationLink
                 location={tournament.location}
                 address={tournament.address}
@@ -112,7 +117,7 @@ export default async function ExploreTournamentPage({ params }: Props) {
                 {organizer?.fullName ?? "Unknown organizer"}
               </span>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <TeamAttributesBadges
                 gender={tournament.gender}
                 region={tournament.region}
@@ -120,21 +125,28 @@ export default async function ExploreTournamentPage({ params }: Props) {
               <TournamentHostSchoolLink school={hostSchool} />
             </div>
             {tournament.description && (
-              <p className="mt-3 text-sm text-muted-foreground">
+              <p className="max-w-2xl whitespace-pre-wrap text-pretty text-sm text-muted-foreground">
                 {tournament.description}
               </p>
             )}
           </div>
 
-          <p className="text-sm text-muted-foreground">
-            Sign in to register a team, view brackets, and follow live scores.
-          </p>
-          <Link
-            href={`/tournaments/${tournament.slug}`}
-            className={buttonVariants()}
-          >
-            Open in dashboard
-          </Link>
+          <Card>
+            <CardContent className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-pretty text-sm text-muted-foreground">
+                Sign in to register a team, view brackets, and follow live scores.
+              </p>
+              <Link
+                href={`/tournaments/${tournament.slug}`}
+                className={buttonVariants({
+                  className: "group shrink-0",
+                })}
+              >
+                Open in dashboard
+                <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>

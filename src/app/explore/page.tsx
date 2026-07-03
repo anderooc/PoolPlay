@@ -56,13 +56,17 @@ export default async function ExplorePage() {
         </div>
       </header>
 
-      <main className="flex-1">
+      <main className="relative flex-1">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-foreground/[0.05] bg-dot-grid [mask-image:linear-gradient(to_bottom,black,transparent)]"
+        />
         <div className="container mx-auto space-y-8 px-4 py-10">
-          <div className="max-w-2xl">
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+          <div className="max-w-2xl space-y-2">
+            <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
               Tournaments
             </h1>
-            <p className="mt-2 text-muted-foreground">
+            <p className="text-pretty text-muted-foreground">
               Browse upcoming and ongoing collegiate club volleyball tournaments.
             </p>
           </div>
