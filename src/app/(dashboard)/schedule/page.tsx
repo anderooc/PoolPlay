@@ -146,16 +146,16 @@ export default async function SchedulePage() {
       ) : (
         [...byDate.entries()].map(([dateKey, dayMatches]) => (
           <div key={dateKey} className="space-y-3">
-            <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">
               {dateKey === "unscheduled"
                 ? "Unscheduled"
                 : format(new Date(dateKey + "T00:00:00"), "EEE, MMM d, yyyy")}
             </h2>
-            <div className="grid gap-2">
+            <div className="list-stack border-y border-border/70">
               {dayMatches.map((match) => (
                 <div
                   key={match.id}
-                  className="flex items-center justify-between gap-3 rounded-md border bg-card p-3 transition-colors hover:bg-muted/30"
+                  className="list-row"
                 >
                   <div className="flex min-w-0 items-center gap-4">
                     {match.scheduledTime && (
