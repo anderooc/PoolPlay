@@ -1,0 +1,124 @@
+import { db } from "@/lib/db";
+import {
+  courts,
+  courtDivisions,
+  divisions,
+} from "@/lib/db/schema";
+import { asc, eq } from "drizzle-orm";
+import { CourtManager } from "../court-manager";
+import { PoolManager } from "../pool-manager";
+
+export async function TournamentSetupPanel({
+  tournamentId,
+  canEditSetup,
+}: {
+  tournamentId: string;
+  canEditSetup: boolean;
+}) {
+  const [tournamentDivisions, courtJoinRows] = await Promise.all([
+    db
+      .select()
+      .from(divisions)
+      .where(eq(divisions.tournamentId, tournamentId))
+      .orderBy(asc(divisions.name), asc(divisions.id)),
+    db
+      .select({
+        courtId: courts.id,
+        courtName: courts.name,
+        divisionId: divisions.id,
+        divisionName: divisions.name,
+      })
+      .from(courts)
+      .leftJoin(courtDivisions, eq(courtDivisions.courtId, courts.id))
+      .leftJoin(divisions, eq(courtDivisions.divisionId, divisions.id))
+      .where(eq(courts.tournamentId, tournamentId))
+      .orderBy(asc(courts.name), asc(courts.id)),
+  ]);
+
+  type CourtDivPair = { divisionId: string; divisionName: string };
+  const courtOrder: string[] = [];
+  const courtNameById = new Map<string, string>();
+  const pairsByCourt = new Map<string, CourtDivPair[]>();
+  for (const row of courtJoinRows) {
+    if (!courtNameById.has(row.courtId)) {
+      courtNameById.set(row.courtId, row.courtName);
+      courtOrder.push(row.courtId);
+    }
+    if (row.divisionId && row.divisionName) {
+      const list = pairsByCourt.get(row.courtId) ?? [];
+      list.push({
+        divisionId: row.divisionId,
+        divisionName: row.divisionName,
+      });
+      pairsByCourt.set(row.courtId, list);
+    }
+  }
+
+  const tournamentCourts = courtOrder.map((cid) => {
+    const pairs = (pairsByCourt.get(cid) ?? [])
+      .slice()
+      .sort((a, b) => a.divisionName.localeCompare(b.divisionName));
+    return {
+      id: cid,
+      name: courtNameById.get(cid)!,
+      divisionIds: pairs.map((p) => p.divisionId),
+      divisionNames: pairs.map((p) => p.divisionName),
+    };
+  });
+
+  const emptySetup =
+    tournamentDivisions.length === 0 && tournamentCourts.length === 0;
+
+  return (
+    <div className={emptySetup ? "space-y-4" : "space-y-10"}>
+      <section className={emptySetup ? "space-y-1.5" : "space-y-3"}>
+        <h2
+          className={
+            emptySetup
+              ? "text-base font-semibold tracking-tight"
+              : "text-lg font-semibold tracking-tight"
+          }
+        >
+          Pools
+        </h2>
+        <PoolManager
+          tournamentId={tournamentId}
+          divisions={tournamentDivisions}
+          tournamentCourts={tournamentCourts.map((c) => ({
+            id: c.id,
+            name: c.name,
+            divisionIds: c.divisionIds,
+          }))}
+          isOrganizer={canEditSetup}
+          compactEmpty={emptySetup}
+        />
+      </section>
+      <section className={emptySetup ? "space-y-1.5" : "space-y-3"}>
+        <h2
+          className={
+            emptySetup
+              ? "text-base font-semibold tracking-tight"
+              : "text-lg font-semibold tracking-tight"
+          }
+        >
+          Courts
+        </h2>
+        {!emptySetup && (
+          <p className="text-sm text-muted-foreground">
+            Used when auto-scheduling matches and on the live scoring view.
+          </p>
+        )}
+        <CourtManager
+          tournamentId={tournamentId}
+          courts={tournamentCourts.map((c) => ({
+            id: c.id,
+            name: c.name,
+            divisionNames: c.divisionNames,
+          }))}
+          isOrganizer={canEditSetup}
+          compactEmpty={emptySetup}
+        />
+      </section>
+    </div>
+  );
+}

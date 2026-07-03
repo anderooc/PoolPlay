@@ -1,96 +1,86 @@
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import { Calendar, User } from "lucide-react";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
-  divisions,
   courts,
-  courtDivisions,
+  divisions,
   registrations,
-  teams,
-  schools,
-  users,
   teamMembers,
+  users,
 } from "@/lib/db/schema";
-import { eq, asc } from "drizzle-orm";
-import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buttonVariants } from "@/components/ui/button";
-import { Calendar, LayoutGrid, Trophy, User, Users } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
-import { TournamentLocationLink } from "@/components/tournament-location-link";
-import Link from "next/link";
 import { BackLink } from "@/components/layout/back-link";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { TournamentHostSchoolLink } from "@/components/tournament-host-school-link";
+import { TournamentLocationLink } from "@/components/tournament-location-link";
 import { formatTournamentDateDisplay } from "@/lib/date-iso";
 import {
-  canAssignTeamsToPools,
-  canCheckInRegistrations,
-  canEditRegistrations,
   canEditTournamentSetup,
-  canGeneratePoolsAndBrackets,
   canRegisterTeams,
   hostChecklistSteps,
   isTournamentOrganizer,
-  poolAssignmentBlockedMessage,
 } from "@/lib/tournaments/permissions";
-import { tournamentHasScheduledMatches } from "@/lib/tournaments/match-query";
+import {
+  getTournamentPlaySignals,
+  tournamentHasScheduledMatches,
+} from "@/lib/tournaments/match-query";
 import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
+import {
+  DEFAULT_TOURNAMENT_TAB,
+  parseTournamentTab,
+  type TournamentTabId,
+} from "./constants";
 import { TournamentPageHeading } from "./tournament-page-heading";
-import { PoolManager } from "./pool-manager";
-import { CourtManager } from "./court-manager";
-import { RegistrationList } from "./registration-list";
-import { getDivisionPlayData } from "./brackets/data";
-import { MatchBoard } from "./match-board";
-import { PoolView } from "./brackets/pool-view";
-import { PoolMatchFormatPanel } from "./brackets/pool-match-format-panel";
-import { BracketView } from "./brackets/bracket-view";
-import { PoolSeedingPanel } from "./brackets/pool-seeding-panel";
-import { DivisionPoolRelease } from "./brackets/division-pool-release";
-import { ensureDivisionBracketSkeleton } from "@/lib/tournaments/bracket-structure";
+import {
+  TournamentTabs,
+  type TournamentTabItem,
+} from "./tournament-tabs";
+import { TournamentSetupPanel } from "./panels/setup-panel";
+import { TournamentRegistrationsPanel } from "./panels/registrations-panel";
+import { TournamentPoolPlayPanel } from "./panels/pool-play-panel";
+import { TournamentBracketPanel } from "./panels/bracket-panel";
+import { TournamentMatchesPanel } from "./panels/matches-panel";
+import { TournamentPanelSkeleton } from "./panels/panel-skeleton";
+
 interface Props {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ tab?: string }>;
 }
 
-export default async function TournamentDetailPage({ params }: Props) {
+export default async function TournamentDetailPage({
+  params,
+  searchParams,
+}: Props) {
   const { slug } = await params;
+  const sp = (await searchParams) ?? {};
 
-  // Resolve the tournament + current user in parallel; both are needed
-  // before the other queries can run, but they don't depend on each other.
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const tournamentRow = await getTournamentBySlugIfVisible(slug, user);
-  if (!tournamentRow) notFound();
+  const tournament = await getTournamentBySlugIfVisible(slug, user);
+  if (!tournament) notFound();
 
-  const tournament = tournamentRow;
   const id = tournament.id;
-
-  // Permissions are pure functions of the tournament + user (no I/O), so we
-  // resolve them before firing the data queries.
   const isOrganizer = isTournamentOrganizer(tournament, user);
   const canEditSetup =
     isOrganizer && canEditTournamentSetup(tournament, user);
-  const canManageRegistrations =
-    isOrganizer && canEditRegistrations(tournament, user);
-  const canCheckIn =
-    isOrganizer && canCheckInRegistrations(tournament, user);
   const showRegisterLink = canRegisterTeams(tournament);
 
-  // These reads are independent of each other, so fan them out across the
-  // connection pool in one batch instead of serializing. `getDivisionPlayData`
-  // is the long pole (its own internal waves), so running it alongside the
-  // simple queries overlaps that work.
+  // Shell queries only — tab panels load their own heavy data.
   const [
     organizerRows,
     tournamentDivisions,
-    courtJoinRows,
-    tournamentRegistrations,
+    courtCountRow,
+    registrationCounts,
     memberRows,
     hostSchool,
-    divisionPlayData,
+    playSignals,
     hasScheduledMatches,
   ] = await Promise.all([
     db
@@ -99,125 +89,64 @@ export default async function TournamentDetailPage({ params }: Props) {
       .where(eq(users.id, tournament.organizerId))
       .limit(1),
     db
-      .select()
-      .from(divisions)
-      .where(eq(divisions.tournamentId, id))
-      .orderBy(asc(divisions.name), asc(divisions.id)),
-    // Courts + their division links in one left-join (courts with no divisions
-    // still come back, with null division columns).
-    db
       .select({
-        courtId: courts.id,
-        courtName: courts.name,
-        divisionId: divisions.id,
-        divisionName: divisions.name,
+        id: divisions.id,
+        format: divisions.format,
+        poolsReleasedAt: divisions.poolsReleasedAt,
       })
+      .from(divisions)
+      .where(eq(divisions.tournamentId, id)),
+    db
+      .select({ value: count() })
       .from(courts)
-      .leftJoin(courtDivisions, eq(courtDivisions.courtId, courts.id))
-      .leftJoin(divisions, eq(courtDivisions.divisionId, divisions.id))
-      .where(eq(courts.tournamentId, id))
-      .orderBy(asc(courts.name), asc(courts.id)),
+      .where(eq(courts.tournamentId, id)),
     db
       .select({
-        id: registrations.id,
         status: registrations.status,
-        registeredAt: registrations.registeredAt,
-        teamId: teams.id,
-        teamName: teams.name,
-        teamUniversity: teams.university,
-        schoolId: teams.schoolId,
-        schoolName: schools.name,
-        divisionId: divisions.id,
-        divisionName: divisions.name,
+        value: count(),
       })
       .from(registrations)
-      .innerJoin(teams, eq(registrations.teamId, teams.id))
-      .leftJoin(schools, eq(teams.schoolId, schools.id))
-      .leftJoin(divisions, eq(registrations.divisionId, divisions.id))
       .where(eq(registrations.tournamentId, id))
-      .orderBy(asc(registrations.registeredAt), asc(teams.name)),
-    // This user's team memberships; the captain subset is derived in memory.
+      .groupBy(registrations.status),
     db
       .select({ teamId: teamMembers.teamId, role: teamMembers.role })
       .from(teamMembers)
       .where(eq(teamMembers.userId, user.id)),
     getHostSchoolById(tournament.hostSchoolId),
-    getDivisionPlayData(id, { forOrganizer: isOrganizer }),
+    getTournamentPlaySignals(id, { forOrganizer: isOrganizer }),
     tournamentHasScheduledMatches(id),
   ]);
 
   const organizer = organizerRows[0] ?? null;
+  const courtCount = courtCountRow[0]?.value ?? 0;
+  const divisionCount = tournamentDivisions.length;
 
-  type CourtDivPair = { divisionId: string; divisionName: string };
-  const courtOrder: string[] = [];
-  const courtNameById = new Map<string, string>();
-  const pairsByCourt = new Map<string, CourtDivPair[]>();
-  for (const row of courtJoinRows) {
-    if (!courtNameById.has(row.courtId)) {
-      courtNameById.set(row.courtId, row.courtName);
-      courtOrder.push(row.courtId);
-    }
-    if (row.divisionId && row.divisionName) {
-      const list = pairsByCourt.get(row.courtId) ?? [];
-      list.push({
-        divisionId: row.divisionId,
-        divisionName: row.divisionName,
-      });
-      pairsByCourt.set(row.courtId, list);
+  let pendingCount = 0;
+  let confirmedCount = 0;
+  let registrationCount = 0;
+  for (const row of registrationCounts) {
+    registrationCount += row.value;
+    if (row.status === "pending") pendingCount = row.value;
+    if (row.status === "confirmed" || row.status === "checked_in") {
+      confirmedCount += row.value;
     }
   }
 
-  const tournamentCourts = courtOrder.map((cid) => {
-    const pairs = (pairsByCourt.get(cid) ?? [])
-      .slice()
-      .sort((a, b) => a.divisionName.localeCompare(b.divisionName));
-    return {
-      id: cid,
-      name: courtNameById.get(cid)!,
-      divisionIds: pairs.map((p) => p.divisionId),
-      divisionNames: pairs.map((p) => p.divisionName),
-    };
-  });
-
-  const allPendingTeams = tournamentRegistrations.filter(
-    (r) => r.status === "pending"
-  );
-
-  const confirmedTeams = tournamentRegistrations.filter(
-    (r) => r.status === "confirmed" || r.status === "checked_in"
-  );
-
-  const myTeamIds = new Set(memberRows.map((r) => r.teamId));
-  const captainIds = new Set(
-    memberRows.filter((r) => r.role === "captain").map((r) => r.teamId)
-  );
-
-  const pendingCount = allPendingTeams.length;
-
-  const pendingTeams = isOrganizer
-    ? allPendingTeams
-    : allPendingTeams.filter((r) => myTeamIds.has(r.teamId));
-
-  const hasAnyPoolMatches = divisionPlayData.some((d) =>
-    d.pools.some((p) => p.matches.length > 0)
-  );
-  const hasAnyBrackets = divisionPlayData.some((d) => d.brackets.length > 0);
-  const hasReleasedPoolPlay = divisionPlayData.some(
-    (d) => d.poolsReleasedAt != null
-  );
-  const hasReleasedBracket = divisionPlayData.some(
-    (d) => d.poolsReleasedAt != null && d.brackets.length > 0
-  );
-
-  // The Matches tab is a read-friendly board of every visible match. For
-  // participants, `divisionPlayData` already excludes unreleased divisions.
-  const showMatchesTab = divisionPlayData.some(
-    (d) =>
-      d.pools.some((p) => p.matches.length > 0) ||
-      d.brackets.some((b) =>
-        b.matches.some((m) => m.teamAName || m.teamBName)
-      )
-  );
+  const myTeamIds = memberRows.map((r) => r.teamId);
+  let myPendingCount = 0;
+  if (!isOrganizer && myTeamIds.length > 0) {
+    const [myPendingRow] = await db
+      .select({ value: count() })
+      .from(registrations)
+      .where(
+        and(
+          eq(registrations.tournamentId, id),
+          eq(registrations.status, "pending"),
+          inArray(registrations.teamId, myTeamIds)
+        )
+      );
+    myPendingCount = myPendingRow?.value ?? 0;
+  }
 
   const hasPoolPlayFormat = tournamentDivisions.some(
     (d) => d.format === "pool_to_bracket"
@@ -228,80 +157,70 @@ export default async function TournamentDetailPage({ params }: Props) {
       d.format === "single_elimination" ||
       d.format === "double_elimination"
   );
+  const hasReleasedPoolPlay = tournamentDivisions.some(
+    (d) => d.poolsReleasedAt != null
+  );
 
   const showTeamsTab = isOrganizer;
-  const showPendingTab = isOrganizer || pendingTeams.length > 0;
+  const showPendingTab = isOrganizer || myPendingCount > 0;
   const showPoolPlayTab = isOrganizer
-    ? hasAnyPoolMatches || hasPoolPlayFormat
+    ? playSignals.hasPoolMatches || hasPoolPlayFormat
     : hasReleasedPoolPlay;
   const showBracketTab = isOrganizer
-    ? hasAnyBrackets || hasBracketFormat
-    : hasReleasedBracket;
+    ? playSignals.hasBrackets || hasBracketFormat
+    : playSignals.hasBrackets;
+  const showMatchesTab = playSignals.hasVisibleMatches;
 
-  const defaultTab =
-    !isOrganizer && pendingTeams.length > 0 ? "pending" : "setup";
+  const allowedTabs = new Set<TournamentTabId>([DEFAULT_TOURNAMENT_TAB]);
+  if (showTeamsTab) allowedTabs.add("teams");
+  if (showPendingTab) allowedTabs.add("pending");
+  if (showPoolPlayTab) allowedTabs.add("pool-play");
+  if (showBracketTab) allowedTabs.add("bracket");
+  if (showMatchesTab) allowedTabs.add("matches");
 
-  const divisionOptions = tournamentDivisions.map((d) => ({
-    id: d.id,
-    name: d.name,
-  }));
+  const fallbackTab: TournamentTabId =
+    !isOrganizer && myPendingCount > 0 && allowedTabs.has("pending")
+      ? "pending"
+      : DEFAULT_TOURNAMENT_TAB;
 
-  const canGenerateStructure = canGeneratePoolsAndBrackets(tournament, user);
-  const canAssignPools = canAssignTeamsToPools(
-    tournament,
-    user,
-    pendingCount
-  );
-  const poolAssignmentBlocked = poolAssignmentBlockedMessage(pendingCount);
+  const activeTab = parseTournamentTab(sp.tab, allowedTabs, fallbackTab);
+
+  const tabItems: TournamentTabItem[] = [
+    { id: "setup", label: "Setup" },
+  ];
+  if (showTeamsTab) {
+    tabItems.push({ id: "teams", label: "Teams", count: confirmedCount });
+  }
+  if (showPendingTab) {
+    tabItems.push({
+      id: "pending",
+      label: isOrganizer ? "Pending" : "Your application",
+      badge: isOrganizer ? pendingCount : myPendingCount,
+    });
+  }
+  if (showPoolPlayTab) tabItems.push({ id: "pool-play", label: "Pools" });
+  if (showBracketTab) tabItems.push({ id: "bracket", label: "Bracket" });
+  if (showMatchesTab) tabItems.push({ id: "matches", label: "Matches" });
 
   const checklist = isOrganizer
     ? hostChecklistSteps({
         status: tournament.status,
         description: tournament.description,
         address: tournament.address,
-        divisionCount: tournamentDivisions.length,
-        courtCount: tournamentCourts.length,
-        registrationCount: tournamentRegistrations.length,
+        divisionCount,
+        courtCount,
+        registrationCount,
         pendingCount,
-        hasPools: hasAnyPoolMatches,
-        hasBracket: hasAnyBrackets,
+        hasPools: playSignals.hasPoolMatches,
+        hasBracket: playSignals.hasBrackets,
         hasScheduledMatches,
       })
     : [];
 
-  const emptySetup =
-    tournamentDivisions.length === 0 && tournamentCourts.length === 0;
-
-  if (isOrganizer && tournamentDivisions.length > 0) {
-    // `divisionPlayData` already reflects existing brackets, so skip the
-    // per-division existence check for divisions that are already set up
-    // (ensureDivisionBracketSkeleton is a no-op for them anyway).
-    const divsWithBracket = new Set(
-      divisionPlayData.filter((d) => d.brackets.length > 0).map((d) => d.id)
-    );
-    for (const div of tournamentDivisions) {
-      if (divsWithBracket.has(div.id)) continue;
-      await ensureDivisionBracketSkeleton(div.id, div.format, div.teamCap);
-    }
-  }
-
-  // `divisionPlayData` already carries every pool's matches (with status), so
-  // we can derive "have matches started" in memory instead of issuing one
-  // query per pool.
-  const poolMatchesStartedByPoolId = new Map<string, boolean>();
-  if (isOrganizer) {
-    for (const div of divisionPlayData) {
-      for (const pool of div.pools) {
-        poolMatchesStartedByPoolId.set(
-          pool.id,
-          pool.matches.some((m) => m.status !== "upcoming")
-        );
-      }
-    }
-  }
+  const emptySetup = divisionCount === 0 && courtCount === 0;
 
   return (
-    <div className={emptySetup ? "space-y-3" : "space-y-6"}>
+    <div className={emptySetup ? "space-y-3 pb-6" : "space-y-6 pb-6"}>
       <BackLink href="/tournaments">All tournaments</BackLink>
 
       {isOrganizer ? (
@@ -384,381 +303,43 @@ export default async function TournamentDetailPage({ params }: Props) {
         </div>
       )}
 
-      <Tabs defaultValue={defaultTab}>
-        <TabsList className="h-auto max-w-full flex-wrap justify-start">
-          <TabsTrigger value="setup">Setup</TabsTrigger>
-          {showTeamsTab && (
-            <TabsTrigger value="teams">
-              Teams ({confirmedTeams.length})
-            </TabsTrigger>
-          )}
-          {showPendingTab && (
-            <TabsTrigger value="pending" className="gap-2">
-              {isOrganizer ? "Pending" : "Your application"}
-              {(isOrganizer ? pendingCount : pendingTeams.length) > 0 && (
-                <Badge
-                  variant="default"
-                  className="h-5 min-w-5 justify-center rounded-full px-1.5 text-xs tabular-nums"
-                >
-                  {isOrganizer ? pendingCount : pendingTeams.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-          )}
-          {showPoolPlayTab && (
-            <TabsTrigger value="pool-play">Pools</TabsTrigger>
-          )}
-          {showBracketTab && (
-            <TabsTrigger value="bracket">Bracket</TabsTrigger>
-          )}
-          {showMatchesTab && (
-            <TabsTrigger value="matches">Matches</TabsTrigger>
-          )}
-        </TabsList>
+      <TournamentTabs
+        slug={tournament.slug}
+        activeTab={activeTab}
+        tabs={tabItems}
+      />
 
-        <TabsContent
-          value="setup"
-          className={emptySetup ? "mt-2 space-y-4" : "mt-4 space-y-10"}
-        >
-          <section className={emptySetup ? "space-y-1.5" : "space-y-3"}>
-            <h2
-              className={
-                emptySetup
-                  ? "text-base font-semibold tracking-tight"
-                  : "text-lg font-semibold tracking-tight"
-              }
-            >
-              Pools
-            </h2>
-            <PoolManager
-              tournamentId={id}
-              divisions={tournamentDivisions}
-              tournamentCourts={tournamentCourts.map((c) => ({
-                id: c.id,
-                name: c.name,
-                divisionIds: c.divisionIds,
-              }))}
-              isOrganizer={canEditSetup}
-              compactEmpty={emptySetup}
-            />
-          </section>
-          <section className={emptySetup ? "space-y-1.5" : "space-y-3"}>
-            <h2
-              className={
-                emptySetup
-                  ? "text-base font-semibold tracking-tight"
-                  : "text-lg font-semibold tracking-tight"
-              }
-            >
-              Courts
-            </h2>
-            {!emptySetup && (
-              <p className="text-sm text-muted-foreground">
-                Used when auto-scheduling matches and on the live scoring view.
-              </p>
-            )}
-            <CourtManager
-              tournamentId={id}
-              courts={tournamentCourts.map((c) => ({
-                id: c.id,
-                name: c.name,
-                divisionNames: c.divisionNames,
-              }))}
-              isOrganizer={canEditSetup}
-              compactEmpty={emptySetup}
-            />
-          </section>
-        </TabsContent>
-
-        {showTeamsTab && (
-          <TabsContent value="teams" className="mt-4 space-y-3">
-            {canManageRegistrations && (
-              <p className="text-sm text-muted-foreground">
-                Assign confirmed teams to pools before generating matches.
-              </p>
-            )}
-            <RegistrationList
-              tournamentId={id}
-              registrations={confirmedTeams}
-              divisions={divisionOptions}
-              listKind="teams"
-              canManageRegistrations={canManageRegistrations}
-              canCheckIn={canCheckIn}
-              canWithdraw={canRegisterTeams(tournament)}
-              captainTeamIds={captainIds}
-            />
-          </TabsContent>
+      <Suspense key={activeTab} fallback={<TournamentPanelSkeleton />}>
+        {activeTab === "setup" && (
+          <TournamentSetupPanel
+            tournamentId={id}
+            canEditSetup={canEditSetup}
+          />
         )}
-
-        {showPendingTab && (
-          <TabsContent value="pending" className="mt-4 space-y-3">
-            {isOrganizer && canManageRegistrations && pendingCount > 0 && (
-              <p className="text-sm text-muted-foreground">
-                Review and confirm registrations before assigning pools.
-              </p>
-            )}
-            {!isOrganizer && (
-              <p className="text-sm text-muted-foreground">
-                Track your team&apos;s registration status for this tournament.
-              </p>
-            )}
-            <RegistrationList
-              tournamentId={id}
-              registrations={pendingTeams}
-              divisions={divisionOptions}
-              listKind="pending"
-              applicantView={!isOrganizer}
-              canManageRegistrations={canManageRegistrations}
-              canCheckIn={canCheckIn}
-              canWithdraw={canRegisterTeams(tournament)}
-              captainTeamIds={captainIds}
-            />
-          </TabsContent>
+        {activeTab === "teams" && showTeamsTab && (
+          <TournamentRegistrationsPanel
+            tournament={tournament}
+            user={user}
+            listKind="teams"
+          />
         )}
-
-        {showPoolPlayTab && (
-          <TabsContent value="pool-play" className="mt-4 space-y-6">
-            {isOrganizer && (
-              <PoolMatchFormatPanel
-                tournamentId={tournament.id}
-                matchFormat={tournament.matchFormat}
-                setStartingScore={tournament.setStartingScore}
-                setTargetScore={tournament.setTargetScore}
-                tiebreakTargetScore={tournament.tiebreakTargetScore}
-                warmupFormat={tournament.warmupFormat}
-                poolTiebreakCriteria={tournament.poolTiebreakCriteria}
-              />
-            )}
-            {isOrganizer && poolAssignmentBlocked && (
-              <p className="text-sm text-muted-foreground">
-                {poolAssignmentBlocked}
-              </p>
-            )}
-            {(() => {
-              const eligibleDivisions = divisionPlayData.filter((d) => {
-                if (d.format !== "pool_to_bracket") {
-                  return isOrganizer && d.pools.some((p) => p.matches.length > 0);
-                }
-                if (!isOrganizer && !d.poolsReleasedAt) return false;
-                return isOrganizer || d.pools.some((p) => p.matches.length > 0);
-              });
-              if (eligibleDivisions.length === 0) {
-                return (
-                  <EmptyState
-                    icon={LayoutGrid}
-                    title="No pool play yet"
-                    description={
-                      isOrganizer
-                        ? "Add a pool with the “Pool to bracket” format in the Setup tab to get started."
-                        : "Pools haven’t been released for this tournament yet. Check back soon."
-                    }
-                  />
-                );
-              }
-              return (
-                <Tabs defaultValue={eligibleDivisions[0].id}>
-                  {eligibleDivisions.length > 1 && (
-                    <TabsList>
-                      {eligibleDivisions.map((div) => (
-                        <TabsTrigger key={div.id} value={div.id}>
-                          {div.name}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                  )}
-                  {eligibleDivisions.map((div) => (
-                    <TabsContent
-                      key={div.id}
-                      value={div.id}
-                      className="mt-4 space-y-4"
-                    >
-                      {isOrganizer && (
-                        <DivisionPoolRelease
-                          tournamentId={id}
-                          divisionId={div.id}
-                          divisionName={div.name}
-                          poolsReleasedAt={div.poolsReleasedAt}
-                          matchCount={div.pools.reduce(
-                            (n, p) => n + p.matches.length,
-                            0
-                          )}
-                          completedMatchCount={div.pools.reduce(
-                            (n, p) =>
-                              n +
-                              p.matches.filter(
-                                (m) => m.status === "completed"
-                              ).length,
-                            0
-                          )}
-                        />
-                      )}
-                      {div.pools.length === 0 ||
-                      div.pools.every((p) => p.teams.length === 0) ? (
-                        <EmptyState
-                          icon={Users}
-                          title="No teams in this pool yet"
-                          description={
-                            isOrganizer
-                              ? "Assign confirmed teams to this pool from the Teams tab."
-                              : "Teams will appear here once the host assigns them."
-                          }
-                        />
-                      ) : (
-                        <div className="space-y-4">
-                          {div.pools.map((pool) => (
-                            <div key={pool.id} className="space-y-4">
-                              {isOrganizer &&
-                                div.format === "pool_to_bracket" && (
-                                  <PoolSeedingPanel
-                                    key={`${pool.id}-${pool.teams.map((t) => t.id).join(",")}`}
-                                    tournamentId={id}
-                                    poolId={pool.id}
-                                    poolName={pool.name}
-                                    teams={pool.teams}
-                                    canEdit={canAssignPools}
-                                    matchesStarted={
-                                      poolMatchesStartedByPoolId.get(
-                                        pool.id
-                                      ) ?? false
-                                    }
-                                  />
-                                )}
-                              {pool.matches.length > 0 ? (
-                                <PoolView
-                                  tournamentId={tournament.id}
-                                  slug={tournament.slug}
-                                  tournamentDate={tournament.date}
-                                  pool={pool}
-                                  canEditRefs={isOrganizer}
-                                  canEditSchedule={isOrganizer}
-                                  tiebreakCriteria={tournament.poolTiebreakCriteria}
-                                />
-                              ) : isOrganizer &&
-                                div.format === "pool_to_bracket" ? (
-                                <p className="text-sm text-muted-foreground">
-                                  Save seeding to create pool matches.
-                                </p>
-                              ) : null}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </TabsContent>
-                  ))}
-                </Tabs>
-              );
-            })()}
-          </TabsContent>
+        {activeTab === "pending" && showPendingTab && (
+          <TournamentRegistrationsPanel
+            tournament={tournament}
+            user={user}
+            listKind="pending"
+          />
         )}
-
-        {showBracketTab && (
-          <TabsContent value="bracket" className="mt-4 space-y-6">
-            {isOrganizer && (
-              <p className="text-sm text-muted-foreground">
-                Brackets are created when you add a pool in Setup. Release a
-                pool on the Pools tab when you are ready for participants to
-                see standings and brackets.
-              </p>
-            )}
-            {(() => {
-              const eligibleDivisions = divisionPlayData.filter((d) => {
-                const bracketFormat =
-                  d.format === "pool_to_bracket" ||
-                  d.format === "single_elimination" ||
-                  d.format === "double_elimination";
-                if (!bracketFormat) return false;
-                if (!isOrganizer && !d.poolsReleasedAt) return false;
-                return isOrganizer || d.brackets.length > 0;
-              });
-              if (eligibleDivisions.length === 0) {
-                return (
-                  <EmptyState
-                    icon={Trophy}
-                    title="No brackets yet"
-                    description={
-                      isOrganizer
-                        ? "Pick a bracket format for a division in the Setup tab."
-                        : "Brackets haven’t been released for this tournament yet. Check back soon."
-                    }
-                  />
-                );
-              }
-              return (
-                <Tabs defaultValue={eligibleDivisions[0].id}>
-                  {eligibleDivisions.length > 1 && (
-                    <TabsList>
-                      {eligibleDivisions.map((div) => (
-                        <TabsTrigger key={div.id} value={div.id}>
-                          {div.name}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                  )}
-                  {eligibleDivisions.map((div) => (
-                    <TabsContent
-                      key={div.id}
-                      value={div.id}
-                      className="mt-4 space-y-4"
-                    >
-                      {isOrganizer && (
-                        <DivisionPoolRelease
-                          tournamentId={id}
-                          divisionId={div.id}
-                          divisionName={div.name}
-                          poolsReleasedAt={div.poolsReleasedAt}
-                          matchCount={div.pools.reduce(
-                            (n, p) => n + p.matches.length,
-                            0
-                          )}
-                          completedMatchCount={div.pools.reduce(
-                            (n, p) =>
-                              n +
-                              p.matches.filter(
-                                (m) => m.status === "completed"
-                              ).length,
-                            0
-                          )}
-                        />
-                      )}
-                      {div.brackets.length === 0 ? (
-                        <EmptyState
-                          icon={Trophy}
-                          title="No bracket for this division yet"
-                          description="Add the pool again in Setup, or contact support if this persists."
-                        />
-                      ) : (
-                        <div className="space-y-4">
-                          {div.brackets.map((bracket) => (
-                            <BracketView
-                              key={bracket.id}
-                              bracket={bracket}
-                              slug={tournament.slug}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </TabsContent>
-                  ))}
-                </Tabs>
-              );
-            })()}
-          </TabsContent>
+        {activeTab === "pool-play" && showPoolPlayTab && (
+          <TournamentPoolPlayPanel tournament={tournament} user={user} />
         )}
-
-        {showMatchesTab && (
-          <TabsContent value="matches" className="mt-4">
-            <MatchBoard
-              slug={tournament.slug}
-              divisions={divisionPlayData}
-              settings={{
-                format: tournament.matchFormat,
-                targetScore: tournament.setTargetScore,
-                tiebreakTargetScore: tournament.tiebreakTargetScore,
-              }}
-            />
-          </TabsContent>
+        {activeTab === "bracket" && showBracketTab && (
+          <TournamentBracketPanel tournament={tournament} user={user} />
         )}
-      </Tabs>
+        {activeTab === "matches" && showMatchesTab && (
+          <TournamentMatchesPanel tournament={tournament} user={user} />
+        )}
+      </Suspense>
     </div>
   );
 }

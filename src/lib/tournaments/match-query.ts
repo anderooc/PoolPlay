@@ -60,6 +60,59 @@ export async function tournamentHasScheduledMatches(
   return (row?.value ?? 0) > 0;
 }
 
+/** Lightweight tab-bar signals — avoids loading full division play data. */
+export async function getTournamentPlaySignals(
+  tournamentId: string,
+  options?: { forOrganizer?: boolean }
+): Promise<{
+  hasPoolMatches: boolean;
+  hasBrackets: boolean;
+  hasVisibleMatches: boolean;
+}> {
+  const forOrganizer = options?.forOrganizer ?? false;
+
+  const releasedOnly = (divAlias: typeof divFromPool | typeof divFromBracket) =>
+    forOrganizer
+      ? eq(divAlias.tournamentId, tournamentId)
+      : and(
+          eq(divAlias.tournamentId, tournamentId),
+          isNotNull(divAlias.poolsReleasedAt)
+        );
+
+  const [poolMatchRow, bracketRow, visibleMatchRow] = await Promise.all([
+    // Pool matches anywhere in the tournament (checklist + organizer Pools tab).
+    db
+      .select({ id: matches.id })
+      .from(matches)
+      .innerJoin(pools, eq(matches.poolId, pools.id))
+      .innerJoin(divFromPool, eq(pools.divisionId, divFromPool.id))
+      .where(eq(divFromPool.tournamentId, tournamentId))
+      .limit(1),
+    // Brackets visible to this viewer (released-only for participants).
+    db
+      .select({ id: brackets.id })
+      .from(brackets)
+      .innerJoin(divFromBracket, eq(brackets.divisionId, divFromBracket.id))
+      .where(releasedOnly(divFromBracket))
+      .limit(1),
+    db
+      .select({ id: matches.id })
+      .from(matches)
+      .leftJoin(pools, eq(matches.poolId, pools.id))
+      .leftJoin(divFromPool, eq(pools.divisionId, divFromPool.id))
+      .leftJoin(brackets, eq(matches.bracketId, brackets.id))
+      .leftJoin(divFromBracket, eq(brackets.divisionId, divFromBracket.id))
+      .where(or(releasedOnly(divFromPool), releasedOnly(divFromBracket)))
+      .limit(1),
+  ]);
+
+  return {
+    hasPoolMatches: poolMatchRow.length > 0,
+    hasBrackets: bracketRow.length > 0,
+    hasVisibleMatches: visibleMatchRow.length > 0,
+  };
+}
+
 export async function matchBelongsToTournament(
   matchId: string,
   tournamentId: string
