@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { format as formatDate } from "date-fns";
 import {
+  ArrowLeftRight,
   Minus,
+  Pause,
   Plus,
   Play,
+  SkipForward,
   Timer,
   Trophy,
   MapPin,
@@ -30,8 +33,10 @@ import {
   type MatchFormat,
 } from "@/lib/labels/match-format";
 import {
-  warmupMinutesForFormat,
+  warmupPhasesForFormat,
   type WarmupFormat,
+  type WarmupPhase,
+  type WarmupTeamKey,
 } from "@/lib/labels/warmup-format";
 import {
   startWarmup,
@@ -116,7 +121,26 @@ export function MatchConsole({
   const storedA = storedCurrent?.teamAScore ?? startingScore;
   const storedB = storedCurrent?.teamBScore ?? startingScore;
 
+  const teamAName = match.teamA?.name ?? "TBD";
+  const teamBName = match.teamB?.name ?? "TBD";
+  const hasTeams = Boolean(match.teamA && match.teamB);
+
   const [busy, setBusy] = useState(false);
+  /** Local only: which side is left/right for the ref's view of the court. */
+  const [sidesFlipped, setSidesFlipped] = useState(false);
+
+  const leftName = sidesFlipped ? teamBName : teamAName;
+  const rightName = sidesFlipped ? teamAName : teamBName;
+  const leftSetsWon = sidesFlipped
+    ? scoreState.setsWonB
+    : scoreState.setsWonA;
+  const rightSetsWon = sidesFlipped
+    ? scoreState.setsWonA
+    : scoreState.setsWonB;
+  const leftWinner =
+    match.winnerId === (sidesFlipped ? match.teamB?.id : match.teamA?.id);
+  const rightWinner =
+    match.winnerId === (sidesFlipped ? match.teamA?.id : match.teamB?.id);
 
   // ── Realtime: keep spectators (and the other team) in sync ──────────────
   useEffect(() => {
@@ -155,25 +179,6 @@ export function MatchConsole({
     };
   }, [match.id, router]);
 
-  // ── Warmup countdown ────────────────────────────────────────────────────
-  const warmupMinutes = warmupMinutesForFormat(settings.warmupFormat);
-  const [nowTs, setNowTs] = useState(() => Date.now());
-  useEffect(() => {
-    if (phase !== "warmup") return;
-    const i = setInterval(() => setNowTs(Date.now()), 1000);
-    return () => clearInterval(i);
-  }, [phase]);
-
-  const warmupRemainingMs =
-    match.warmupStartedAt && warmupMinutes > 0
-      ? Math.max(
-          0,
-          new Date(match.warmupStartedAt).getTime() +
-            warmupMinutes * 60_000 -
-            nowTs
-        )
-      : 0;
-
   async function runLifecycle(
     fn: () => Promise<{ error?: string | null; success?: true } | undefined>
   ) {
@@ -186,10 +191,6 @@ export function MatchConsole({
     }
     router.refresh();
   }
-
-  const teamAName = match.teamA?.name ?? "TBD";
-  const teamBName = match.teamB?.name ?? "TBD";
-  const hasTeams = Boolean(match.teamA && match.teamB);
 
   const winnerName =
     match.winnerId === match.teamA?.id
@@ -258,17 +259,35 @@ export function MatchConsole({
 
       {/* Match score summary */}
       <Card>
-        <CardContent className="flex items-center justify-center gap-8 py-6 text-center">
+        <CardContent className="grid grid-cols-[minmax(0,1fr)_5.5rem_minmax(0,1fr)] items-center gap-2 py-6 sm:gap-4">
           <ScoreColumn
-            name={teamAName}
-            value={scoreState.setsWonA}
-            highlight={match.winnerId === match.teamA?.id}
+            name={leftName}
+            value={leftSetsWon}
+            highlight={leftWinner}
           />
-          <div className="text-sm text-muted-foreground">sets</div>
+          <div className="flex w-full flex-col items-center gap-1">
+            <span className="text-sm text-muted-foreground">sets</span>
+            {canControl && phase !== "completed" ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 w-full gap-1 px-1.5 text-xs"
+                aria-label="Flip team sides"
+                title="Flip left/right to match the court"
+                onClick={() => setSidesFlipped((f) => !f)}
+              >
+                <ArrowLeftRight className="h-3.5 w-3.5 shrink-0" />
+                Flip
+              </Button>
+            ) : (
+              <span className="h-7" aria-hidden />
+            )}
+          </div>
           <ScoreColumn
-            name={teamBName}
-            value={scoreState.setsWonB}
-            highlight={match.winnerId === match.teamB?.id}
+            name={rightName}
+            value={rightSetsWon}
+            highlight={rightWinner}
           />
         </CardContent>
       </Card>
@@ -279,50 +298,54 @@ export function MatchConsole({
           <CardTitle className="text-sm">Set tracker</CardTitle>
         </CardHeader>
         <CardContent className="space-y-1.5">
-          {scoreState.tracker.map((entry) => (
-            <div
-              key={entry.setNumber}
-              className={cn(
-                "flex items-center justify-between rounded-md px-3 py-1.5 text-sm",
-                entry.current && phase !== "completed"
-                  ? "bg-primary/10 ring-1 ring-primary/20"
-                  : "bg-muted/40"
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <span className="font-medium">Set {entry.setNumber}</span>
-                <span className="text-xs text-muted-foreground">
-                  to {entry.target}
-                </span>
-                {entry.current && phase !== "completed" && (
-                  <span className="text-xs font-medium text-primary">
-                    current
-                  </span>
+          {scoreState.tracker.map((entry) => {
+            const leftScore = sidesFlipped
+              ? entry.teamBScore
+              : entry.teamAScore;
+            const rightScore = sidesFlipped
+              ? entry.teamAScore
+              : entry.teamBScore;
+            return (
+              <div
+                key={entry.setNumber}
+                className={cn(
+                  "flex items-center justify-between rounded-md px-3 py-1.5 text-sm",
+                  entry.current && phase !== "completed"
+                    ? "bg-primary/10 ring-1 ring-primary/20"
+                    : "bg-muted/40"
                 )}
-              </span>
-              <span className="tabular-nums">
-                <span
-                  className={cn(
-                    entry.complete &&
-                      entry.teamAScore > entry.teamBScore &&
-                      "font-semibold"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="font-medium">Set {entry.setNumber}</span>
+                  <span className="text-xs text-muted-foreground">
+                    to {entry.target}
+                  </span>
+                  {entry.current && phase !== "completed" && (
+                    <span className="text-xs font-medium text-primary">
+                      current
+                    </span>
                   )}
-                >
-                  {entry.teamAScore}
                 </span>
-                {" – "}
-                <span
-                  className={cn(
-                    entry.complete &&
-                      entry.teamBScore > entry.teamAScore &&
-                      "font-semibold"
-                  )}
-                >
-                  {entry.teamBScore}
+                <span className="tabular-nums">
+                  <span
+                    className={cn(
+                      entry.complete && leftScore > rightScore && "font-semibold"
+                    )}
+                  >
+                    {leftScore}
+                  </span>
+                  {" – "}
+                  <span
+                    className={cn(
+                      entry.complete && rightScore > leftScore && "font-semibold"
+                    )}
+                  >
+                    {rightScore}
+                  </span>
                 </span>
-              </span>
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </CardContent>
       </Card>
 
@@ -380,19 +403,11 @@ export function MatchConsole({
       ) : phase === "warmup" ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-4 py-6">
-            <div className="text-center">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Warmup
-              </p>
-              <p className="font-heading text-4xl font-bold tabular-nums">
-                {formatCountdown(warmupRemainingMs)}
-              </p>
-              {warmupMinutes === 0 && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  No warmup configured for this tournament.
-                </p>
-              )}
-            </div>
+            <WarmupTimer
+              format={settings.warmupFormat}
+              teamAName={teamAName}
+              teamBName={teamBName}
+            />
             <Button
               disabled={busy}
               onClick={() => void runLifecycle(() => startMatch(match.id))}
@@ -414,6 +429,8 @@ export function MatchConsole({
             initialB={storedB}
             teamAName={teamAName}
             teamBName={teamBName}
+            sidesFlipped={sidesFlipped}
+            onFlipSides={() => setSidesFlipped((f) => !f)}
           />
           <CardContent className="space-y-4 pt-0">
             <Separator />
@@ -485,6 +502,8 @@ function Scorekeeper({
   initialB,
   teamAName,
   teamBName,
+  sidesFlipped,
+  onFlipSides,
 }: {
   matchId: string;
   setNumber: number;
@@ -493,6 +512,8 @@ function Scorekeeper({
   initialB: number;
   teamAName: string;
   teamBName: string;
+  sidesFlipped: boolean;
+  onFlipSides: () => void;
 }) {
   const router = useRouter();
   const [a, setA] = useState(initialA);
@@ -533,20 +554,53 @@ function Scorekeeper({
     else setB((prev) => Math.max(0, prev + delta));
   }
 
+  const left = sidesFlipped
+    ? { name: teamBName, value: b, team: "b" as const }
+    : { name: teamAName, value: a, team: "a" as const };
+  const right = sidesFlipped
+    ? { name: teamAName, value: a, team: "a" as const }
+    : { name: teamBName, value: b, team: "b" as const };
+
   return (
     <>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle className="text-sm">
           Set {setNumber} · to {target}
         </CardTitle>
-        <span className="text-xs text-muted-foreground">
-          {saving ? "Saving…" : "Saved"}
-        </span>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1.5 px-2 text-xs"
+            aria-label="Flip team sides"
+            title="Flip left/right to match the court"
+            onClick={onFlipSides}
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5" />
+            Flip sides
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {saving ? "Saving…" : "Saved"}
+          </span>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-4">
-          <Stepper name={teamAName} value={a} onBump={(d) => bump("a", d)} />
-          <Stepper name={teamBName} value={b} onBump={(d) => bump("b", d)} />
+          <div className="min-w-0">
+            <Stepper
+              name={left.name}
+              value={left.value}
+              onBump={(d) => bump(left.team, d)}
+            />
+          </div>
+          <div className="min-w-0">
+            <Stepper
+              name={right.name}
+              value={right.value}
+              onBump={(d) => bump(right.team, d)}
+            />
+          </div>
         </div>
       </CardContent>
     </>
@@ -563,16 +617,19 @@ function ScoreColumn({
   highlight: boolean;
 }) {
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 w-full text-center">
       <p
         className={cn(
-          "font-heading text-4xl font-bold tabular-nums",
+          "font-heading text-4xl font-bold tabular-nums leading-none",
           highlight && "text-primary"
         )}
       >
         {value}
       </p>
-      <p className="mt-1 max-w-[8rem] truncate text-xs text-muted-foreground">
+      <p
+        className="mt-1.5 truncate px-1 text-xs text-muted-foreground"
+        title={name}
+      >
         {name}
       </p>
     </div>
@@ -589,9 +646,16 @@ function Stepper({
   onBump: (delta: number) => void;
 }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-lg border bg-muted/30 p-3">
-      <p className="max-w-full truncate text-sm font-medium">{name}</p>
-      <p className="font-heading text-5xl font-bold tabular-nums">{value}</p>
+    <div className="flex min-w-0 flex-col items-center gap-2 rounded-lg border bg-muted/30 p-3">
+      <p
+        className="h-5 w-full truncate px-1 text-center text-sm font-medium leading-5"
+        title={name}
+      >
+        {name}
+      </p>
+      <p className="font-heading text-5xl font-bold tabular-nums leading-none">
+        {value}
+      </p>
       <div className="flex items-center gap-2">
         <Button
           variant="outline"
@@ -614,9 +678,259 @@ function Stepper({
   );
 }
 
-function formatCountdown(ms: number): string {
-  const total = Math.ceil(ms / 1000);
+function formatCountdown(totalSeconds: number): string {
+  const total = Math.max(0, Math.ceil(totalSeconds));
   const m = Math.floor(total / 60);
   const s = total % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+/**
+ * Phased on-court warmup clock. Each team runs hitting then serving; order is
+ * chosen after rock-paper-scissors. Pause / play / next / reset are local to
+ * the ref console.
+ */
+function WarmupTimer({
+  format,
+  teamAName,
+  teamBName,
+}: {
+  format: WarmupFormat;
+  teamAName: string;
+  teamBName: string;
+}) {
+  const [firstTeam, setFirstTeam] = useState<WarmupTeamKey>("a");
+  const phases = warmupPhasesForFormat(
+    format,
+    teamAName,
+    teamBName,
+    firstTeam
+  );
+  const [phaseIndex, setPhaseIndex] = useState(0);
+  const [remainingSeconds, setRemainingSeconds] = useState(
+    () => phases[0]?.durationSeconds ?? 0
+  );
+  const [running, setRunning] = useState(false);
+
+  function goToPhase(index: number, autoplay: boolean) {
+    const nextPhases = warmupPhasesForFormat(
+      format,
+      teamAName,
+      teamBName,
+      firstTeam
+    );
+    if (nextPhases.length === 0) {
+      setPhaseIndex(0);
+      setRemainingSeconds(0);
+      setRunning(false);
+      return;
+    }
+    const clamped = Math.min(Math.max(index, 0), nextPhases.length - 1);
+    setPhaseIndex(clamped);
+    setRemainingSeconds(nextPhases[clamped].durationSeconds);
+    setRunning(autoplay);
+  }
+
+  useEffect(() => {
+    goToPhase(0, false);
+    // Reset when format, names, or order change — always start paused.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [format, teamAName, teamBName, firstTeam]);
+
+  useEffect(() => {
+    if (!running || phases.length === 0) return;
+    const id = setInterval(() => {
+      setRemainingSeconds((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [running, phases.length, phaseIndex]);
+
+  useEffect(() => {
+    if (remainingSeconds > 0 || phases.length === 0 || !running) return;
+    if (phaseIndex < phases.length - 1) {
+      const next = phaseIndex + 1;
+      setPhaseIndex(next);
+      setRemainingSeconds(phases[next].durationSeconds);
+      return;
+    }
+    setRunning(false);
+  }, [remainingSeconds, phaseIndex, phases, running]);
+
+  if (phases.length === 0) {
+    return (
+      <div className="text-center">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          Warmup
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          No warmup configured for this tournament.
+        </p>
+      </div>
+    );
+  }
+
+  const phase: WarmupPhase = phases[phaseIndex] ?? phases[phases.length - 1];
+  const complete =
+    !running && phaseIndex === phases.length - 1 && remainingSeconds <= 0;
+
+  const teamBlocks: { key: WarmupTeamKey; name: string; indices: number[] }[] =
+    (() => {
+      const order: WarmupTeamKey[] =
+        firstTeam === "a" ? ["a", "b"] : ["b", "a"];
+      return order.map((key) => {
+        const indices = phases
+          .map((p, i) => (p.teamKey === key ? i : -1))
+          .filter((i) => i >= 0);
+        return {
+          key,
+          name: key === "a" ? teamAName : teamBName,
+          indices,
+        };
+      });
+    })();
+
+  function selectFirstTeam(team: WarmupTeamKey) {
+    if (team === firstTeam) return;
+    setFirstTeam(team);
+  }
+
+  function reset() {
+    goToPhase(0, false);
+  }
+
+  function nextPhase() {
+    if (phaseIndex >= phases.length - 1) {
+      setRemainingSeconds(0);
+      setRunning(false);
+      return;
+    }
+    goToPhase(phaseIndex + 1, running);
+  }
+
+  return (
+    <div className="flex w-full max-w-md flex-col items-center gap-4">
+      <div className="w-full space-y-2">
+        <p className="text-center text-xs text-muted-foreground">
+          Who won rock-paper-scissors? They warm up first.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={firstTeam === "a" ? "default" : "outline"}
+            size="sm"
+            className="h-auto min-h-9 whitespace-normal px-2 py-1.5 text-xs"
+            onClick={() => selectFirstTeam("a")}
+          >
+            <span className="line-clamp-2">{teamAName} first</span>
+          </Button>
+          <Button
+            type="button"
+            variant={firstTeam === "b" ? "default" : "outline"}
+            size="sm"
+            className="h-auto min-h-9 whitespace-normal px-2 py-1.5 text-xs"
+            onClick={() => selectFirstTeam("b")}
+          >
+            <span className="line-clamp-2">{teamBName} first</span>
+          </Button>
+        </div>
+      </div>
+
+      <div className="text-center">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          Warmup · {phaseIndex + 1} of {phases.length}
+        </p>
+        <p className="mt-1 text-sm font-medium">{phase.label}</p>
+        <p
+          className={cn(
+            "font-heading text-5xl font-bold tabular-nums",
+            complete && "text-muted-foreground"
+          )}
+        >
+          {formatCountdown(complete ? 0 : remainingSeconds)}
+        </p>
+        {complete && (
+          <p className="mt-1 text-xs text-muted-foreground">Warmup complete</p>
+        )}
+      </div>
+
+      <div className="grid w-full gap-2 sm:grid-cols-2">
+        {teamBlocks.map((block, blockIndex) => (
+          <div
+            key={block.key}
+            className={cn(
+              "rounded-md border border-border/70 p-2",
+              block.indices.includes(phaseIndex) && !complete
+                ? "border-primary/40 bg-primary/5"
+                : "bg-muted/20"
+            )}
+          >
+            <p className="mb-1.5 truncate text-xs font-medium">
+              {blockIndex === 0 ? "1st" : "2nd"} · {block.name}
+            </p>
+            <ol className="space-y-1">
+              {block.indices.map((i) => {
+                const p = phases[i];
+                const active = i === phaseIndex && !complete;
+                const done = i < phaseIndex || complete;
+                return (
+                  <li
+                    key={`${p.label}-${i}`}
+                    className={cn(
+                      "flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-[11px]",
+                      active
+                        ? "border-primary/40 bg-primary/10 font-medium text-foreground"
+                        : done
+                          ? "border-border/50 bg-muted/40 text-muted-foreground"
+                          : "border-border/50 text-muted-foreground"
+                    )}
+                  >
+                    <span className="capitalize">{p.activity}</span>
+                    <span className="tabular-nums">
+                      {formatCountdown(p.durationSeconds)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={running ? "Pause warmup timer" : "Play warmup timer"}
+          disabled={complete}
+          onClick={() => setRunning((r) => !r)}
+        >
+          {running ? (
+            <Pause className="h-4 w-4" />
+          ) : (
+            <Play className="h-4 w-4" />
+          )}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label="Next warmup phase"
+          disabled={complete}
+          onClick={nextPhase}
+        >
+          <SkipForward className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label="Reset warmup timer"
+          onClick={reset}
+        >
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 }
