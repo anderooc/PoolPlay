@@ -1,6 +1,6 @@
 import { Trophy } from "lucide-react";
 import type { InferSelectModel } from "drizzle-orm";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { divisions, tournaments } from "@/lib/db/schema";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -9,10 +9,15 @@ import {
   isTournamentOrganizer,
   type UserForPermissions,
 } from "@/lib/tournaments/permissions";
-import { ensureDivisionBracketSkeleton } from "@/lib/tournaments/bracket-structure";
+import {
+  ensureDivisionBracketSkeleton,
+  ensureTournamentCombinedBrackets,
+  tryFillBracketFromDivisionSeeds,
+  tryFillTournamentCombinedBrackets,
+} from "@/lib/tournaments/bracket-structure";
 import { getDivisionPlayData } from "../brackets/data";
 import { BracketView } from "../brackets/bracket-view";
-import { DivisionPoolRelease } from "../brackets/division-pool-release";
+import { BracketSettingsPanel } from "../brackets/bracket-settings-panel";
 
 export async function TournamentBracketPanel({
   tournament,
@@ -25,101 +30,111 @@ export async function TournamentBracketPanel({
 
   const [divisionPlayData, tournamentDivisions] = await Promise.all([
     getDivisionPlayData(tournament.id, { forOrganizer: isOrganizer }),
-    isOrganizer
-      ? db
-          .select({
-            id: divisions.id,
-            format: divisions.format,
-            teamCap: divisions.teamCap,
-          })
-          .from(divisions)
-          .where(eq(divisions.tournamentId, tournament.id))
-      : Promise.resolve([]),
+    db
+      .select({
+        id: divisions.id,
+        name: divisions.name,
+        format: divisions.format,
+        poolsReleasedAt: divisions.poolsReleasedAt,
+      })
+      .from(divisions)
+      .where(eq(divisions.tournamentId, tournament.id))
+      .orderBy(asc(divisions.createdAt), asc(divisions.id)),
   ]);
 
-  if (isOrganizer && tournamentDivisions.length > 0) {
-    const divsWithBracket = new Set(
-      divisionPlayData.filter((d) => d.brackets.length > 0).map((d) => d.id)
-    );
-    for (const div of tournamentDivisions) {
-      if (divsWithBracket.has(div.id)) continue;
-      await ensureDivisionBracketSkeleton(div.id, div.format, div.teamCap);
+  const poolDivisions = tournamentDivisions.filter(
+    (d) => d.format === "pool_to_bracket"
+  );
+  const otherDivisions = tournamentDivisions.filter(
+    (d) =>
+      d.format === "single_elimination" || d.format === "double_elimination"
+  );
+
+  if (poolDivisions.length > 0) {
+    await ensureTournamentCombinedBrackets(tournament.id);
+    await tryFillTournamentCombinedBrackets(tournament.id);
+  }
+  if (isOrganizer) {
+    for (const div of otherDivisions) {
+      await ensureDivisionBracketSkeleton(div.id, div.format);
+      if (div.format === "single_elimination") {
+        await tryFillBracketFromDivisionSeeds(div.id);
+      }
     }
   }
 
-  const eligibleDivisions = divisionPlayData.filter((d) => {
-    const bracketFormat =
-      d.format === "pool_to_bracket" ||
-      d.format === "single_elimination" ||
-      d.format === "double_elimination";
-    if (!bracketFormat) return false;
+  // Refresh play data after ensuring / seeding brackets.
+  const playData =
+    poolDivisions.length > 0
+      ? await getDivisionPlayData(tournament.id, { forOrganizer: isOrganizer })
+      : divisionPlayData;
+
+  const ownerId = poolDivisions[0]?.id;
+  const combinedBrackets =
+    ownerId != null
+      ? (playData.find((d) => d.id === ownerId)?.brackets ?? [])
+      : [];
+
+  const combinedLocked = combinedBrackets.some((b) =>
+    b.matches.some((m) => m.teamAId || m.teamBId)
+  );
+
+  const showCombined =
+    poolDivisions.length > 0 &&
+    (isOrganizer ||
+      poolDivisions.some((d) => d.poolsReleasedAt != null));
+
+  const otherEligible = playData.filter((d) => {
+    const format = tournamentDivisions.find((x) => x.id === d.id)?.format;
+    if (
+      format !== "single_elimination" &&
+      format !== "double_elimination"
+    ) {
+      return false;
+    }
     if (!isOrganizer && !d.poolsReleasedAt) return false;
     return isOrganizer || d.brackets.length > 0;
   });
 
+  const hasAnything =
+    (showCombined && (isOrganizer || combinedBrackets.length > 0)) ||
+    otherEligible.length > 0;
+
   return (
     <div className="space-y-6">
-      {isOrganizer && (
-        <p className="text-sm text-muted-foreground">
-          Brackets are created when you add a pool in Setup. Release a pool on
-          the Pools tab when you are ready for participants to see standings and
-          brackets.
-        </p>
+      {isOrganizer && poolDivisions.length > 0 && (
+        <BracketSettingsPanel
+          tournamentId={tournament.id}
+          bracketCount={tournament.bracketCount ?? 1}
+          goldTeamCount={tournament.goldTeamCount ?? null}
+          silverTeamCount={tournament.silverTeamCount ?? null}
+          locked={combinedLocked}
+        />
       )}
-      {eligibleDivisions.length === 0 ? (
+
+      {!hasAnything ? (
         <EmptyState
           icon={Trophy}
           title="No brackets yet"
           description={
             isOrganizer
-              ? "Pick a bracket format for a division in the Setup tab."
+              ? "Add a pool-to-bracket division in Setup. All pools combine into gold / silver / bronze after pool play."
               : "Brackets haven’t been released for this tournament yet. Check back soon."
           }
         />
       ) : (
-        <Tabs defaultValue={eligibleDivisions[0].id}>
-          {eligibleDivisions.length > 1 && (
-            <TabsList>
-              {eligibleDivisions.map((div) => (
-                <TabsTrigger key={div.id} value={div.id}>
-                  {div.name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          )}
-          {eligibleDivisions.map((div) => (
-            <TabsContent
-              key={div.id}
-              value={div.id}
-              className="mt-4 space-y-4"
-            >
-              {isOrganizer && (
-                <DivisionPoolRelease
-                  tournamentId={tournament.id}
-                  divisionId={div.id}
-                  divisionName={div.name}
-                  poolsReleasedAt={div.poolsReleasedAt}
-                  matchCount={div.pools.reduce(
-                    (n, p) => n + p.matches.length,
-                    0
-                  )}
-                  completedMatchCount={div.pools.reduce(
-                    (n, p) =>
-                      n +
-                      p.matches.filter((m) => m.status === "completed").length,
-                    0
-                  )}
-                />
-              )}
-              {div.brackets.length === 0 ? (
+        <>
+          {showCombined && (
+            <div className="space-y-4">
+              {combinedBrackets.length === 0 ? (
                 <EmptyState
                   icon={Trophy}
-                  title="No bracket for this division yet"
-                  description="Add the pool again in Setup, or contact support if this persists."
+                  title="No brackets yet"
+                  description="Finish pool play in every pool to seed gold / silver / bronze."
                 />
               ) : (
                 <div className="space-y-4">
-                  {div.brackets.map((bracket) => (
+                  {combinedBrackets.map((bracket) => (
                     <BracketView
                       key={bracket.id}
                       bracket={bracket}
@@ -128,9 +143,48 @@ export async function TournamentBracketPanel({
                   ))}
                 </div>
               )}
-            </TabsContent>
-          ))}
-        </Tabs>
+            </div>
+          )}
+
+          {otherEligible.length > 0 && (
+            <Tabs defaultValue={otherEligible[0].id}>
+              {otherEligible.length > 1 && (
+                <TabsList>
+                  {otherEligible.map((div) => (
+                    <TabsTrigger key={div.id} value={div.id}>
+                      {div.name}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              )}
+              {otherEligible.map((div) => (
+                <TabsContent
+                  key={div.id}
+                  value={div.id}
+                  className="mt-4 space-y-4"
+                >
+                  {div.brackets.length === 0 ? (
+                    <EmptyState
+                      icon={Trophy}
+                      title="No bracket for this division yet"
+                      description="Add the division again in Setup if this persists."
+                    />
+                  ) : (
+                    <div className="space-y-4">
+                      {div.brackets.map((bracket) => (
+                        <BracketView
+                          key={bracket.id}
+                          bracket={bracket}
+                          slug={tournament.slug}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              ))}
+            </Tabs>
+          )}
+        </>
       )}
     </div>
   );

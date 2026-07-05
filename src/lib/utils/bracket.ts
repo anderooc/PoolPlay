@@ -5,9 +5,50 @@ export interface BracketMatch {
   teamBId: string | null;
 }
 
+/** Pad team count up to the next power of two (minimum 2). */
+export function bracketSizeForTeamCount(teamCount: number): number {
+  return nextPowerOf2(Math.max(2, teamCount));
+}
+
+/** Number of opening-round byes when seeding `teamCount` teams. */
+export function byeCountForTeamCount(teamCount: number): number {
+  return bracketSizeForTeamCount(teamCount) - teamCount;
+}
+
+/** Round-1 match with exactly one team (the other slot is a bye). */
+export function isByeMatch(
+  match: Pick<BracketMatch, "teamAId" | "teamBId">
+): boolean {
+  return Boolean(
+    (match.teamAId && !match.teamBId) || (!match.teamAId && match.teamBId)
+  );
+}
+
+export function byeWinnerId(
+  match: Pick<BracketMatch, "teamAId" | "teamBId">
+): string | null {
+  if (match.teamAId && !match.teamBId) return match.teamAId;
+  if (match.teamBId && !match.teamAId) return match.teamBId;
+  return null;
+}
+
+/** Where a round-1 bye winner is placed in round 2 (1-indexed positions). */
+export function roundOneAdvanceTarget(roundOnePosition: number): {
+  round: number;
+  position: number;
+  slot: "A" | "B";
+} {
+  return {
+    round: 2,
+    position: Math.ceil(roundOnePosition / 2),
+    slot: roundOnePosition % 2 === 1 ? "A" : "B",
+  };
+}
+
 /**
- * Generates a single-elimination bracket from seeded teams.
- * Fills in byes for non-power-of-2 counts.
+ * Generates a single-elimination bracket from seeded teams (best → worst).
+ * Pads to the next power of two; top seeds receive byes via standard bracket
+ * seeding (1 vs 16, 8 vs 9, …).
  */
 export function generateSingleEliminationBracket(
   seededTeamIds: string[]
@@ -15,11 +56,9 @@ export function generateSingleEliminationBracket(
   const n = seededTeamIds.length;
   if (n < 2) return [];
 
-  // Pad to next power of 2
-  const bracketSize = nextPowerOf2(n);
+  const bracketSize = bracketSizeForTeamCount(n);
   const totalRounds = Math.log2(bracketSize);
 
-  // Standard bracket seeding
   const seeds = bracketSeeding(bracketSize);
   const padded = [...seededTeamIds];
   while (padded.length < bracketSize) padded.push("BYE");
@@ -39,7 +78,6 @@ export function generateSingleEliminationBracket(
     });
   }
 
-  // Create empty matches for subsequent rounds
   for (let round = 2; round <= totalRounds; round++) {
     const matchesInRound = bracketSize / Math.pow(2, round);
     for (let pos = 1; pos <= matchesInRound; pos++) {
@@ -64,10 +102,9 @@ export function generateDoubleEliminationBracket(
 ): { winners: BracketMatch[]; losers: BracketMatch[]; grandFinal: BracketMatch } {
   const winners = generateSingleEliminationBracket(seededTeamIds);
   const n = seededTeamIds.length;
-  const bracketSize = nextPowerOf2(n);
+  const bracketSize = bracketSizeForTeamCount(n);
   const winnerRounds = Math.log2(bracketSize);
 
-  // Losers bracket has (winnerRounds - 1) * 2 rounds
   const loserRounds = (winnerRounds - 1) * 2;
   const losers: BracketMatch[] = [];
 
@@ -92,33 +129,44 @@ export function generateDoubleEliminationBracket(
   return { winners, losers, grandFinal };
 }
 
-/** Bracket slot count used when creating an empty skeleton (uses team cap or default). */
-export function bracketSlotCount(teamCap: number | null | undefined): number {
-  if (teamCap != null && teamCap >= 2) return teamCap;
-  return 8;
+/** Default bracket slot count for empty skeletons before teams are seeded. */
+export const DEFAULT_BRACKET_SLOTS = 8;
+
+/** @deprecated Prefer bracketSizeForTeamCount for seeding. */
+export function bracketSlotCount(slotCount: number | null | undefined): number {
+  if (slotCount != null && slotCount >= 2) return slotCount;
+  return DEFAULT_BRACKET_SLOTS;
 }
 
 /**
- * Full single-elimination match tree with TBD slots (null teams). Used when a
- * pool is created so the bracket exists before pool play finishes.
+ * Full single-elimination match tree with TBD slots. `teamCount` is the number
+ * of real teams; the tree is sized to the next power of two.
  */
-export function createEmptySingleEliminationBracket(slotCount: number): BracketMatch[] {
-  const n = Math.max(2, bracketSlotCount(slotCount));
-  const size = nextPowerOf2(n);
+export function createEmptySingleEliminationBracket(teamCount: number): BracketMatch[] {
+  const size = bracketSizeForTeamCount(teamCount);
   return generateSingleEliminationBracket(Array<string>(size).fill("BYE"));
 }
 
-/**
- * Double-elimination skeleton (winners + losers + grand final), all slots TBD.
- */
-export function createEmptyDoubleEliminationBracket(slotCount: number): {
+/** Double-elimination skeleton (winners + losers + grand final), all slots TBD. */
+export function createEmptyDoubleEliminationBracket(teamCount: number): {
   winners: BracketMatch[];
   losers: BracketMatch[];
   grandFinal: BracketMatch;
 } {
-  const n = Math.max(2, bracketSlotCount(slotCount));
-  const size = nextPowerOf2(n);
+  const size = bracketSizeForTeamCount(teamCount);
   return generateDoubleEliminationBracket(Array<string>(size).fill("BYE"));
+}
+
+/** Count distinct real teams currently placed in a bracket. */
+export function countPlacedTeams(
+  matches: { teamAId: string | null; teamBId: string | null }[]
+): number {
+  const ids = new Set<string>();
+  for (const m of matches) {
+    if (m.teamAId) ids.add(m.teamAId);
+    if (m.teamBId) ids.add(m.teamBId);
+  }
+  return ids.size;
 }
 
 function nextPowerOf2(n: number): number {

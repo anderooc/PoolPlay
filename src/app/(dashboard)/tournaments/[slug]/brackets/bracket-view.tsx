@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatBracketTypeLabel } from "@/lib/labels/bracket";
+import {
+  bracketSizeForTeamCount,
+  byeCountForTeamCount,
+  countPlacedTeams,
+  DEFAULT_BRACKET_SLOTS,
+} from "@/lib/utils/bracket";
 
 interface BracketMatch {
   id: string;
@@ -16,14 +22,29 @@ interface BracketMatch {
   bracketPosition: number | null;
   winnerId: string | null;
   status: string;
+  sets?: { teamAScore: number; teamBScore: number }[];
 }
 
 interface Bracket {
   id: string;
   bracketType: string;
   seedCount: number;
+  name: string | null;
+  tier: number;
   matches: BracketMatch[];
 }
+
+/** Height of one first-round matchup cell. */
+const MATCH_BLOCK = 72;
+/** Space above each baseline for the team name. */
+const TEAM_LINE = 36;
+/** Stroke thickness for all bracket lines. */
+const STROKE = 2;
+/** Horizontal run from a match to the next column. */
+const CONNECTOR = 28;
+const SLOT_WIDTH = 168;
+const MATCH_WIDTH = SLOT_WIDTH + CONNECTOR * 2;
+const CHAMPION_WIDTH = CONNECTOR + SLOT_WIDTH;
 
 export function BracketView({
   bracket,
@@ -39,7 +60,6 @@ export function BracketView({
     rounds.get(round)!.push(match);
   }
 
-  // Sort matches within each round by position
   for (const [, roundMatches] of rounds) {
     roundMatches.sort(
       (a, b) => (a.bracketPosition ?? 0) - (b.bracketPosition ?? 0)
@@ -49,74 +69,457 @@ export function BracketView({
   const sortedRounds = [...rounds.entries()].sort(([a], [b]) => a - b);
   const totalRounds = sortedRounds.length;
 
-  function roundLabel(round: number): string {
-    if (round === totalRounds) return "Final";
-    if (round === totalRounds - 1) return "Semifinal";
-    if (round === totalRounds - 2) return "Quarterfinal";
-    return `Round ${round}`;
+  const placedTeamCount = countPlacedTeams(bracket.matches);
+  const teamCount =
+    placedTeamCount > 0
+      ? placedTeamCount
+      : bracket.seedCount > 0 &&
+          bracket.seedCount !== DEFAULT_BRACKET_SLOTS
+        ? bracket.seedCount
+        : 0;
+  const byeCount =
+    teamCount >= 2 ? byeCountForTeamCount(teamCount) : 0;
+
+  if (totalRounds === 0) {
+    return (
+      <section className="rounded-xl border border-border/70 bg-card/40 px-4 py-8 text-center shadow-[inset_0_1px_0_0_oklch(1_0_0/0.5)] dark:shadow-[inset_0_1px_0_0_oklch(1_0_0/0.06)]">
+        <h3 className="font-heading text-base font-semibold tracking-tight sm:text-lg">
+          {bracket.name ? `${bracket.name} Bracket` : "Bracket"}
+        </h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Seeds automatically when pool play finishes in every pool.
+        </p>
+      </section>
+    );
   }
 
+  const firstRoundCount = sortedRounds[0][1].length;
+  const bracketHeight = firstRoundCount * MATCH_BLOCK;
+
+  function roundLabel(round: number): string {
+    if (round === totalRounds) return "Final";
+    if (round === totalRounds - 1) return "Semis";
+    if (round === totalRounds - 2) return "Quarters";
+    return `R${round}`;
+  }
+
+  const title = bracket.name
+    ? `${bracket.name} Bracket`
+    : bracket.bracketType === "double_elimination"
+      ? formatBracketTypeLabel(bracket.bracketType)
+      : "Bracket";
+
+  const showBracketType =
+    bracket.bracketType === "double_elimination" && !bracket.name;
+
+  const finalMatches = sortedRounds[totalRounds - 1][1];
+  const champion = findChampion(finalMatches);
+  /** Baseline Y where the final's advance stem meets the champion line. */
+  const championY = bracketHeight / 2;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">
-          {formatBracketTypeLabel(bracket.bracketType)} ({bracket.seedCount}{" "}
-          teams)
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex gap-6 overflow-x-auto pb-4">
-          {sortedRounds.map(([round, roundMatches]) => (
-            <div key={round} className="flex-shrink-0 space-y-2">
-              <h4 className="text-xs font-medium text-muted-foreground text-center">
-                {roundLabel(round)}
-              </h4>
-              <div
-                className="flex flex-col justify-around gap-4"
-                style={{ minHeight: `${roundMatches.length * 80}px` }}
+    <section className="rounded-xl border border-border/70 bg-card/40 shadow-[inset_0_1px_0_0_oklch(1_0_0/0.5)] dark:shadow-[inset_0_1px_0_0_oklch(1_0_0/0.06)]">
+      <header className="border-b border-border/60 px-4 py-3 text-center sm:px-6">
+        <h3 className="font-heading text-base font-semibold tracking-tight sm:text-lg">
+          {title}
+        </h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {teamCount > 0 ? (
+            <>
+              {teamCount} teams
+              {byeCount > 0 && (
+                <>
+                  {" "}
+                  · {byeCount} bye{byeCount === 1 ? "" : "s"} ({" "}
+                  {bracketSizeForTeamCount(teamCount)}-team draw)
+                </>
+              )}
+            </>
+          ) : (
+            "Waiting for pool results"
+          )}
+          {showBracketType && (
+            <> · {formatBracketTypeLabel(bracket.bracketType)}</>
+          )}
+        </p>
+      </header>
+
+      <div className="overflow-x-auto">
+        <div
+          className="mx-auto w-max px-4 py-6 sm:px-8 sm:py-8"
+          style={{
+            display: "grid",
+            gridTemplateColumns: `${[...sortedRounds.map(() => `${MATCH_WIDTH}px`), `${CHAMPION_WIDTH}px`].join(" ")}`,
+            minHeight: bracketHeight + 48,
+          }}
+        >
+          {sortedRounds.map(([round], roundIndex) => (
+            <div
+              key={`label-${round}`}
+              className="relative mb-4 min-h-7 overflow-visible"
+              style={{ gridRow: 1, gridColumn: roundIndex + 1 }}
+            >
+              <span
+                className="absolute -translate-x-1/2 whitespace-nowrap rounded-full bg-muted/80 px-2.5 py-0.5 font-heading text-xs font-bold uppercase tracking-wide text-foreground/80"
+                style={{ left: SLOT_WIDTH / 2 }}
               >
-                {roundMatches.map((match) => (
-                  <Link
-                    key={match.id}
-                    href={`/tournaments/${slug}/matches/${match.slug}`}
-                    className="block w-48 overflow-hidden rounded border bg-card transition-colors hover:border-primary/50 hover:bg-muted/40"
-                  >
-                    <MatchupSlot
-                      name={match.teamAName}
-                      isWinner={match.winnerId === match.teamAId && !!match.winnerId}
-                    />
-                    <div className="border-t" />
-                    <MatchupSlot
-                      name={match.teamBName}
-                      isWinner={match.winnerId === match.teamBId && !!match.winnerId}
-                    />
-                  </Link>
-                ))}
-              </div>
+                {roundLabel(round)}
+              </span>
             </div>
           ))}
+
+          <div
+            className="relative mb-4 min-h-7 overflow-visible"
+            style={{ gridRow: 1, gridColumn: sortedRounds.length + 1 }}
+          >
+            <span
+              className="absolute -translate-x-1/2 whitespace-nowrap rounded-full bg-primary/10 px-2.5 py-0.5 font-heading text-xs font-bold uppercase tracking-wide text-primary"
+              style={{ left: CONNECTOR + SLOT_WIDTH / 2 }}
+            >
+              Champion
+            </span>
+          </div>
+
+          {sortedRounds.map(([round, roundMatches], roundIndex) => {
+            const blockHeight = MATCH_BLOCK * Math.pow(2, roundIndex);
+
+            return (
+              <div
+                key={round}
+                className="flex flex-col"
+                style={{
+                  gridRow: 2,
+                  gridColumn: roundIndex + 1,
+                  height: bracketHeight,
+                  width: MATCH_WIDTH,
+                }}
+              >
+                {roundMatches.map((match) => (
+                  <div
+                    key={match.id}
+                    className="relative"
+                    style={{ height: blockHeight, width: MATCH_WIDTH }}
+                  >
+                    <BracketMatchLines
+                      match={match}
+                      slug={slug}
+                      blockHeight={blockHeight}
+                      showAdvance
+                    />
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+
+          {/* Champion — baseline shares Y with final midpoint stem */}
+          <div
+            className="relative"
+            style={{
+              gridRow: 2,
+              gridColumn: sortedRounds.length + 1,
+              height: bracketHeight,
+              width: CHAMPION_WIDTH,
+            }}
+          >
+            <StrokeH
+              y={championY}
+              x={0}
+              width={CHAMPION_WIDTH}
+              className={champion ? "bg-primary" : "bg-border"}
+            />
+            <div
+              className="absolute"
+              style={{
+                top: championY - TEAM_LINE,
+                left: CONNECTOR,
+                height: TEAM_LINE,
+                width: SLOT_WIDTH,
+              }}
+            >
+              <TeamLine
+                name={champion}
+                isWinner={Boolean(champion)}
+                isLoser={false}
+                live={false}
+                width={SLOT_WIDTH}
+                leadingIcon={
+                  champion ? (
+                    <Trophy className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  ) : null
+                }
+                strong={Boolean(champion)}
+              />
+            </div>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 
-function MatchupSlot({
-  name,
-  isWinner,
+function findChampion(finalMatches: BracketMatch[]): string | null {
+  const final = finalMatches[0];
+  if (!final?.winnerId) return null;
+  if (final.winnerId === final.teamAId) return final.teamAName;
+  if (final.winnerId === final.teamBId) return final.teamBName;
+  return null;
+}
+
+function setsWon(
+  match: BracketMatch
+): { a: number; b: number } | null {
+  if (!match.sets || match.sets.length === 0) return null;
+  let a = 0;
+  let b = 0;
+  for (const s of match.sets) {
+    if (s.teamAScore > s.teamBScore) a++;
+    else if (s.teamBScore > s.teamAScore) b++;
+  }
+  if (a === 0 && b === 0) return null;
+  return { a, b };
+}
+
+/** Horizontal stroke centered on y (so a 2px line spans y-1 … y+1). */
+function StrokeH({
+  x,
+  y,
+  width,
+  className,
 }: {
-  name: string | null;
-  isWinner: boolean;
+  x: number;
+  y: number;
+  width: number;
+  className?: string;
 }) {
   return (
     <div
-      className={cn(
-        "px-3 py-2 text-sm",
-        isWinner && "bg-primary/10 font-semibold",
-        !name && "text-muted-foreground italic"
+      className={cn("pointer-events-none absolute", className)}
+      style={{
+        left: x,
+        top: y - STROKE / 2,
+        width,
+        height: STROKE,
+      }}
+      aria-hidden
+    />
+  );
+}
+
+/** Vertical stroke centered on x. */
+function StrokeV({
+  x,
+  y,
+  height,
+  className,
+}: {
+  x: number;
+  y: number;
+  height: number;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn("pointer-events-none absolute", className)}
+      style={{
+        left: x - STROKE / 2,
+        top: y,
+        width: STROKE,
+        height,
+      }}
+      aria-hidden
+    />
+  );
+}
+
+/**
+ * Team A baseline at 25% of the cell (center of the upper feeder match).
+ * Team B baseline at 75% (center of the lower feeder). The advance stem
+ * leaves at 50%, which is the receiving baseline on the next column.
+ * All strokes use the same centered pixel geometry so lines meet exactly.
+ */
+function BracketMatchLines({
+  match,
+  slug,
+  blockHeight,
+  showAdvance,
+}: {
+  match: BracketMatch;
+  slug: string;
+  blockHeight: number;
+  showAdvance: boolean;
+}) {
+  const aWon = Boolean(match.winnerId && match.winnerId === match.teamAId);
+  const bWon = Boolean(match.winnerId && match.winnerId === match.teamBId);
+  const live = match.status === "in_progress";
+  const complete = match.status === "completed";
+  const scores = setsWon(match);
+  const isByeSlotA = !match.teamAId && Boolean(match.teamBId);
+  const isByeSlotB = Boolean(match.teamAId) && !match.teamBId;
+
+  const teamABottom = blockHeight * 0.25;
+  const teamBBottom = blockHeight * 0.75;
+  const midY = blockHeight * 0.5;
+  const matchTop = teamABottom - TEAM_LINE;
+  const matchHeight = teamBBottom - teamABottom + TEAM_LINE;
+  const strokeClass =
+    live || complete ? "bg-foreground/40" : "bg-border";
+
+  return (
+    <div className="absolute inset-0">
+      <Link
+        href={`/tournaments/${slug}/matches/${match.slug}`}
+        className={cn(
+          "group absolute left-0 z-10 outline-none",
+          "rounded-sm border border-transparent",
+          "transition-[background-color,border-color,box-shadow] duration-150",
+          "hover:border-primary hover:bg-muted/50 hover:shadow-sm",
+          "focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-primary/25",
+          live && "border-primary/30 bg-primary/[0.05]",
+          live && "hover:border-primary hover:bg-primary/[0.08]"
+        )}
+        style={{
+          top: matchTop,
+          height: matchHeight,
+          width: SLOT_WIDTH,
+        }}
+        aria-label={`${match.teamAName ?? "TBD"} vs ${match.teamBName ?? "TBD"}`}
+      >
+        {live && (
+          <span
+            className="absolute -left-1 size-1.5 -translate-y-1/2 rounded-full bg-live motion-safe:animate-pulse"
+            style={{ top: midY }}
+          />
+        )}
+
+        <div
+          className="absolute left-0 right-0"
+          style={{ top: teamABottom - TEAM_LINE - matchTop, height: TEAM_LINE }}
+        >
+          <TeamLine
+            name={match.teamAName}
+            score={scores?.a}
+            isWinner={aWon}
+            isLoser={complete && !aWon && Boolean(match.winnerId)}
+            live={live}
+            placeholder={isByeSlotA ? "Bye" : undefined}
+          />
+        </div>
+
+        <div
+          className="absolute left-0 right-0"
+          style={{ top: teamBBottom - TEAM_LINE - matchTop, height: TEAM_LINE }}
+        >
+          <TeamLine
+            name={match.teamBName}
+            score={scores?.b}
+            isWinner={bWon}
+            isLoser={complete && !bWon && Boolean(match.winnerId)}
+            live={live}
+            placeholder={isByeSlotB ? "Bye" : undefined}
+          />
+        </div>
+      </Link>
+
+      {/* Team underlines — same Y as feeder stems from the previous round */}
+      <StrokeH
+        x={0}
+        y={teamABottom}
+        width={SLOT_WIDTH}
+        className={cn(
+          live ? "bg-primary/50" : strokeClass,
+          aWon && "bg-foreground/50"
+        )}
+      />
+      <StrokeH
+        x={0}
+        y={teamBBottom}
+        width={SLOT_WIDTH}
+        className={cn(
+          live ? "bg-primary/50" : strokeClass,
+          bWon && "bg-foreground/50"
+        )}
+      />
+
+      {/* Vertical join between the two baselines */}
+      <StrokeV
+        x={SLOT_WIDTH}
+        y={teamABottom}
+        height={teamBBottom - teamABottom}
+        className={strokeClass}
+      />
+
+      {/* Horizontal stem to the next round’s baseline */}
+      {showAdvance && (
+        <StrokeH
+          x={SLOT_WIDTH}
+          y={midY}
+          width={CONNECTOR * 2}
+          className={strokeClass}
+        />
       )}
+    </div>
+  );
+}
+
+function TeamLine({
+  name,
+  score,
+  isWinner,
+  isLoser,
+  live,
+  width = SLOT_WIDTH,
+  leadingIcon,
+  strong,
+  placeholder,
+}: {
+  name: string | null;
+  score?: number;
+  isWinner: boolean;
+  isLoser: boolean;
+  live: boolean;
+  width?: number;
+  leadingIcon?: React.ReactNode;
+  strong?: boolean;
+  placeholder?: string;
+}) {
+  const displayName = name ?? placeholder ?? "TBD";
+  const isPlaceholder = !name && Boolean(placeholder);
+  // Name sits above the baseline; the baseline itself is drawn by StrokeH
+  // at the bottom edge of this box (shared Y with connectors).
+  return (
+    <div
+      className="flex h-full items-end justify-between gap-1.5 px-1"
+      style={{ width }}
+      title={name ?? undefined}
     >
-      {name ?? "TBD"}
+      <span
+        className={cn(
+          "flex min-w-0 flex-1 items-baseline gap-1 pb-2.5 font-heading text-[15px] leading-normal",
+          "transition-colors group-hover:text-primary",
+          (isWinner || strong) && "font-bold text-foreground",
+          isLoser && "font-medium text-muted-foreground",
+          isPlaceholder && "font-medium italic text-muted-foreground/70",
+          !name && !placeholder && "font-medium text-muted-foreground",
+          name && !isWinner && !isLoser && !strong && "font-semibold text-foreground",
+          live && "text-foreground"
+        )}
+      >
+        {leadingIcon}
+        <span className={name ? "truncate" : "whitespace-nowrap"}>
+          {displayName}
+        </span>
+      </span>
+      {score != null && (
+        <span
+          className={cn(
+            "shrink-0 pb-2.5 pl-1 font-heading text-[15px] font-bold tabular-nums leading-normal",
+            isWinner ? "text-foreground" : "font-semibold text-muted-foreground"
+          )}
+        >
+          {score}
+        </span>
+      )}
     </div>
   );
 }
