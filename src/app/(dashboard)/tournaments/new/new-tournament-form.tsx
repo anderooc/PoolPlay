@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -19,9 +26,18 @@ import { DatePickerField } from "@/components/date-picker";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { AddressMapPreview } from "@/components/address-map-preview";
 import { todayISO } from "@/lib/tournament-status";
+import {
+  PLAY_FORMAT_OPTIONS,
+  formatPlayFormatLabel,
+  playFormatDescription,
+  type PlayFormat,
+} from "@/lib/labels/play-format";
 import type { HostingSchoolOption } from "@/lib/schools/hosting";
 import type { TeamGender, TeamRegion } from "@/types";
 import { createTournament } from "../actions";
+
+const FORMAT_SELECT_CONTENT_CLASS =
+  "min-w-(--anchor-width) w-max max-w-[min(20rem,calc(100vw-2rem))]";
 
 export function NewTournamentForm({
   hostSchool,
@@ -33,6 +49,7 @@ export function NewTournamentForm({
   const [date, setDate] = useState(todayISO);
   const [location, setLocation] = useState("");
   const [address, setAddress] = useState("");
+  const [playFormat, setPlayFormat] = useState<PlayFormat>("pool_to_bracket");
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -136,6 +153,51 @@ export function NewTournamentForm({
                   rows={3}
                   disabled={isPending}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="play-format">Tournament format</Label>
+                <Select
+                  value={playFormat}
+                  onValueChange={(value) =>
+                    setPlayFormat((value as PlayFormat) ?? "pool_to_bracket")
+                  }
+                  disabled={isPending}
+                >
+                  <SelectTrigger
+                    id="play-format"
+                    className="w-full"
+                    title={playFormatDescription(playFormat)}
+                  >
+                    <SelectValue>
+                      {(v) => formatPlayFormatLabel(v ?? "pool_to_bracket")}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent
+                    side="bottom"
+                    alignItemWithTrigger={false}
+                    className={FORMAT_SELECT_CONTENT_CLASS}
+                  >
+                    {PLAY_FORMAT_OPTIONS.map((format) => (
+                      <SelectItem
+                        key={format.value}
+                        value={format.value}
+                        multiline
+                        title={format.description}
+                      >
+                        <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
+                          <span className="leading-snug">{format.label}</span>
+                          <span className="text-xs font-normal leading-snug text-muted-foreground">
+                            {format.description}
+                          </span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <input type="hidden" name="playFormat" value={playFormat} />
+                <p className="text-xs text-muted-foreground">
+                  Every pool in this tournament uses the same format.
+                </p>
               </div>
               <DatePickerField
                 id="date"

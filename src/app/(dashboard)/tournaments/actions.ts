@@ -52,6 +52,7 @@ export async function createTournament(formData: FormData) {
     date: formData.get("date"),
     location: formData.get("location"),
     address: formData.get("address") || undefined,
+    playFormat: formData.get("playFormat") || "pool_to_bracket",
   });
 
   if (!parsed.success) {
@@ -99,6 +100,7 @@ export async function createTournament(formData: FormData) {
       date: parsed.data.date,
       location: parsed.data.location,
       address: parsed.data.address || null,
+      playFormat: parsed.data.playFormat,
       status: "draft",
     })
     .returning();
@@ -487,10 +489,6 @@ export async function addDivision(tournamentId: string, formData: FormData) {
 
   const parsed = createDivisionSchema.safeParse({
     name: formData.get("name"),
-    format: formData.get("format"),
-    teamCap: formData.get("teamCap")
-      ? parseInt(formData.get("teamCap") as string, 10)
-      : undefined,
   });
 
   if (!parsed.success) {
@@ -515,13 +513,14 @@ export async function addDivision(tournamentId: string, formData: FormData) {
     return { error: "A pool with this name already exists" };
   }
 
+  const playFormat = tournament.playFormat ?? "pool_to_bracket";
+
   const [inserted] = await db
     .insert(divisions)
     .values({
       tournamentId,
       name: parsed.data.name.trim(),
-      format: parsed.data.format,
-      teamCap: parsed.data.teamCap ?? null,
+      format: playFormat,
     })
     .returning({ id: divisions.id });
 
@@ -531,11 +530,7 @@ export async function addDivision(tournamentId: string, formData: FormData) {
 
   // Eagerly create the matching auto-pool and bracket skeleton.
   await ensureDivisionAutoPool(inserted.id);
-  await ensureDivisionBracketSkeleton(
-    inserted.id,
-    parsed.data.format,
-    parsed.data.teamCap ?? null
-  );
+  await ensureDivisionBracketSkeleton(inserted.id, playFormat);
 
   revalidatePath("/tournaments/[slug]", "page");
   return { success: true as const, id: inserted.id };
@@ -828,10 +823,6 @@ export async function updateDivision(
 
   const parsed = createDivisionSchema.safeParse({
     name: formData.get("name"),
-    format: formData.get("format"),
-    teamCap: formData.get("teamCap")
-      ? parseInt(formData.get("teamCap") as string, 10)
-      : undefined,
   });
 
   if (!parsed.success) {
@@ -865,8 +856,6 @@ export async function updateDivision(
     .update(divisions)
     .set({
       name: parsed.data.name.trim(),
-      format: parsed.data.format,
-      teamCap: parsed.data.teamCap ?? null,
     })
     .where(eq(divisions.id, divisionId));
 

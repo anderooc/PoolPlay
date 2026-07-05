@@ -3,6 +3,7 @@ import {
   courts,
   courtDivisions,
   divisions,
+  tournaments,
 } from "@/lib/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { CourtManager } from "../court-manager";
@@ -15,7 +16,13 @@ export async function TournamentSetupPanel({
   tournamentId: string;
   canEditSetup: boolean;
 }) {
-  const [tournamentDivisions, courtJoinRows] = await Promise.all([
+  const [tournamentRow, tournamentDivisions, courtJoinRows] = await Promise.all([
+    db
+      .select({ playFormat: tournaments.playFormat })
+      .from(tournaments)
+      .where(eq(tournaments.id, tournamentId))
+      .limit(1)
+      .then((rows) => rows[0]),
     db
       .select()
       .from(divisions)
@@ -83,6 +90,7 @@ export async function TournamentSetupPanel({
         </h2>
         <PoolManager
           tournamentId={tournamentId}
+          playFormat={tournamentRow?.playFormat ?? "pool_to_bracket"}
           divisions={tournamentDivisions}
           tournamentCourts={tournamentCourts.map((c) => ({
             id: c.id,

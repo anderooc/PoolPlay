@@ -51,7 +51,6 @@ export async function TournamentPoolPlayPanel({
             .select({
               id: divisions.id,
               format: divisions.format,
-              teamCap: divisions.teamCap,
             })
             .from(divisions)
             .where(eq(divisions.tournamentId, tournament.id))
@@ -72,7 +71,7 @@ export async function TournamentPoolPlayPanel({
     );
     for (const div of tournamentDivisions) {
       if (divsWithBracket.has(div.id)) continue;
-      await ensureDivisionBracketSkeleton(div.id, div.format, div.teamCap);
+      await ensureDivisionBracketSkeleton(div.id, div.format);
     }
   }
 

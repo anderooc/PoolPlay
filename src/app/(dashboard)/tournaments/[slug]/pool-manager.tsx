@@ -6,14 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -30,14 +22,17 @@ import {
 } from "../actions";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { formatSnakeCaseLabel } from "@/lib/utils/format-label";
+import {
+  formatPlayFormatLabel,
+  playFormatDescription,
+  type PlayFormat,
+} from "@/lib/labels/play-format";
 import { toast } from "sonner";
 
 interface Division {
   id: string;
   name: string;
   format: string;
-  teamCap: number | null;
 }
 
 interface TournamentCourt {
@@ -45,61 +40,6 @@ interface TournamentCourt {
   name: string;
   /** Pools this court is linked to (may be several) */
   divisionIds: string[];
-}
-
-const DIVISION_FORMATS = [
-  {
-    value: "pool_to_bracket",
-    label: "Group Play to Bracket",
-    description:
-      "Teams play round-robin in groups, then top finishers advance to a single-elimination bracket.",
-  },
-  {
-    value: "single_elimination",
-    label: "Single Elimination",
-    description:
-      "Teams go straight into a single-elimination bracket; one loss eliminates a team.",
-  },
-  {
-    value: "double_elimination",
-    label: "Double Elimination",
-    description:
-      "Teams play in winners and losers brackets; a team must lose twice to be eliminated.",
-  },
-] as const;
-
-const formatLabel = Object.fromEntries(
-  DIVISION_FORMATS.map((f) => [f.value, f.label])
-) as Record<string, string>;
-
-function formatDescription(format: string): string | undefined {
-  return DIVISION_FORMATS.find((f) => f.value === format)?.description;
-}
-
-/** Wider than the trigger so format labels and descriptions are not clipped. */
-const FORMAT_SELECT_CONTENT_CLASS =
-  "min-w-(--anchor-width) w-max max-w-[min(20rem,calc(100vw-2rem))]";
-
-function DivisionFormatSelectItems() {
-  return (
-    <>
-      {DIVISION_FORMATS.map((format) => (
-        <SelectItem
-          key={format.value}
-          value={format.value}
-          multiline
-          title={format.description}
-        >
-          <span className="flex min-w-0 flex-col items-start gap-0.5 text-left">
-            <span className="leading-snug">{format.label}</span>
-            <span className="text-xs font-normal leading-snug text-muted-foreground">
-              {format.description}
-            </span>
-          </span>
-        </SelectItem>
-      ))}
-    </>
-  );
 }
 
 function snapshotTournamentData(
@@ -112,7 +52,6 @@ function snapshotTournamentData(
         id: d.id,
         name: d.name,
         format: d.format,
-        teamCap: d.teamCap,
       }))
       .sort((a, b) => a.id.localeCompare(b.id)),
     courts: courts
@@ -126,12 +65,14 @@ function snapshotTournamentData(
 
 export function PoolManager({
   tournamentId,
+  playFormat,
   divisions,
   tournamentCourts,
   isOrganizer,
   compactEmpty = false,
 }: {
   tournamentId: string;
+  playFormat: PlayFormat;
   divisions: Division[];
   tournamentCourts: TournamentCourt[];
   isOrganizer: boolean;
@@ -141,9 +82,7 @@ export function PoolManager({
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [divisionFormat, setDivisionFormat] = useState("pool_to_bracket");
   const [editing, setEditing] = useState<Division | null>(null);
-  const [editFormat, setEditFormat] = useState("pool_to_bracket");
   const [editError, setEditError] = useState<string | null>(null);
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [awaitingFreshProps, setAwaitingFreshProps] = useState(false);
@@ -229,7 +168,6 @@ export function PoolManager({
 
   function openEditDialog(div: Division) {
     setEditing(div);
-    setEditFormat(div.format);
     setEditError(null);
     setAssignedCourtIds(
       new Set(
@@ -241,7 +179,6 @@ export function PoolManager({
   }
 
   async function handleAdd(formData: FormData) {
-    formData.set("format", divisionFormat);
     setLoading(true);
     setError(null);
     addDivisionToastIdRef.current = toast.loading("Adding pool...");
@@ -260,7 +197,6 @@ export function PoolManager({
       setHighlightDivisionId(result.id);
       setPendingAddedDivisionId(result.id);
       setShowForm(false);
-      setDivisionFormat("pool_to_bracket");
       startTransition(() => {
         router.refresh();
       });
@@ -276,7 +212,6 @@ export function PoolManager({
       tournamentCourts
     );
     const formData = new FormData(e.currentTarget);
-    formData.set("format", editFormat);
     setEditSubmitting(true);
     setEditError(null);
     const result = await updateDivision(tournamentId, editing.id, formData);
@@ -333,6 +268,15 @@ export function PoolManager({
 
   return (
     <div className={compactEmpty ? "space-y-2" : "space-y-4"}>
+      <p
+        className="text-sm text-muted-foreground"
+        title={playFormatDescription(playFormat)}
+      >
+        Format:{" "}
+        <span className="font-medium text-foreground">
+          {formatPlayFormatLabel(playFormat)}
+        </span>
+      </p>
       {removeError && (
         <p className="text-sm text-destructive" role="alert">
           {removeError}
@@ -421,23 +365,6 @@ export function PoolManager({
                       )}
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge
-                        variant="secondary"
-                        title={formatDescription(div.format)}
-                        className="h-auto min-h-5 max-w-full shrink whitespace-normal py-1 text-left leading-snug"
-                      >
-                        {formatLabel[div.format] ??
-                          formatSnakeCaseLabel(div.format)}
-                      </Badge>
-                      {div.teamCap != null && (
-                        <span className="text-xs text-muted-foreground">
-                          Max {div.teamCap} teams
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
                   {isRemoving && (
                     <div
                       className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/75 p-4 backdrop-blur-[2px]"
@@ -520,47 +447,6 @@ export function PoolManager({
                   required
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="div-format">Format</Label>
-                <Select
-                  value={divisionFormat}
-                  onValueChange={(value) =>
-                    setDivisionFormat(value ?? "pool_to_bracket")
-                  }
-                >
-                  <SelectTrigger
-                    id="div-format"
-                    className="w-full"
-                    title={formatDescription(divisionFormat)}
-                  >
-                    <SelectValue>
-                      {(v) => formatLabel[v ?? ""] ?? v}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent
-                    side="bottom"
-                    alignItemWithTrigger={false}
-                    className={FORMAT_SELECT_CONTENT_CLASS}
-                  >
-                    <DivisionFormatSelectItems />
-                  </SelectContent>
-                </Select>
-                <input type="hidden" name="format" value={divisionFormat} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="div-cap">Team cap (optional)</Label>
-                <Input
-                  id="div-cap"
-                  name="teamCap"
-                  type="number"
-                  placeholder="8"
-                  min={2}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Sizes the elimination bracket (defaults to 8). Top finishers
-                  advance after pool play.
-                </p>
-              </div>
               {error && (
                 <p className="text-sm text-destructive">{error}</p>
               )}
@@ -641,42 +527,6 @@ export function PoolManager({
                   name="name"
                   defaultValue={editing.name}
                   required
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="edit-div-format">Format</Label>
-                <Select
-                  value={editFormat}
-                  onValueChange={(v) => setEditFormat(v ?? "pool_to_bracket")}
-                >
-                  <SelectTrigger
-                    id="edit-div-format"
-                    className="w-full"
-                    title={formatDescription(editFormat)}
-                  >
-                    <SelectValue>
-                      {(v) => formatLabel[v ?? ""] ?? v}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent
-                    side="bottom"
-                    alignItemWithTrigger={false}
-                    className={FORMAT_SELECT_CONTENT_CLASS}
-                  >
-                    <DivisionFormatSelectItems />
-                  </SelectContent>
-                </Select>
-                <input type="hidden" name="format" value={editFormat} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="edit-div-cap">Team Cap (optional)</Label>
-                <Input
-                  id="edit-div-cap"
-                  name="teamCap"
-                  type="number"
-                  placeholder="4"
-                  min={2}
-                  defaultValue={editing.teamCap ?? ""}
                 />
               </div>
               {tournamentCourts.length > 0 && (

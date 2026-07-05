@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import { TEAM_GENDERS, TEAM_REGIONS } from "@/lib/constants/team";
+import { PLAY_FORMATS } from "@/lib/labels/play-format";
 import { isCollegeEmail } from "@/lib/utils/college-email";
 
 export const signUpSchema = z.object({
@@ -68,12 +69,13 @@ export const createTournamentSchema = z.object({
   date: z.string().min(1, "Date is required"),
   location: z.string().min(1, "Location is required"),
   address: z.string().optional(),
+  playFormat: z.enum(PLAY_FORMATS, {
+    message: "Choose a tournament format",
+  }),
 });
 
 export const createDivisionSchema = z.object({
   name: z.string().min(1, "Pool name is required"),
-  format: z.enum(["pool_to_bracket", "single_elimination", "double_elimination"]),
-  teamCap: z.number().int().positive().optional(),
 });
 
 export const updateScoreSchema = z.object({
