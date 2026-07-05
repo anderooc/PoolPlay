@@ -261,20 +261,33 @@ export function MatchConsole({
                 {match.courtName}
               </span>
             )}
-            {isOrganizer ? (
-              <MatchStartTimeEditor
-                matchId={match.id}
-                scheduledTime={match.scheduledTime}
-                tournamentDate={tournamentDate}
-              />
-            ) : (
-              match.scheduledTime && (
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  {formatDate(new Date(match.scheduledTime), "h:mm a")}
+            <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+              {isOrganizer ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-muted-foreground/80">Scheduled</span>
+                  <MatchStartTimeEditor
+                    matchId={match.id}
+                    scheduledTime={match.scheduledTime}
+                    tournamentDate={tournamentDate}
+                  />
                 </span>
-              )
-            )}
+              ) : (
+                match.scheduledTime && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" />
+                    Scheduled{" "}
+                    {formatDate(new Date(match.scheduledTime), "h:mm a")}
+                  </span>
+                )
+              )}
+              {match.startedAt && (
+                <span className="flex items-center gap-1 text-foreground/80">
+                  <Play className="h-3.5 w-3.5" />
+                  Started{" "}
+                  {formatDate(new Date(match.startedAt), "h:mm a")}
+                </span>
+              )}
+            </span>
             {match.refTeamName && (
               <span className="flex items-center gap-1">
                 <Users className="h-3.5 w-3.5" />
