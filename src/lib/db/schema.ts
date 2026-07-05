@@ -226,6 +226,13 @@ export const tournaments = pgTable("tournaments", {
   setTargetScore: integer("set_target_score").default(25).notNull(),
   /** Target score for the tiebreak third set (commonly 15). */
   tiebreakTargetScore: integer("tiebreak_target_score").default(15).notNull(),
+  /**
+   * Tournament-wide play structure. Every pool uses this format
+   * (pool → bracket, single elim, double elim).
+   */
+  playFormat: divisionFormatEnum("play_format")
+    .default("pool_to_bracket")
+    .notNull(),
   /** Warmup convention used between matches. three_three_one = 3-3-1-1 (8 min). */
   warmupFormat: warmupFormatEnum("warmup_format")
     .default("three_three_one")
@@ -240,6 +247,15 @@ export const tournaments = pgTable("tournaments", {
     >()
     .default(["match_record", "set_record", "point_diff", "head_to_head"])
     .notNull(),
+  /**
+   * Elimination brackets after pool play (all pools combine):
+   * 1 = gold only, 2 = gold + silver, 3 = gold + silver + bronze.
+   */
+  bracketCount: integer("bracket_count").default(1).notNull(),
+  /** Teams that advance into the gold bracket from combined pool standings. */
+  goldTeamCount: integer("gold_team_count"),
+  /** Teams that advance into silver when bracketCount is 3; remainder to bronze. */
+  silverTeamCount: integer("silver_team_count"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -251,7 +267,15 @@ export const divisions = pgTable("divisions", {
     .notNull(),
   name: text("name").notNull(),
   format: divisionFormatEnum("format").default("pool_to_bracket").notNull(),
-  teamCap: integer("team_cap"),
+  /**
+   * Elimination brackets after pool play: 1 = gold only, 2 = gold + silver,
+   * 3 = gold + silver + bronze.
+   */
+  bracketCount: integer("bracket_count").default(1).notNull(),
+  /** Teams that advance into the gold bracket (pool_to_bracket). */
+  goldTeamCount: integer("gold_team_count"),
+  /** Teams that advance into silver when bracketCount is 3; remainder to bronze. */
+  silverTeamCount: integer("silver_team_count"),
   /** When set, non-host users can view pool play and brackets for this pool. */
   poolsReleasedAt: timestamp("pools_released_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -302,6 +326,10 @@ export const brackets = pgTable("brackets", {
     .default("single_elimination")
     .notNull(),
   seedCount: integer("seed_count").notNull(),
+  /** Display name, e.g. Gold / Silver / Bronze. */
+  name: text("name"),
+  /** 0 = Gold, 1 = Silver, 2 = Bronze. */
+  tier: integer("tier").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
