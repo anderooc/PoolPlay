@@ -46,6 +46,8 @@ export type DivisionPlayData = {
     id: string;
     bracketType: string;
     seedCount: number;
+    name: string | null;
+    tier: number;
     matches: {
       id: string;
       slug: string;
@@ -127,7 +129,7 @@ export async function getDivisionPlayData(
           .select()
           .from(brackets)
           .where(inArray(brackets.divisionId, visibleDivIds))
-          .orderBy(asc(brackets.createdAt), asc(brackets.id))
+          .orderBy(asc(brackets.tier), asc(brackets.createdAt), asc(brackets.id))
       : Promise.resolve([]),
   ]);
 
@@ -312,6 +314,8 @@ export async function getDivisionPlayData(
       id: bracket.id,
       bracketType: bracket.bracketType,
       seedCount: bracket.seedCount,
+      name: bracket.name,
+      tier: bracket.tier,
       matches: (matchesByBracket.get(bracket.id) ?? []).map((m) => ({
         id: m.id,
         slug: m.slug,

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import {
+  brackets,
   divisions,
   matches,
   tournaments,
@@ -19,7 +20,10 @@ import {
   poolAssignmentBlockedMessage,
 } from "@/lib/tournaments/permissions";
 import { regeneratePoolMatchesFromSeeds } from "@/lib/tournaments/pool-matches";
-import { tryFillBracketFromDivisionSeeds } from "@/lib/tournaments/bracket-structure";
+import {
+  ensureDivisionBracketSkeleton,
+  tryFillBracketFromDivisionSeeds,
+} from "@/lib/tournaments/bracket-structure";
 
 async function assertCanAssignTeamsToPools(
   tournamentId: string,
@@ -210,4 +214,110 @@ export async function updateMatchRef(
   revalidatePath("/tournaments/[slug]", "page");
   revalidatePath("/tournaments/[slug]/scoring", "page");
   return { success: true as const };
+}
+
+/**
+ * Host settings for tournament-wide gold / silver / bronze brackets.
+ * All pools combine into these tiers after pool play.
+ */
+export async function updateTournamentBracketSettings(
+  tournamentId: string,
+  input: {
+    bracketCount: number;
+    goldTeamCount: number | null;
+    silverTeamCount: number | null;
+  }
+) {
+  const user = await requireUser();
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+    return { error: "Only the organizer can change bracket settings" };
+  }
+
+  const bracketCount = Math.min(3, Math.max(1, Math.floor(input.bracketCount)));
+  let goldTeamCount = input.goldTeamCount;
+  let silverTeamCount = input.silverTeamCount;
+
+  if (bracketCount >= 2) {
+    if (goldTeamCount == null || goldTeamCount < 2) {
+      return { error: "Gold needs at least 2 teams" };
+    }
+  } else {
+    goldTeamCount = null;
+    silverTeamCount = null;
+  }
+
+  if (bracketCount === 3) {
+    if (silverTeamCount == null || silverTeamCount < 2) {
+      return { error: "Silver needs at least 2 teams when using three brackets" };
+    }
+  } else {
+    silverTeamCount = null;
+  }
+
+  const poolDivisions = await db
+    .select({ id: divisions.id })
+    .from(divisions)
+    .where(
+      and(
+        eq(divisions.tournamentId, tournamentId),
+        eq(divisions.format, "pool_to_bracket")
+      )
+    );
+
+  const placed = await db
+    .select({ teamAId: matches.teamAId, teamBId: matches.teamBId })
+    .from(matches)
+    .innerJoin(brackets, eq(matches.bracketId, brackets.id))
+    .innerJoin(divisions, eq(brackets.divisionId, divisions.id))
+    .where(
+      and(
+        eq(divisions.tournamentId, tournamentId),
+        eq(divisions.format, "pool_to_bracket")
+      )
+    );
+
+  const hasTeams = placed.some((m) => m.teamAId != null || m.teamBId != null);
+
+  await db
+    .update(tournaments)
+    .set({
+      bracketCount,
+      goldTeamCount,
+      silverTeamCount,
+      updatedAt: new Date(),
+    })
+    .where(eq(tournaments.id, tournamentId));
+
+  if (!hasTeams && poolDivisions.length > 0) {
+    for (const div of poolDivisions) {
+      const existing = await db
+        .select({ id: brackets.id })
+        .from(brackets)
+        .where(eq(brackets.divisionId, div.id));
+      for (const b of existing) {
+        await db.delete(matches).where(eq(matches.bracketId, b.id));
+        await db.delete(brackets).where(eq(brackets.id, b.id));
+      }
+    }
+    await ensureDivisionBracketSkeleton(
+      poolDivisions[0].id,
+      "pool_to_bracket"
+    );
+  }
+
+  revalidatePath("/tournaments/[slug]", "page");
+  return {
+    success: true as const,
+    bracketCount,
+    goldTeamCount,
+    silverTeamCount,
+    rebuilt: !hasTeams,
+  };
 }
