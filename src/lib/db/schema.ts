@@ -220,12 +220,16 @@ export const tournaments = pgTable("tournaments", {
   matchFormat: matchFormatEnum("match_format")
     .default("two_with_tiebreak")
     .notNull(),
-  /** Starting score per set (e.g. 4 for shorter pools that begin at 4-4). */
+  /** Starting score per set for pool play (e.g. 4 for shorter pools that begin at 4-4). */
   setStartingScore: integer("set_starting_score").default(0).notNull(),
   /** Target score for a regular set (commonly 21 or 25). */
   setTargetScore: integer("set_target_score").default(25).notNull(),
   /** Target score for the tiebreak third set (commonly 15). */
   tiebreakTargetScore: integer("tiebreak_target_score").default(15).notNull(),
+  /** Starting score per set for bracket matches (always 0–0 by default). */
+  bracketSetStartingScore: integer("bracket_set_starting_score")
+    .default(0)
+    .notNull(),
   /**
    * Tournament-wide play structure. Every pool uses this format
    * (pool → bracket, single elim, double elim).
@@ -256,6 +260,10 @@ export const tournaments = pgTable("tournaments", {
   goldTeamCount: integer("gold_team_count"),
   /** Teams that advance into silver when bracketCount is 3; remainder to bronze. */
   silverTeamCount: integer("silver_team_count"),
+  /** Set when the organizer saves Pool settings on the Pools tab. */
+  poolSettingsSavedAt: timestamp("pool_settings_saved_at"),
+  /** Set when the organizer saves Bracket settings on the Bracket tab. */
+  bracketSettingsSavedAt: timestamp("bracket_settings_saved_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
