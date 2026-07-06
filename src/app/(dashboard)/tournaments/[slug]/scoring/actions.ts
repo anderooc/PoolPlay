@@ -8,7 +8,8 @@ import { requireUser } from "@/lib/auth";
 import { updateScoreSchema } from "@/lib/validators";
 import { canScoreMatches } from "@/lib/tournaments/permissions";
 import { getMatchTournamentId } from "@/lib/tournaments/match-query";
-import { tryFillBracketFromPoolPlay } from "@/lib/tournaments/bracket-structure";
+import { tryFillBracketFromPoolPlay, advanceBracketWinner } from "@/lib/tournaments/bracket-structure";
+import { tryCompleteTournamentWhenBracketsDone } from "@/lib/tournaments/tournament-completion";
 import { evaluateMatchOutcome } from "@/lib/tournaments/match-format";
 
 async function assertCanScoreMatch(matchId: string) {
@@ -116,6 +117,8 @@ export async function updateScore(formData: FormData) {
         })
         .where(eq(matches.id, matchId));
 
+      await advanceBracketWinner(matchId);
+
       const [poolRow] = match.poolId
         ? await db
             .select({ divisionId: pools.divisionId })
@@ -126,6 +129,8 @@ export async function updateScore(formData: FormData) {
       if (poolRow?.divisionId) {
         await tryFillBracketFromPoolPlay(poolRow.divisionId);
       }
+
+      await tryCompleteTournamentWhenBracketsDone(tournament.id);
       revalidatePath("/tournaments/[slug]", "page");
     }
   }
@@ -157,8 +162,14 @@ export async function finalizeMatch(matchId: string, winnerId: string) {
     })
     .where(eq(matches.id, matchId));
 
+  await advanceBracketWinner(matchId);
+
   if (match?.divisionId) {
     await tryFillBracketFromPoolPlay(match.divisionId);
+  }
+
+  if (gate.tournament) {
+    await tryCompleteTournamentWhenBracketsDone(gate.tournament.id);
   }
 
   revalidatePath(`/tournaments/[slug]/scoring`, "page");

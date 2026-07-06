@@ -17,7 +17,11 @@ import {
   isTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
 import { getMatchTournamentId } from "@/lib/tournaments/match-query";
-import { tryFillBracketFromPoolPlay } from "@/lib/tournaments/bracket-structure";
+import { tryFillBracketFromPoolPlay, advanceBracketWinner, assignBracketRefsForBracket } from "@/lib/tournaments/bracket-structure";
+import {
+  tryCompleteTournamentWhenBracketsDone,
+  revertTournamentIfBracketsIncomplete,
+} from "@/lib/tournaments/tournament-completion";
 import {
   evaluateMatchOutcome,
   isSetComplete,
@@ -247,6 +251,8 @@ export async function saveSetScore(formData: FormData) {
         })
         .where(eq(matches.id, matchId));
 
+      await advanceBracketWinner(matchId);
+
       const [poolRow] = gate.match.poolId
         ? await db
             .select({ divisionId: pools.divisionId })
@@ -257,6 +263,8 @@ export async function saveSetScore(formData: FormData) {
       if (poolRow?.divisionId) {
         await tryFillBracketFromPoolPlay(poolRow.divisionId);
       }
+
+      await tryCompleteTournamentWhenBracketsDone(gate.tournament.id);
     }
   }
 
@@ -281,8 +289,14 @@ export async function finalizeMatch(matchId: string, winnerId: string | null) {
     .set({ status: "completed", winnerId, updatedAt: new Date() })
     .where(eq(matches.id, matchId));
 
+  await advanceBracketWinner(matchId);
+
   if (row?.divisionId) {
     await tryFillBracketFromPoolPlay(row.divisionId);
+  }
+
+  if (gate.tournament) {
+    await tryCompleteTournamentWhenBracketsDone(gate.tournament.id);
   }
 
   revalidatePath(`/tournaments/[slug]/matches/[matchSlug]`, "page");
@@ -302,6 +316,10 @@ export async function reopenMatch(matchId: string) {
     .update(matches)
     .set({ status: "in_progress", winnerId: null, updatedAt: new Date() })
     .where(eq(matches.id, matchId));
+
+  if (gate.tournament) {
+    await revertTournamentIfBracketsIncomplete(gate.tournament.id);
+  }
 
   revalidatePath(`/tournaments/[slug]/matches/[matchSlug]`, "page");
   revalidatePath("/tournaments/[slug]", "page");
@@ -339,10 +357,22 @@ export async function updateMatchScheduledTime(
     scheduledTime = parsed;
   }
 
+  const [match] = await db
+    .select({ bracketId: matches.bracketId })
+    .from(matches)
+    .where(eq(matches.id, matchId))
+    .limit(1);
+
   await db
     .update(matches)
     .set({ scheduledTime, updatedAt: new Date() })
     .where(eq(matches.id, matchId));
+
+  if (match?.bracketId) {
+    await assignBracketRefsForBracket(match.bracketId, db, {
+      resetRoundOneCourtId: match.courtId,
+    });
+  }
 
   revalidatePath(`/tournaments/[slug]/matches/[matchSlug]`, "page");
   revalidatePath("/tournaments/[slug]", "page");
