@@ -358,7 +358,7 @@ export async function updateMatchScheduledTime(
   }
 
   const [match] = await db
-    .select({ bracketId: matches.bracketId })
+    .select({ bracketId: matches.bracketId, courtId: matches.courtId })
     .from(matches)
     .where(eq(matches.id, matchId))
     .limit(1);
