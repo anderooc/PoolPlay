@@ -9,6 +9,7 @@ import {
   byeCountForTeamCount,
   countPlacedTeams,
   DEFAULT_BRACKET_SLOTS,
+  isByeMatch,
 } from "@/lib/utils/bracket";
 
 interface BracketMatch {
@@ -354,8 +355,10 @@ function BracketMatchLines({
   const live = match.status === "in_progress";
   const complete = match.status === "completed";
   const scores = setsWon(match);
-  const isByeSlotA = !match.teamAId && Boolean(match.teamBId);
-  const isByeSlotB = Boolean(match.teamAId) && !match.teamBId;
+  const roundOneBye =
+    (match.bracketRound ?? 1) === 1 && isByeMatch(match);
+  const isByeSlotA = roundOneBye && !match.teamAId && Boolean(match.teamBId);
+  const isByeSlotB = roundOneBye && Boolean(match.teamAId) && !match.teamBId;
 
   const teamABottom = blockHeight * 0.25;
   const teamBBottom = blockHeight * 0.75;
