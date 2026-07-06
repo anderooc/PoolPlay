@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Trophy } from "lucide-react";
+import { Check, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatBracketTypeLabel } from "@/lib/labels/bracket";
 import {
@@ -9,7 +9,7 @@ import {
   byeCountForTeamCount,
   countPlacedTeams,
   DEFAULT_BRACKET_SLOTS,
-  isByeMatch,
+  isBracketRoundOneByeMatch,
 } from "@/lib/utils/bracket";
 
 interface BracketMatch {
@@ -350,15 +350,16 @@ function BracketMatchLines({
   blockHeight: number;
   showAdvance: boolean;
 }) {
-  const aWon = Boolean(match.winnerId && match.winnerId === match.teamAId);
-  const bWon = Boolean(match.winnerId && match.winnerId === match.teamBId);
-  const live = match.status === "in_progress";
-  const complete = match.status === "completed";
-  const scores = setsWon(match);
-  const roundOneBye =
-    (match.bracketRound ?? 1) === 1 && isByeMatch(match);
+  const roundOneBye = isBracketRoundOneByeMatch(match);
   const isByeSlotA = roundOneBye && !match.teamAId && Boolean(match.teamBId);
   const isByeSlotB = roundOneBye && Boolean(match.teamAId) && !match.teamBId;
+  const live = !roundOneBye && match.status === "in_progress";
+  const complete = !roundOneBye && match.status === "completed";
+  const scores = roundOneBye ? null : setsWon(match);
+  const aWon =
+    complete && Boolean(match.winnerId && match.winnerId === match.teamAId);
+  const bWon =
+    complete && Boolean(match.winnerId && match.winnerId === match.teamBId);
 
   const teamABottom = blockHeight * 0.25;
   const teamBBottom = blockHeight * 0.75;
@@ -366,63 +367,91 @@ function BracketMatchLines({
   const matchTop = teamABottom - TEAM_LINE;
   const matchHeight = teamBBottom - teamABottom + TEAM_LINE;
   const strokeClass =
-    live || complete ? "bg-foreground/40" : "bg-border";
+    roundOneBye
+      ? "bg-border/70"
+      : live || complete
+        ? "bg-foreground/40"
+        : "bg-border";
+
+  const slotClassName = cn(
+    "absolute left-0 z-10 outline-none rounded-sm border border-transparent",
+    !roundOneBye && [
+      "group transition-[background-color,border-color,box-shadow] duration-150",
+      "hover:border-primary hover:bg-muted/50 hover:shadow-sm",
+      "focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-primary/25",
+    ],
+    roundOneBye && "cursor-default",
+    live && "border-primary/30 bg-primary/[0.05]",
+    !roundOneBye && live && "hover:border-primary hover:bg-primary/[0.08]"
+  );
+
+  const slotStyle = {
+    top: matchTop,
+    height: matchHeight,
+    width: SLOT_WIDTH,
+  };
+
+  const slotContent = (
+    <>
+      {live && (
+        <span
+          className="absolute -left-1 size-1.5 -translate-y-1/2 rounded-full bg-live motion-safe:animate-pulse"
+          style={{ top: midY }}
+        />
+      )}
+
+      <div
+        className="absolute left-0 right-0"
+        style={{ top: teamABottom - TEAM_LINE - matchTop, height: TEAM_LINE }}
+      >
+        <TeamLine
+          name={match.teamAName}
+          score={scores?.a}
+          isWinner={aWon}
+          isLoser={complete && !aWon && Boolean(match.winnerId)}
+          live={live}
+          complete={complete}
+          placeholder={isByeSlotA ? "Bye" : undefined}
+        />
+      </div>
+
+      <div
+        className="absolute left-0 right-0"
+        style={{ top: teamBBottom - TEAM_LINE - matchTop, height: TEAM_LINE }}
+      >
+        <TeamLine
+          name={match.teamBName}
+          score={scores?.b}
+          isWinner={bWon}
+          isLoser={complete && !bWon && Boolean(match.winnerId)}
+          live={live}
+          complete={complete}
+          placeholder={isByeSlotB ? "Bye" : undefined}
+        />
+      </div>
+    </>
+  );
 
   return (
     <div className="absolute inset-0">
-      <Link
-        href={`/tournaments/${slug}/matches/${match.slug}`}
-        className={cn(
-          "group absolute left-0 z-10 outline-none",
-          "rounded-sm border border-transparent",
-          "transition-[background-color,border-color,box-shadow] duration-150",
-          "hover:border-primary hover:bg-muted/50 hover:shadow-sm",
-          "focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-primary/25",
-          live && "border-primary/30 bg-primary/[0.05]",
-          live && "hover:border-primary hover:bg-primary/[0.08]"
-        )}
-        style={{
-          top: matchTop,
-          height: matchHeight,
-          width: SLOT_WIDTH,
-        }}
-        aria-label={`${match.teamAName ?? "TBD"} vs ${match.teamBName ?? "TBD"}`}
-      >
-        {live && (
-          <span
-            className="absolute -left-1 size-1.5 -translate-y-1/2 rounded-full bg-live motion-safe:animate-pulse"
-            style={{ top: midY }}
-          />
-        )}
-
+      {roundOneBye ? (
         <div
-          className="absolute left-0 right-0"
-          style={{ top: teamABottom - TEAM_LINE - matchTop, height: TEAM_LINE }}
+          className={slotClassName}
+          style={slotStyle}
+          aria-label={`${match.teamAName ?? "Bye"} vs ${match.teamBName ?? "Bye"} — bye, not played`}
         >
-          <TeamLine
-            name={match.teamAName}
-            score={scores?.a}
-            isWinner={aWon}
-            isLoser={complete && !aWon && Boolean(match.winnerId)}
-            live={live}
-            placeholder={isByeSlotA ? "Bye" : undefined}
-          />
+          {slotContent}
         </div>
-
-        <div
-          className="absolute left-0 right-0"
-          style={{ top: teamBBottom - TEAM_LINE - matchTop, height: TEAM_LINE }}
+      ) : (
+        <Link
+          href={`/tournaments/${slug}/matches/${match.slug}`}
+          className={slotClassName}
+          style={slotStyle}
+          aria-label={`${match.teamAName ?? "TBD"} vs ${match.teamBName ?? "TBD"}`}
         >
-          <TeamLine
-            name={match.teamBName}
-            score={scores?.b}
-            isWinner={bWon}
-            isLoser={complete && !bWon && Boolean(match.winnerId)}
-            live={live}
-            placeholder={isByeSlotB ? "Bye" : undefined}
-          />
-        </div>
-      </Link>
+          {slotContent}
+        </Link>
+      )}
 
       {/* Team underlines — same Y as feeder stems from the previous round */}
       <StrokeH
@@ -430,8 +459,15 @@ function BracketMatchLines({
         y={teamABottom}
         width={SLOT_WIDTH}
         className={cn(
-          live ? "bg-primary/50" : strokeClass,
-          aWon && "bg-foreground/50"
+          roundOneBye && strokeClass,
+          !roundOneBye && live && "bg-primary/50",
+          !roundOneBye && complete && aWon && "bg-primary",
+          !roundOneBye &&
+            complete &&
+            !aWon &&
+            Boolean(match.winnerId) &&
+            "bg-border/60",
+          !roundOneBye && !complete && !live && strokeClass
         )}
       />
       <StrokeH
@@ -439,8 +475,15 @@ function BracketMatchLines({
         y={teamBBottom}
         width={SLOT_WIDTH}
         className={cn(
-          live ? "bg-primary/50" : strokeClass,
-          bWon && "bg-foreground/50"
+          roundOneBye && strokeClass,
+          !roundOneBye && live && "bg-primary/50",
+          !roundOneBye && complete && bWon && "bg-primary",
+          !roundOneBye &&
+            complete &&
+            !bWon &&
+            Boolean(match.winnerId) &&
+            "bg-border/60",
+          !roundOneBye && !complete && !live && strokeClass
         )}
       />
 
@@ -471,6 +514,7 @@ function TeamLine({
   isWinner,
   isLoser,
   live,
+  complete = false,
   width = SLOT_WIDTH,
   leadingIcon,
   strong,
@@ -481,6 +525,7 @@ function TeamLine({
   isWinner: boolean;
   isLoser: boolean;
   live: boolean;
+  complete?: boolean;
   width?: number;
   leadingIcon?: React.ReactNode;
   strong?: boolean;
@@ -492,7 +537,11 @@ function TeamLine({
   // at the bottom edge of this box (shared Y with connectors).
   return (
     <div
-      className="flex h-full items-end justify-between gap-1.5 px-1"
+      className={cn(
+        "flex h-full items-end justify-between gap-1.5 rounded-sm px-1",
+        isWinner && complete && "bg-primary/10",
+        isLoser && complete && "bg-muted/30"
+      )}
       style={{ width }}
       title={name ?? undefined}
     >
@@ -500,15 +549,19 @@ function TeamLine({
         className={cn(
           "flex min-w-0 flex-1 items-baseline gap-1 pb-2.5 font-heading text-[15px] leading-normal",
           "transition-colors group-hover:text-primary",
-          (isWinner || strong) && "font-bold text-foreground",
-          isLoser && "font-medium text-muted-foreground",
+          isWinner && "font-bold text-primary",
+          isLoser && "font-medium text-muted-foreground/60 line-through decoration-muted-foreground/40",
           isPlaceholder && "font-medium italic text-muted-foreground/70",
           !name && !placeholder && "font-medium text-muted-foreground",
           name && !isWinner && !isLoser && !strong && "font-semibold text-foreground",
-          live && "text-foreground"
+          live && !isWinner && !isLoser && "text-foreground"
         )}
       >
-        {leadingIcon}
+        {isWinner && complete ? (
+          <Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+        ) : (
+          leadingIcon
+        )}
         <span className={name ? "truncate" : "whitespace-nowrap"}>
           {displayName}
         </span>
@@ -516,8 +569,9 @@ function TeamLine({
       {score != null && (
         <span
           className={cn(
-            "shrink-0 pb-2.5 pl-1 font-heading text-[15px] font-bold tabular-nums leading-normal",
-            isWinner ? "text-foreground" : "font-semibold text-muted-foreground"
+            "shrink-0 pb-2.5 pl-1 font-heading text-[15px] tabular-nums leading-normal",
+            isWinner ? "font-bold text-primary" : "font-semibold text-muted-foreground",
+            isLoser && "text-muted-foreground/60"
           )}
         >
           {score}

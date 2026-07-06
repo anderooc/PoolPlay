@@ -4,6 +4,7 @@ import {
   bracketSizeForTeamCount,
   byeCountForTeamCount,
   byeWinnerId,
+  bracketAdvanceTarget,
   generateSingleEliminationBracket,
   isByeMatch,
   roundOneAdvanceTarget,
@@ -75,6 +76,21 @@ describe("roundOneAdvanceTarget", () => {
       round: 2,
       position: 2,
       slot: "A",
+    });
+  });
+});
+
+describe("bracketAdvanceTarget", () => {
+  it("maps semis into the final", () => {
+    assert.deepEqual(bracketAdvanceTarget(2, 1), {
+      round: 3,
+      position: 1,
+      slot: "A",
+    });
+    assert.deepEqual(bracketAdvanceTarget(2, 2), {
+      round: 3,
+      position: 1,
+      slot: "B",
     });
   });
 });

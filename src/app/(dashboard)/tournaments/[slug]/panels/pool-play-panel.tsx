@@ -124,7 +124,7 @@ export async function TournamentPoolPlayPanel({
           title="No pool play yet"
           description={
             isOrganizer
-              ? "Add a pool with the “Pool to bracket” format in the Setup tab to get started."
+              ? "Add pools on the Setup tab. Play format was set when you created the tournament."
               : "Pools haven’t been released for this tournament yet. Check back soon."
           }
         />

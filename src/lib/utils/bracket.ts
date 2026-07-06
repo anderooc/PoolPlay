@@ -15,13 +15,22 @@ export function byeCountForTeamCount(teamCount: number): number {
   return bracketSizeForTeamCount(teamCount) - teamCount;
 }
 
-/** Round-1 match with exactly one team (the other slot is a bye). */
+/** Match with exactly one team (the other slot is a bye). */
 export function isByeMatch(
   match: Pick<BracketMatch, "teamAId" | "teamBId">
 ): boolean {
   return Boolean(
     (match.teamAId && !match.teamBId) || (!match.teamAId && match.teamBId)
   );
+}
+
+/** Bracket round-1 bye — auto-advanced, not a playable match. */
+export function isBracketRoundOneByeMatch(
+  match: Pick<BracketMatch, "teamAId" | "teamBId"> & {
+    bracketRound?: number | null;
+  }
+): boolean {
+  return (match.bracketRound ?? 1) === 1 && isByeMatch(match);
 }
 
 export function byeWinnerId(
@@ -32,17 +41,29 @@ export function byeWinnerId(
   return null;
 }
 
+/** Where the winner of a bracket match is placed in the next round (1-indexed). */
+export function bracketAdvanceTarget(
+  round: number,
+  position: number
+): {
+  round: number;
+  position: number;
+  slot: "A" | "B";
+} {
+  return {
+    round: round + 1,
+    position: Math.ceil(position / 2),
+    slot: position % 2 === 1 ? "A" : "B",
+  };
+}
+
 /** Where a round-1 bye winner is placed in round 2 (1-indexed positions). */
 export function roundOneAdvanceTarget(roundOnePosition: number): {
   round: number;
   position: number;
   slot: "A" | "B";
 } {
-  return {
-    round: 2,
-    position: Math.ceil(roundOnePosition / 2),
-    slot: roundOnePosition % 2 === 1 ? "A" : "B",
-  };
+  return bracketAdvanceTarget(1, roundOnePosition);
 }
 
 /**

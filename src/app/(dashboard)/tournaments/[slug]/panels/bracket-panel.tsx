@@ -1,8 +1,8 @@
 import { Trophy } from "lucide-react";
 import type { InferSelectModel } from "drizzle-orm";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, and, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { divisions, tournaments } from "@/lib/db/schema";
+import { divisions, tournaments, brackets, courts, teams, registrations } from "@/lib/db/schema";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -12,12 +12,14 @@ import {
 import {
   ensureDivisionBracketSkeleton,
   ensureTournamentCombinedBrackets,
+  repairBracketWinnerAdvances,
   tournamentCombinedBracketsRegenerateState,
   tryFillBracketFromDivisionSeeds,
   tryFillTournamentCombinedBrackets,
 } from "@/lib/tournaments/bracket-structure";
 import { getDivisionPlayData } from "../brackets/data";
 import { BracketView } from "../brackets/bracket-view";
+import { BracketMatchAdmin } from "../brackets/bracket-match-admin";
 import { BracketSeedingTable } from "../brackets/bracket-seeding-table";
 import { BracketSettingsPanel } from "../brackets/bracket-settings-panel";
 import { buildBracketSeedingReport } from "@/lib/tournaments/combined-bracket-standings";
@@ -31,8 +33,7 @@ export async function TournamentBracketPanel({
 }) {
   const isOrganizer = isTournamentOrganizer(tournament, user);
 
-  const [divisionPlayData, tournamentDivisions] = await Promise.all([
-    getDivisionPlayData(tournament.id, { forOrganizer: isOrganizer }),
+  const [tournamentDivisions, bracketIdRows] = await Promise.all([
     db
       .select({
         id: divisions.id,
@@ -43,6 +44,11 @@ export async function TournamentBracketPanel({
       .from(divisions)
       .where(eq(divisions.tournamentId, tournament.id))
       .orderBy(asc(divisions.createdAt), asc(divisions.id)),
+    db
+      .select({ id: brackets.id })
+      .from(brackets)
+      .innerJoin(divisions, eq(brackets.divisionId, divisions.id))
+      .where(eq(divisions.tournamentId, tournament.id)),
   ]);
 
   const poolDivisions = tournamentDivisions.filter(
@@ -66,11 +72,41 @@ export async function TournamentBracketPanel({
     }
   }
 
-  // Refresh play data after ensuring / seeding brackets.
-  const playData =
-    poolDivisions.length > 0
-      ? await getDivisionPlayData(tournament.id, { forOrganizer: isOrganizer })
-      : divisionPlayData;
+  for (const row of bracketIdRows) {
+    await repairBracketWinnerAdvances(row.id);
+  }
+
+  const [tournamentCourts, registeredTeams] = await Promise.all([
+    db
+      .select({ id: courts.id, name: courts.name })
+      .from(courts)
+      .where(eq(courts.tournamentId, tournament.id))
+      .orderBy(asc(courts.name), asc(courts.id)),
+    db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        university: teams.university,
+      })
+      .from(registrations)
+      .innerJoin(teams, eq(registrations.teamId, teams.id))
+      .where(
+        and(
+          eq(registrations.tournamentId, tournament.id),
+          inArray(registrations.status, ["confirmed", "checked_in"])
+        )
+      )
+      .orderBy(asc(teams.name)),
+  ]);
+
+  const playData = await getDivisionPlayData(tournament.id, {
+    forOrganizer: isOrganizer,
+  });
+
+  const teamLabels = registeredTeams.map((t) => ({
+    id: t.id,
+    label: `${t.name} (${t.university})`,
+  }));
 
   const ownerId = poolDivisions[0]?.id;
   const combinedBrackets =
@@ -183,11 +219,20 @@ export async function TournamentBracketPanel({
               ) : (
                 <div className="space-y-4">
                   {combinedBrackets.map((bracket) => (
-                    <BracketView
-                      key={bracket.id}
-                      bracket={bracket}
-                      slug={tournament.slug}
-                    />
+                    <div key={bracket.id} className="space-y-4">
+                      <BracketView bracket={bracket} slug={tournament.slug} />
+                      {isOrganizer && (
+                        <BracketMatchAdmin
+                          tournamentId={tournament.id}
+                          slug={tournament.slug}
+                          tournamentDate={tournament.date}
+                          bracketName={bracket.name ?? "Bracket"}
+                          matches={bracket.matches}
+                          courts={tournamentCourts}
+                          teamLabels={teamLabels}
+                        />
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
@@ -220,11 +265,25 @@ export async function TournamentBracketPanel({
                   ) : (
                     <div className="space-y-4">
                       {div.brackets.map((bracket) => (
-                        <BracketView
-                          key={bracket.id}
-                          bracket={bracket}
-                          slug={tournament.slug}
-                        />
+                        <div key={bracket.id} className="space-y-4">
+                          <BracketView
+                            bracket={bracket}
+                            slug={tournament.slug}
+                          />
+                          {isOrganizer && (
+                            <BracketMatchAdmin
+                              tournamentId={tournament.id}
+                              slug={tournament.slug}
+                              tournamentDate={tournament.date}
+                              bracketName={
+                                bracket.name ?? `${div.name} bracket`
+                              }
+                              matches={bracket.matches}
+                              courts={tournamentCourts}
+                              teamLabels={teamLabels}
+                            />
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}

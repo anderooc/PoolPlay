@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buildMatchScoreState } from "@/lib/tournaments/match-format";
 import type { MatchFormat } from "@/lib/labels/match-format";
+import { isBracketRoundOneByeMatch } from "@/lib/utils/bracket";
 import { cn } from "@/lib/utils";
 import type { DivisionPlayData } from "./brackets/data";
 
@@ -60,6 +61,15 @@ function flattenMatches(divisions: DivisionPlayData[]): BoardMatch[] {
     for (const bracket of div.brackets) {
       for (const m of bracket.matches) {
         if (!m.teamAName && !m.teamBName) continue;
+        if (
+          isBracketRoundOneByeMatch({
+            bracketRound: m.bracketRound,
+            teamAId: m.teamAId,
+            teamBId: m.teamBId,
+          })
+        ) {
+          continue;
+        }
         out.push({
           id: m.id,
           slug: m.slug,

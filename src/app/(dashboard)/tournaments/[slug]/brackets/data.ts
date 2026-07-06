@@ -2,6 +2,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   brackets,
+  courts,
   divisions,
   matches,
   poolTeams,
@@ -57,9 +58,15 @@ export type DivisionPlayData = {
       teamBName: string | null;
       bracketRound: number | null;
       bracketPosition: number | null;
+      refTeamId: string | null;
+      courtId: string | null;
       winnerId: string | null;
       status: string;
       scheduledTime: Date | null;
+      teamA: { id: string; name: string } | null;
+      teamB: { id: string; name: string } | null;
+      ref: { id: string; name: string } | null;
+      courtName: string | null;
       sets: { teamAScore: number; teamBScore: number }[];
     }[];
   }[];
@@ -174,12 +181,19 @@ export async function getDivisionPlayData(
   const bracketTeamIds = [
     ...new Set(
       bracketMatchRows
-        .flatMap((m) => [m.teamAId, m.teamBId])
+        .flatMap((m) => [m.teamAId, m.teamBId, m.refTeamId])
+        .filter((v): v is string => Boolean(v))
+    ),
+  ];
+  const bracketCourtIds = [
+    ...new Set(
+      bracketMatchRows
+        .map((m) => m.courtId)
         .filter((v): v is string => Boolean(v))
     ),
   ];
 
-  const [setRows, bracketTeamRows] = await Promise.all([
+  const [setRows, bracketTeamRows, bracketCourtRows] = await Promise.all([
     setMatchIds.length
       ? db
           .select()
@@ -192,6 +206,12 @@ export async function getDivisionPlayData(
           .select({ id: teams.id, name: teams.name })
           .from(teams)
           .where(inArray(teams.id, bracketTeamIds))
+      : Promise.resolve([]),
+    bracketCourtIds.length
+      ? db
+          .select({ id: courts.id, name: courts.name })
+          .from(courts)
+          .where(inArray(courts.id, bracketCourtIds))
       : Promise.resolve([]),
   ]);
 
@@ -252,6 +272,8 @@ export async function getDivisionPlayData(
 
   const bracketTeamName = new Map<string, string>();
   for (const t of bracketTeamRows) bracketTeamName.set(t.id, t.name);
+  const bracketCourtName = new Map<string, string>();
+  for (const c of bracketCourtRows) bracketCourtName.set(c.id, c.name);
 
   const rows: DivisionPlayData[] = [];
   for (const div of tournamentDivisions) {
@@ -325,9 +347,23 @@ export async function getDivisionPlayData(
         teamBName: m.teamBId ? (bracketTeamName.get(m.teamBId) ?? null) : null,
         bracketRound: m.bracketRound,
         bracketPosition: m.bracketPosition,
+        refTeamId: m.refTeamId,
+        courtId: m.courtId,
         winnerId: m.winnerId,
         status: m.status,
         scheduledTime: m.scheduledTime,
+        teamA: m.teamAId
+          ? { id: m.teamAId, name: bracketTeamName.get(m.teamAId) ?? "Team" }
+          : null,
+        teamB: m.teamBId
+          ? { id: m.teamBId, name: bracketTeamName.get(m.teamBId) ?? "Team" }
+          : null,
+        ref: m.refTeamId
+          ? { id: m.refTeamId, name: bracketTeamName.get(m.refTeamId) ?? "Team" }
+          : null,
+        courtName: m.courtId
+          ? (bracketCourtName.get(m.courtId) ?? null)
+          : null,
         sets: setsByMatch.get(m.id) ?? [],
       })),
     }));

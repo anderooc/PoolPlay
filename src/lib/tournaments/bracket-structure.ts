@@ -16,7 +16,7 @@ import {
   createEmptySingleEliminationBracket,
   generateSingleEliminationBracket,
   isByeMatch,
-  roundOneAdvanceTarget,
+  bracketAdvanceTarget,
 } from "@/lib/utils/bracket";
 import { calculatePoolStandings } from "@/lib/utils/pool";
 import { ensureDivisionAutoPool } from "./division-pools";
@@ -31,6 +31,10 @@ import {
   bracketTierName,
   validateBracketTierSettings,
 } from "@/lib/tournaments/bracket-tiers";
+import {
+  assignBracketMatchRefs,
+  type BracketMatchForRefs,
+} from "@/lib/tournaments/bracket-refs";
 import { rankTeamsForCombinedBrackets } from "@/lib/tournaments/combined-bracket-standings";
 
 type DbClient = typeof db;
@@ -429,7 +433,7 @@ async function applyRoundOneByeAdvancement(
       })
       .where(eq(matches.id, roundOneRow.id));
 
-    const feed = roundOneAdvanceTarget(slot.position);
+    const feed = bracketAdvanceTarget(1, slot.position);
     const roundTwo = roundTwoByPosition.get(feed.position);
     if (!roundTwo) continue;
 
@@ -448,6 +452,151 @@ async function applyRoundOneByeAdvancement(
       teamAId,
       teamBId,
     });
+  }
+}
+
+/**
+ * Place a completed bracket match winner into the next-round slot.
+ * No-op for finals or non-bracket matches.
+ */
+export async function advanceBracketWinner(
+  matchId: string,
+  client: DbClient = db
+): Promise<void> {
+  const [match] = await client
+    .select({
+      bracketId: matches.bracketId,
+      bracketRound: matches.bracketRound,
+      bracketPosition: matches.bracketPosition,
+      winnerId: matches.winnerId,
+      status: matches.status,
+    })
+    .from(matches)
+    .where(eq(matches.id, matchId))
+    .limit(1);
+
+  if (
+    !match?.bracketId ||
+    !match.winnerId ||
+    match.status !== "completed" ||
+    match.bracketRound == null ||
+    match.bracketPosition == null
+  ) {
+    return;
+  }
+
+  const feed = bracketAdvanceTarget(match.bracketRound, match.bracketPosition);
+
+  const [nextMatch] = await client
+    .select({
+      id: matches.id,
+      teamAId: matches.teamAId,
+      teamBId: matches.teamBId,
+    })
+    .from(matches)
+    .where(
+      and(
+        eq(matches.bracketId, match.bracketId),
+        eq(matches.bracketRound, feed.round),
+        eq(matches.bracketPosition, feed.position)
+      )
+    )
+    .limit(1);
+
+  if (!nextMatch) return;
+
+  const teamAId =
+    feed.slot === "A" ? match.winnerId : nextMatch.teamAId;
+  const teamBId =
+    feed.slot === "B" ? match.winnerId : nextMatch.teamBId;
+
+  await client
+    .update(matches)
+    .set({ teamAId, teamBId, updatedAt: new Date() })
+    .where(eq(matches.id, nextMatch.id));
+
+  await assignBracketRefsForBracket(match.bracketId, client);
+}
+
+/** Re-apply winner advancement for every completed match (fixes stale brackets). */
+export async function repairBracketWinnerAdvances(
+  bracketId: string,
+  client: DbClient = db
+): Promise<void> {
+  const completed = await client
+    .select({ id: matches.id })
+    .from(matches)
+    .where(
+      and(eq(matches.bracketId, bracketId), eq(matches.status, "completed"))
+    )
+    .orderBy(asc(matches.bracketRound), asc(matches.bracketPosition));
+
+  for (const row of completed) {
+    await advanceBracketWinner(row.id, client);
+  }
+  await assignBracketRefsForBracket(bracketId, client);
+}
+
+/** Auto-assign working refs for upcoming bracket matches. */
+export async function assignBracketRefsForBracket(
+  bracketId: string,
+  client: DbClient = db,
+  options?: { resetRoundOneCourtId?: string | null }
+): Promise<void> {
+  if (options?.resetRoundOneCourtId) {
+    await client
+      .update(matches)
+      .set({ refTeamId: null })
+      .where(
+        and(
+          eq(matches.bracketId, bracketId),
+          eq(matches.bracketRound, 1),
+          eq(matches.courtId, options.resetRoundOneCourtId)
+        )
+      );
+  }
+
+  const rows = await client
+    .select({
+      id: matches.id,
+      bracketRound: matches.bracketRound,
+      bracketPosition: matches.bracketPosition,
+      teamAId: matches.teamAId,
+      teamBId: matches.teamBId,
+      winnerId: matches.winnerId,
+      status: matches.status,
+      courtId: matches.courtId,
+      scheduledTime: matches.scheduledTime,
+      refTeamId: matches.refTeamId,
+    })
+    .from(matches)
+    .where(eq(matches.bracketId, bracketId))
+    .orderBy(asc(matches.bracketRound), asc(matches.bracketPosition));
+
+  const forRefs: BracketMatchForRefs[] = rows
+    .filter((m) => m.bracketRound != null && m.bracketPosition != null)
+    .map((m) => ({
+      id: m.id,
+      bracketRound: m.bracketRound!,
+      bracketPosition: m.bracketPosition!,
+      teamAId: m.teamAId,
+      teamBId: m.teamBId,
+      winnerId: m.winnerId,
+      status: m.status,
+      courtId: m.courtId,
+      scheduledTime: m.scheduledTime,
+    }));
+
+  const assignments = assignBracketMatchRefs(forRefs);
+
+  for (const [matchId, refTeamId] of assignments) {
+    const row = rows.find((r) => r.id === matchId);
+    if (!row || row.status === "completed") continue;
+    if (row.refTeamId != null && !options?.resetRoundOneCourtId) continue;
+    await client
+      .update(matches)
+      .set({ refTeamId, updatedAt: new Date() })
+      .where(eq(matches.id, matchId));
   }
 }
 
@@ -601,6 +750,8 @@ export async function fillBracketRoundOne(
   }
 
   await applyRoundOneByeAdvancement(bracketId, roundOne, client);
+
+  await assignBracketRefsForBracket(bracketId, client);
 
   await client
     .update(brackets)

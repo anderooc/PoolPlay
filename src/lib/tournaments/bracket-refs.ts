@@ -1,0 +1,197 @@
+import {
+  bracketAdvanceTarget,
+  isBracketRoundOneByeMatch,
+} from "@/lib/utils/bracket";
+
+export interface BracketMatchForRefs {
+  id: string;
+  bracketRound: number;
+  bracketPosition: number;
+  teamAId: string | null;
+  teamBId: string | null;
+  winnerId: string | null;
+  status: string;
+  courtId: string | null;
+  scheduledTime: Date | string | null;
+}
+
+/** Previous-round feeder positions for a bracket match. */
+export function feederPositions(position: number): {
+  feederA: number;
+  feederB: number;
+} {
+  return { feederA: 2 * position - 1, feederB: 2 * position };
+}
+
+export function matchLoserId(
+  match: Pick<
+    BracketMatchForRefs,
+    "teamAId" | "teamBId" | "winnerId" | "status"
+  >
+): string | null {
+  if (match.status !== "completed" || !match.winnerId) return null;
+  if (match.winnerId === match.teamAId) return match.teamBId;
+  if (match.winnerId === match.teamBId) return match.teamAId;
+  return null;
+}
+
+function matchTimeMs(match: BracketMatchForRefs): number | null {
+  if (!match.scheduledTime) return null;
+  const t = new Date(match.scheduledTime).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+/** Teams with a round-1 bye (auto-advanced, not playing a real match). */
+export function roundOneByeTeamIds(matches: BracketMatchForRefs[]): Set<string> {
+  const ids = new Set<string>();
+  for (const m of matches) {
+    if (m.bracketRound !== 1 || !isBracketRoundOneByeMatch(m)) continue;
+    if (m.teamAId) ids.add(m.teamAId);
+    if (m.teamBId) ids.add(m.teamBId);
+  }
+  return ids;
+}
+
+/**
+ * Teams from a later round-1 match on the same court that can ref an earlier
+ * match on that court.
+ */
+export function sameCourtLaterRefCandidates(
+  target: BracketMatchForRefs,
+  roundOnePlayable: BracketMatchForRefs[]
+): string[] {
+  if (!target.courtId) return [];
+
+  const onCourt = roundOnePlayable
+    .filter((m) => m.courtId === target.courtId)
+    .sort((a, b) => {
+      const ta = matchTimeMs(a) ?? Number.POSITIVE_INFINITY;
+      const tb = matchTimeMs(b) ?? Number.POSITIVE_INFINITY;
+      if (ta !== tb) return ta - tb;
+      return a.bracketPosition - b.bracketPosition;
+    });
+
+  const targetIndex = onCourt.findIndex((m) => m.id === target.id);
+  if (targetIndex < 0) return [];
+
+  const candidates: string[] = [];
+  for (let i = targetIndex + 1; i < onCourt.length; i++) {
+    const m = onCourt[i];
+    if (m.teamAId) candidates.push(m.teamAId);
+    if (m.teamBId) candidates.push(m.teamBId);
+  }
+  return candidates;
+}
+
+export function eligibleBracketRefIds(
+  match: BracketMatchForRefs,
+  allMatches: BracketMatchForRefs[]
+): string[] {
+  if (match.status === "completed") return [];
+  if (isBracketRoundOneByeMatch(match)) return [];
+  if (!match.teamAId || !match.teamBId) return [];
+
+  const playing = new Set([match.teamAId, match.teamBId]);
+  const roundOne = allMatches.filter((m) => m.bracketRound === 1);
+  const roundOnePlayable = roundOne.filter(
+    (m) => m.teamAId && m.teamBId && !isBracketRoundOneByeMatch(m)
+  );
+
+  if (match.bracketRound === 1) {
+    const candidates = new Set<string>();
+    for (const id of roundOneByeTeamIds(roundOne)) {
+      if (!playing.has(id)) candidates.add(id);
+    }
+    for (const id of sameCourtLaterRefCandidates(match, roundOnePlayable)) {
+      if (!playing.has(id)) candidates.add(id);
+    }
+    return [...candidates];
+  }
+
+  const prevRound = match.bracketRound - 1;
+  const { feederA, feederB } = feederPositions(match.bracketPosition);
+  const feeders = allMatches.filter((m) => m.bracketRound === prevRound);
+  const feederMatchA = feeders.find((m) => m.bracketPosition === feederA);
+  const feederMatchB = feeders.find((m) => m.bracketPosition === feederB);
+
+  const candidates: string[] = [];
+  for (const feeder of [feederMatchA, feederMatchB]) {
+    if (!feeder) continue;
+    const loser = matchLoserId(feeder);
+    if (loser && !playing.has(loser)) candidates.push(loser);
+  }
+  return candidates;
+}
+
+function pickRef(
+  candidates: string[],
+  refCounts: Map<string, number>
+): string | null {
+  if (candidates.length === 0) return null;
+  let min = Number.POSITIVE_INFINITY;
+  for (const id of candidates) {
+    min = Math.min(min, refCounts.get(id) ?? 0);
+  }
+  const tied = candidates.filter((id) => (refCounts.get(id) ?? 0) === min);
+  tied.sort();
+  const chosen = tied[0];
+  refCounts.set(chosen, (refCounts.get(chosen) ?? 0) + 1);
+  return chosen;
+}
+
+/**
+ * Assign working refs for an entire single-elimination bracket.
+ * Round 1: bye teams or teams from a later match on the same court.
+ * Round 2+: losers from feeder matches in the previous round.
+ */
+export function assignBracketMatchRefs(
+  matches: BracketMatchForRefs[]
+): Map<string, string | null> {
+  const result = new Map<string, string | null>();
+  const refCounts = new Map<string, number>();
+
+  const sorted = [...matches].sort((a, b) => {
+    if (a.bracketRound !== b.bracketRound) {
+      return a.bracketRound - b.bracketRound;
+    }
+    return a.bracketPosition - b.bracketPosition;
+  });
+
+  for (const match of sorted) {
+    if (match.status === "completed" || isBracketRoundOneByeMatch(match)) {
+      result.set(match.id, null);
+      continue;
+    }
+    if (!match.teamAId || !match.teamBId) {
+      result.set(match.id, null);
+      continue;
+    }
+
+    const candidates = eligibleBracketRefIds(match, matches);
+    result.set(match.id, pickRef(candidates, refCounts));
+  }
+
+  return result;
+}
+
+/** Feeder match positions that supply teams to a given match. */
+export function feederMatchPositions(
+  round: number,
+  position: number
+): Array<{ round: number; position: number }> {
+  if (round <= 1) return [];
+  const prev = round - 1;
+  const { feederA, feederB } = feederPositions(position);
+  return [
+    { round: prev, position: feederA },
+    { round: prev, position: feederB },
+  ];
+}
+
+export function nextRoundMatchPosition(
+  round: number,
+  position: number
+): { round: number; position: number } {
+  const feed = bracketAdvanceTarget(round, position);
+  return { round: feed.round, position: feed.position };
+}

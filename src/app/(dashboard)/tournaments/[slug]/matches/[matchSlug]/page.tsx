@@ -15,7 +15,10 @@ import { isUuid } from "@/lib/tournaments/match-slug";
 import {
   getMatchDivisionIdMap,
 } from "@/lib/tournaments/unreleased-divisions";
+import { isBracketRoundOneByeMatch, byeWinnerId } from "@/lib/utils/bracket";
+import { setStartingScoreForMatch } from "@/lib/tournaments/match-format";
 import { tournamentTabUrl } from "../../constants";
+import { ByeMatchNotice } from "./bye-match-notice";
 import { MatchConsole } from "./match-console";
 
 interface Props {
@@ -104,15 +107,40 @@ export default async function MatchPage({ params }: Props) {
     match.refTeamId != null &&
     userTeamIds.has(match.refTeamId);
 
+  const isBye = isBracketRoundOneByeMatch(match);
+
   const backHref =
     match.poolId && divisionId
       ? tournamentTabUrl(slug, "pool-play", {
           division: divisionId,
           pool: match.poolId,
         })
-      : `/tournaments/${slug}`;
+      : match.bracketId
+        ? tournamentTabUrl(slug, "bracket")
+        : `/tournaments/${slug}`;
   const backLabel =
-    match.poolId && divisionId ? "Back to pool" : "Back to tournament";
+    match.poolId && divisionId
+      ? "Back to pool"
+      : match.bracketId
+        ? "Back to brackets"
+        : "Back to tournament";
+
+  if (isBye) {
+    const winnerId = byeWinnerId(match);
+    const byeTeam =
+      winnerId === match.teamAId
+        ? teamA
+        : winnerId === match.teamBId
+          ? teamB
+          : teamA ?? teamB;
+
+    return (
+      <div className="space-y-6">
+        <BackLink href={backHref}>{backLabel}</BackLink>
+        <ByeMatchNotice teamName={byeTeam?.name ?? "Team"} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -140,7 +168,7 @@ export default async function MatchPage({ params }: Props) {
         }}
         settings={{
           matchFormat: tournament.matchFormat,
-          setStartingScore: tournament.setStartingScore,
+          setStartingScore: setStartingScoreForMatch(tournament, match),
           setTargetScore: tournament.setTargetScore,
           tiebreakTargetScore: tournament.tiebreakTargetScore,
           warmupFormat: tournament.warmupFormat,
