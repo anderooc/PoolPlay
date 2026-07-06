@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, startTransition } from "react";
+import { useMemo, useState, startTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Settings2 } from "lucide-react";
-import { updateTournamentBracketSettings } from "./actions";
+import {
+  regenerateTournamentBrackets,
+  updateTournamentBracketSettings,
+} from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +26,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import {
+  describeBracketTierSplit,
+  validateBracketTierSettings,
+} from "@/lib/tournaments/bracket-tiers";
+
+function digitsOnly(value: string): string {
+  return value.replace(/\D/g, "");
+}
 
 function settingsSummary(
   bracketCount: number,
@@ -46,6 +57,9 @@ export function BracketSettingsPanel({
   goldTeamCount,
   silverTeamCount,
   locked,
+  canRegenerate,
+  regenerateBlockedReason,
+  totalBracketTeams,
 }: {
   tournamentId: string;
   bracketCount: number;
@@ -53,10 +67,16 @@ export function BracketSettingsPanel({
   silverTeamCount: number | null;
   /** True when brackets already have teams and structure cannot change. */
   locked: boolean;
+  canRegenerate: boolean;
+  regenerateBlockedReason?: string;
+  /** Distinct teams in pools; used to validate tier splits. */
+  totalBracketTeams: number;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [confirmRegenerateOpen, setConfirmRegenerateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [draftCount, setDraftCount] = useState(String(bracketCount));
@@ -87,6 +107,19 @@ export function BracketSettingsPanel({
       return;
     }
 
+    if (totalBracketTeams >= 2) {
+      const validation = validateBracketTierSettings(
+        totalBracketTeams,
+        count,
+        gold,
+        silver
+      );
+      if (!validation.ok) {
+        setError(validation.error);
+        return;
+      }
+    }
+
     setSaving(true);
     setError(null);
     const result = await updateTournamentBracketSettings(tournamentId, {
@@ -103,8 +136,71 @@ export function BracketSettingsPanel({
     startTransition(() => router.refresh());
   }
 
+  async function handleRegenerate() {
+    setRegenerating(true);
+    setError(null);
+    const result = await regenerateTournamentBrackets(tournamentId);
+    setRegenerating(false);
+    if ("error" in result && result.error) {
+      setError(result.error);
+      return;
+    }
+    setConfirmRegenerateOpen(false);
+    startTransition(() => router.refresh());
+  }
+
   const summary = settingsSummary(bracketCount, goldTeamCount, silverTeamCount);
   const countNum = Number(draftCount);
+  const settingsLocked = locked && !canRegenerate;
+  const saveRegenerates = locked && canRegenerate;
+
+  const draftGoldNum = countNum >= 2 ? Number(draftGold) : null;
+  const draftSilverNum = countNum === 3 ? Number(draftSilver) : null;
+
+  const tierPreview = useMemo(() => {
+    if (totalBracketTeams < 2 || countNum === 1) return null;
+    if (
+      draftGoldNum != null &&
+      (!Number.isFinite(draftGoldNum) || draftGoldNum < 2)
+    ) {
+      return null;
+    }
+    if (
+      countNum === 3 &&
+      draftSilverNum != null &&
+      (!Number.isFinite(draftSilverNum) || draftSilverNum < 2)
+    ) {
+      return null;
+    }
+
+    return validateBracketTierSettings(
+      totalBracketTeams,
+      countNum,
+      draftGoldNum,
+      draftSilverNum
+    );
+  }, [
+    totalBracketTeams,
+    countNum,
+    draftGoldNum,
+    draftSilverNum,
+  ]);
+
+  const tierPreviewInvalid =
+    tierPreview != null && !tierPreview.ok ? tierPreview.error : null;
+  const tierPreviewValid =
+    tierPreview != null && tierPreview.ok ? tierPreview.tiers : null;
+
+  const goldMax =
+    countNum === 2
+      ? Math.max(2, totalBracketTeams - 2)
+      : countNum === 3
+        ? Math.max(2, totalBracketTeams - 4)
+        : 64;
+  const silverMax =
+    countNum === 3 && Number.isFinite(draftGoldNum)
+      ? Math.max(2, totalBracketTeams - (draftGoldNum as number) - 2)
+      : 64;
 
   return (
     <>
@@ -128,18 +224,38 @@ export function BracketSettingsPanel({
           </span>
           <span>{summary}</span>
         </p>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 shrink-0 px-2 text-xs text-muted-foreground hover:text-foreground"
-          onClick={() => {
-            resetDrafts();
-            setOpen(true);
-          }}
-        >
-          Edit
-        </Button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+            disabled={!canRegenerate || regenerating}
+            title={
+              canRegenerate
+                ? "Re-seed brackets from current pool standings"
+                : regenerateBlockedReason
+            }
+            onClick={() => {
+              setError(null);
+              setConfirmRegenerateOpen(true);
+            }}
+          >
+            {regenerating ? "Regenerating…" : "Regenerate"}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 shrink-0 px-2 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              resetDrafts();
+              setOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+        </div>
       </div>
 
       <Dialog
@@ -160,10 +276,16 @@ export function BracketSettingsPanel({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {locked && (
+            {settingsLocked && (
               <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-                Bracket teams are already placed. Tier counts are locked until
-                brackets are cleared.
+                Bracket matches have already been played. Tier settings are
+                locked until bracket play finishes or is cleared.
+              </p>
+            )}
+            {saveRegenerates && (
+              <p className="rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                Brackets are already seeded. Saving will clear and re-seed from
+                current pool standings using your updated tier counts.
               </p>
             )}
 
@@ -174,7 +296,7 @@ export function BracketSettingsPanel({
                 onValueChange={(v) => {
                   if (typeof v === "string") setDraftCount(v);
                 }}
-                disabled={saving || locked}
+                disabled={saving || settingsLocked}
               >
                 <SelectTrigger id="bracket-count" className="w-full">
                   <SelectValue>
@@ -202,18 +324,24 @@ export function BracketSettingsPanel({
                 <Label htmlFor="gold-team-count">Teams in gold</Label>
                 <Input
                   id="gold-team-count"
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  min={2}
-                  max={64}
+                  pattern="[0-9]*"
+                  autoComplete="off"
                   value={draftGold}
-                  onChange={(e) => setDraftGold(e.target.value)}
-                  disabled={saving || locked}
+                  onChange={(e) => setDraftGold(digitsOnly(e.target.value))}
+                  disabled={saving || settingsLocked}
                 />
                 <p className="text-xs text-muted-foreground">
                   Top finishers across all pools (1sts, then 2nds, and so on)
                   enter gold. Remaining teams go to silver
                   {countNum === 3 ? " or bronze" : ""}.
+                  {totalBracketTeams >= 2 && countNum >= 2 && (
+                    <>
+                      {" "}
+                      Max {goldMax} with {totalBracketTeams} teams in pools.
+                    </>
+                  )}
                 </p>
               </div>
             )}
@@ -223,17 +351,52 @@ export function BracketSettingsPanel({
                 <Label htmlFor="silver-team-count">Teams in silver</Label>
                 <Input
                   id="silver-team-count"
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  min={2}
-                  max={64}
+                  pattern="[0-9]*"
+                  autoComplete="off"
                   value={draftSilver}
-                  onChange={(e) => setDraftSilver(e.target.value)}
-                  disabled={saving || locked}
+                  onChange={(e) => setDraftSilver(digitsOnly(e.target.value))}
+                  disabled={saving || settingsLocked}
                 />
                 <p className="text-xs text-muted-foreground">
                   Next-best teams after gold. Everyone else goes to bronze.
+                  {totalBracketTeams >= 2 && (
+                    <>
+                      {" "}
+                      Max {silverMax} with {totalBracketTeams} teams in pools.
+                    </>
+                  )}
                 </p>
+              </div>
+            )}
+            {totalBracketTeams >= 2 && countNum > 1 && (
+              <div
+                className={cn(
+                  "rounded-md border px-3 py-2 text-xs",
+                  tierPreviewInvalid
+                    ? "border-destructive/40 bg-destructive/5 text-destructive"
+                    : "border-border/60 bg-muted/30 text-muted-foreground"
+                )}
+                role={tierPreviewInvalid ? "alert" : undefined}
+              >
+                {tierPreviewInvalid ? (
+                  tierPreviewInvalid
+                ) : tierPreviewValid ? (
+                  <>
+                    <span className="font-medium text-foreground">
+                      {totalBracketTeams} teams in pools:
+                    </span>{" "}
+                    {describeBracketTierSplit(tierPreviewValid)}
+                  </>
+                ) : (
+                  <>
+                    <span className="font-medium text-foreground">
+                      {totalBracketTeams} teams
+                    </span>{" "}
+                    in pools — enter valid tier counts to preview the split.
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -254,9 +417,61 @@ export function BracketSettingsPanel({
             <Button
               type="button"
               onClick={() => void handleSave()}
-              disabled={saving || locked}
+              disabled={
+                saving || settingsLocked || Boolean(tierPreviewInvalid)
+              }
             >
-              {saving ? "Saving…" : "Save settings"}
+              {saving
+                ? "Saving…"
+                : saveRegenerates
+                  ? "Save & regenerate"
+                  : "Save settings"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={confirmRegenerateOpen}
+        onOpenChange={(next) => {
+          if (regenerating && next) return;
+          if (!next) setError(null);
+          setConfirmRegenerateOpen(next);
+        }}
+      >
+        <DialogContent className="sm:max-w-md" showCloseButton={!regenerating}>
+          <DialogHeader>
+            <DialogTitle>Regenerate brackets?</DialogTitle>
+            <DialogDescription>
+              This clears current bracket matches and re-seeds gold / silver /
+              bronze from the latest pool standings and your tier settings. Use
+              this after fixing pool results or changing who advances where.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            Only available before any bracket match has been played. Bye
+            auto-advances are reset.
+          </p>
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmRegenerateOpen(false)}
+              disabled={regenerating}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleRegenerate()}
+              disabled={regenerating}
+            >
+              {regenerating ? "Regenerating…" : "Regenerate brackets"}
             </Button>
           </DialogFooter>
         </DialogContent>

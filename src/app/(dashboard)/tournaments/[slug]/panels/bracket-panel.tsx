@@ -12,12 +12,15 @@ import {
 import {
   ensureDivisionBracketSkeleton,
   ensureTournamentCombinedBrackets,
+  tournamentCombinedBracketsRegenerateState,
   tryFillBracketFromDivisionSeeds,
   tryFillTournamentCombinedBrackets,
 } from "@/lib/tournaments/bracket-structure";
 import { getDivisionPlayData } from "../brackets/data";
 import { BracketView } from "../brackets/bracket-view";
+import { BracketSeedingTable } from "../brackets/bracket-seeding-table";
 import { BracketSettingsPanel } from "../brackets/bracket-settings-panel";
+import { buildBracketSeedingReport } from "@/lib/tournaments/combined-bracket-standings";
 
 export async function TournamentBracketPanel({
   tournament,
@@ -79,6 +82,20 @@ export async function TournamentBracketPanel({
     b.matches.some((m) => m.teamAId || m.teamBId)
   );
 
+  const regenerateState =
+    poolDivisions.length > 0
+      ? await tournamentCombinedBracketsRegenerateState(tournament.id)
+      : { canRegenerate: false, reason: undefined };
+
+  const poolDivisionIds = new Set(poolDivisions.map((d) => d.id));
+  const totalBracketTeams = [
+    ...new Set(
+      playData
+        .filter((d) => poolDivisionIds.has(d.id))
+        .flatMap((d) => d.pools.flatMap((p) => p.teams.map((t) => t.id)))
+    ),
+  ].length;
+
   const showCombined =
     poolDivisions.length > 0 &&
     (isOrganizer ||
@@ -100,6 +117,28 @@ export async function TournamentBracketPanel({
     (showCombined && (isOrganizer || combinedBrackets.length > 0)) ||
     otherEligible.length > 0;
 
+  const seedingReport =
+    showCombined && poolDivisions.length > 0
+      ? buildBracketSeedingReport({
+          pools: playData
+            .filter((d) => poolDivisionIds.has(d.id))
+            .flatMap((d) =>
+              d.pools.map((p) => ({
+                poolName: p.name,
+                divisionName: d.name,
+                teams: p.teams,
+                matches: p.matches,
+              }))
+            ),
+          tiebreakCriteria: tournament.poolTiebreakCriteria,
+          bracketCount: tournament.bracketCount ?? 1,
+          goldTeamCount: tournament.goldTeamCount,
+          silverTeamCount: tournament.silverTeamCount,
+        })
+      : null;
+
+  const showBracketTiers = (tournament.bracketCount ?? 1) > 1;
+
   return (
     <div className="space-y-6">
       {isOrganizer && poolDivisions.length > 0 && (
@@ -109,6 +148,9 @@ export async function TournamentBracketPanel({
           goldTeamCount={tournament.goldTeamCount ?? null}
           silverTeamCount={tournament.silverTeamCount ?? null}
           locked={combinedLocked}
+          canRegenerate={regenerateState.canRegenerate}
+          regenerateBlockedReason={regenerateState.reason}
+          totalBracketTeams={totalBracketTeams}
         />
       )}
 
@@ -126,6 +168,12 @@ export async function TournamentBracketPanel({
         <>
           {showCombined && (
             <div className="space-y-4">
+              {seedingReport && seedingReport.rows.length > 0 && (
+                <BracketSeedingTable
+                  report={seedingReport}
+                  showTiers={showBracketTiers}
+                />
+              )}
               {combinedBrackets.length === 0 ? (
                 <EmptyState
                   icon={Trophy}
