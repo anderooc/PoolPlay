@@ -29,8 +29,9 @@ import {
 } from "@/lib/tournaments/match-slug";
 import {
   bracketTierName,
-  tierTeamCounts,
+  validateBracketTierSettings,
 } from "@/lib/tournaments/bracket-tiers";
+import { rankTeamsForCombinedBrackets } from "@/lib/tournaments/combined-bracket-standings";
 
 type DbClient = typeof db;
 
@@ -736,26 +737,17 @@ export async function tryFillTournamentCombinedBrackets(
 
   // Combine pools: all 1st-place teams, then all 2nds, etc. Within a place,
   // order by record, then original pool seed (lower = higher seed).
-  const maxPlace = Math.max(0, ...poolStandings.map((s) => s.length));
-  const rankedIds: string[] = [];
-  for (let place = 1; place <= maxPlace; place++) {
-    const atPlace = poolStandings
-      .flatMap((s) => s.filter((t) => t.place === place))
-      .sort(
-        (a, b) =>
-          b.wins - a.wins ||
-          b.pointDiff - a.pointDiff ||
-          a.seed - b.seed
-      );
-    for (const t of atPlace) rankedIds.push(t.teamId);
-  }
+  const rankedIds = rankTeamsForCombinedBrackets(poolStandings);
 
-  const counts = tierTeamCounts(
+  const tierValidation = validateBracketTierSettings(
     rankedIds.length,
     tournament.bracketCount ?? 1,
     tournament.goldTeamCount,
     tournament.silverTeamCount
   );
+  if (!tierValidation.ok) return;
+
+  const counts = tierValidation.tiers;
 
   await ensureTournamentCombinedBrackets(tournamentId, client);
 
@@ -823,4 +815,173 @@ export async function tryFillBracketFromDivisionSeeds(
     members.map((m) => m.teamId),
     client
   );
+}
+
+async function tournamentPoolToBracketOwnerId(
+  tournamentId: string,
+  client: DbClient
+): Promise<string | null> {
+  const [div] = await client
+    .select({ id: divisions.id })
+    .from(divisions)
+    .where(
+      and(
+        eq(divisions.tournamentId, tournamentId),
+        eq(divisions.format, "pool_to_bracket")
+      )
+    )
+    .orderBy(asc(divisions.createdAt), asc(divisions.id))
+    .limit(1);
+
+  return div?.id ?? null;
+}
+
+/** Distinct teams assigned to pools across all pool-to-bracket divisions. */
+export async function countTournamentCombinedBracketTeams(
+  tournamentId: string,
+  client: DbClient = db
+): Promise<number> {
+  const poolDivisions = await client
+    .select({ id: divisions.id })
+    .from(divisions)
+    .where(
+      and(
+        eq(divisions.tournamentId, tournamentId),
+        eq(divisions.format, "pool_to_bracket")
+      )
+    );
+
+  const teamIds = new Set<string>();
+  for (const div of poolDivisions) {
+    const poolId = await ensureDivisionAutoPool(div.id, client);
+    if (!poolId) continue;
+
+    const members = await client
+      .select({ teamId: poolTeams.teamId })
+      .from(poolTeams)
+      .where(eq(poolTeams.poolId, poolId));
+
+    for (const member of members) teamIds.add(member.teamId);
+  }
+
+  return teamIds.size;
+}
+
+/** Whether combined brackets can be cleared and re-seeded from pool standings. */
+export async function tournamentCombinedBracketsRegenerateState(
+  tournamentId: string,
+  client: DbClient = db
+): Promise<{ canRegenerate: boolean; reason?: string }> {
+  const poolDivisions = await client
+    .select({ id: divisions.id })
+    .from(divisions)
+    .where(
+      and(
+        eq(divisions.tournamentId, tournamentId),
+        eq(divisions.format, "pool_to_bracket")
+      )
+    )
+    .orderBy(asc(divisions.createdAt), asc(divisions.id));
+
+  if (poolDivisions.length === 0) {
+    return { canRegenerate: false, reason: "No pool-to-bracket divisions" };
+  }
+
+  for (const div of poolDivisions) {
+    const poolId = await ensureDivisionAutoPool(div.id, client);
+    if (!poolId) {
+      return { canRegenerate: false, reason: "Pool setup is incomplete" };
+    }
+    if (!(await isPoolPlayComplete(poolId, client))) {
+      return {
+        canRegenerate: false,
+        reason: "Finish pool play in every pool first",
+      };
+    }
+  }
+
+  const ownerId = poolDivisions[0].id;
+  const tierBrackets = await client
+    .select({ id: brackets.id })
+    .from(brackets)
+    .where(eq(brackets.divisionId, ownerId));
+
+  for (const bracket of tierBrackets) {
+    if (await bracketHasPlayBeyondByes(bracket.id, client)) {
+      return {
+        canRegenerate: false,
+        reason: "Bracket matches have already been played",
+      };
+    }
+  }
+
+  return { canRegenerate: true };
+}
+
+async function clearTournamentCombinedBracketTrees(
+  tournamentId: string,
+  client: DbClient
+): Promise<void> {
+  const ownerId = await tournamentPoolToBracketOwnerId(tournamentId, client);
+  if (!ownerId) return;
+
+  const tierBrackets = await client
+    .select({ id: brackets.id })
+    .from(brackets)
+    .where(eq(brackets.divisionId, ownerId));
+
+  for (const bracket of tierBrackets) {
+    await client.delete(matches).where(eq(matches.bracketId, bracket.id));
+    await client
+      .update(brackets)
+      .set({ seedCount: 0 })
+      .where(eq(brackets.id, bracket.id));
+  }
+}
+
+/**
+ * Re-seed gold / silver / bronze from current pool standings. Allowed only
+ * before any real bracket match has been completed.
+ */
+export async function regenerateTournamentCombinedBrackets(
+  tournamentId: string,
+  client: DbClient = db
+): Promise<{ error?: string }> {
+  const state = await tournamentCombinedBracketsRegenerateState(
+    tournamentId,
+    client
+  );
+  if (!state.canRegenerate) {
+    return { error: state.reason ?? "Cannot regenerate brackets" };
+  }
+
+  const [tournament] = await client
+    .select({
+      bracketCount: tournaments.bracketCount,
+      goldTeamCount: tournaments.goldTeamCount,
+      silverTeamCount: tournaments.silverTeamCount,
+    })
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (tournament) {
+    const totalTeams = await countTournamentCombinedBracketTeams(
+      tournamentId,
+      client
+    );
+    const tierValidation = validateBracketTierSettings(
+      totalTeams,
+      tournament.bracketCount ?? 1,
+      tournament.goldTeamCount,
+      tournament.silverTeamCount
+    );
+    if (!tierValidation.ok) {
+      return { error: tierValidation.error };
+    }
+  }
+
+  await clearTournamentCombinedBracketTrees(tournamentId, client);
+  await tryFillTournamentCombinedBrackets(tournamentId, client);
+  return {};
 }

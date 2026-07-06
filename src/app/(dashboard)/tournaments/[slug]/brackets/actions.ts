@@ -22,8 +22,12 @@ import {
 import { regeneratePoolMatchesFromSeeds } from "@/lib/tournaments/pool-matches";
 import {
   ensureDivisionBracketSkeleton,
+  countTournamentCombinedBracketTeams,
+  regenerateTournamentCombinedBrackets,
+  tournamentCombinedBracketsRegenerateState,
   tryFillBracketFromDivisionSeeds,
 } from "@/lib/tournaments/bracket-structure";
+import { validateBracketTierSettings } from "@/lib/tournaments/bracket-tiers";
 
 async function assertCanAssignTeamsToPools(
   tournamentId: string,
@@ -261,6 +265,19 @@ export async function updateTournamentBracketSettings(
     silverTeamCount = null;
   }
 
+  const totalTeams = await countTournamentCombinedBracketTeams(tournamentId);
+  if (totalTeams >= 2) {
+    const tierValidation = validateBracketTierSettings(
+      totalTeams,
+      bracketCount,
+      goldTeamCount,
+      silverTeamCount
+    );
+    if (!tierValidation.ok) {
+      return { error: tierValidation.error };
+    }
+  }
+
   const poolDivisions = await db
     .select({ id: divisions.id })
     .from(divisions)
@@ -285,6 +302,19 @@ export async function updateTournamentBracketSettings(
 
   const hasTeams = placed.some((m) => m.teamAId != null || m.teamBId != null);
 
+  if (hasTeams) {
+    const regenerateState = await tournamentCombinedBracketsRegenerateState(
+      tournamentId
+    );
+    if (!regenerateState.canRegenerate) {
+      return {
+        error:
+          regenerateState.reason ??
+          "Bracket settings are locked while bracket play is in progress",
+      };
+    }
+  }
+
   await db
     .update(tournaments)
     .set({
@@ -295,7 +325,10 @@ export async function updateTournamentBracketSettings(
     })
     .where(eq(tournaments.id, tournamentId));
 
-  if (!hasTeams && poolDivisions.length > 0) {
+  if (hasTeams) {
+    const result = await regenerateTournamentCombinedBrackets(tournamentId);
+    if (result.error) return { error: result.error };
+  } else if (poolDivisions.length > 0) {
     for (const div of poolDivisions) {
       const existing = await db
         .select({ id: brackets.id })
@@ -318,6 +351,27 @@ export async function updateTournamentBracketSettings(
     bracketCount,
     goldTeamCount,
     silverTeamCount,
-    rebuilt: !hasTeams,
+    rebuilt: hasTeams || poolDivisions.length > 0,
   };
+}
+
+/** Re-seed brackets from current pool standings (organizer only). */
+export async function regenerateTournamentBrackets(tournamentId: string) {
+  const user = await requireUser();
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+    return { error: "Only the organizer can regenerate brackets" };
+  }
+
+  const result = await regenerateTournamentCombinedBrackets(tournamentId);
+  if (result.error) return { error: result.error };
+
+  revalidatePath("/tournaments/[slug]", "page");
+  return { success: true as const };
 }
