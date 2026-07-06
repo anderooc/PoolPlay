@@ -67,6 +67,7 @@ export async function getTournamentPlaySignals(
 ): Promise<{
   hasPoolMatches: boolean;
   hasBrackets: boolean;
+  hasSeededBrackets: boolean;
   hasVisibleMatches: boolean;
 }> {
   const forOrganizer = options?.forOrganizer ?? false;
@@ -79,7 +80,8 @@ export async function getTournamentPlaySignals(
           isNotNull(divAlias.poolsReleasedAt)
         );
 
-  const [poolMatchRow, bracketRow, visibleMatchRow] = await Promise.all([
+  const [poolMatchRow, bracketRow, seededBracketRow, visibleMatchRow] =
+    await Promise.all([
     // Pool matches anywhere in the tournament (checklist + organizer Pools tab).
     db
       .select({ id: matches.id })
@@ -95,6 +97,19 @@ export async function getTournamentPlaySignals(
       .innerJoin(divFromBracket, eq(brackets.divisionId, divFromBracket.id))
       .where(releasedOnly(divFromBracket))
       .limit(1),
+    // Bracket match with at least one team placed (seeded, not empty shell).
+    db
+      .select({ id: matches.id })
+      .from(matches)
+      .innerJoin(brackets, eq(matches.bracketId, brackets.id))
+      .innerJoin(divFromBracket, eq(brackets.divisionId, divFromBracket.id))
+      .where(
+        and(
+          eq(divFromBracket.tournamentId, tournamentId),
+          or(isNotNull(matches.teamAId), isNotNull(matches.teamBId))
+        )
+      )
+      .limit(1),
     db
       .select({ id: matches.id })
       .from(matches)
@@ -109,6 +124,7 @@ export async function getTournamentPlaySignals(
   return {
     hasPoolMatches: poolMatchRow.length > 0,
     hasBrackets: bracketRow.length > 0,
+    hasSeededBrackets: seededBracketRow.length > 0,
     hasVisibleMatches: visibleMatchRow.length > 0,
   };
 }

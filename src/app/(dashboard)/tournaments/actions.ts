@@ -292,6 +292,7 @@ export async function updateTournamentMatchFormat(
       tiebreakTargetScore: parsed.data.tiebreakTargetScore,
       warmupFormat: parsed.data.warmupFormat,
       poolTiebreakCriteria: parsed.data.poolTiebreakCriteria,
+      poolSettingsSavedAt: new Date(),
       updatedAt: new Date(),
     })
     .where(eq(tournaments.id, tournamentId));

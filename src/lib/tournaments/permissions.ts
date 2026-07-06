@@ -1,10 +1,17 @@
 import { TEAM_GENDER_LABELS } from "@/lib/constants/team";
 import { isAdmin } from "@/lib/auth";
 import { isTournamentArchived } from "@/lib/tournament-status";
+import type { PlayFormat } from "@/lib/labels/play-format";
 import {
   evaluateListingDetailsChecklist,
   listingDetailsHint,
 } from "@/lib/tournaments/listing-details-checklist";
+import {
+  bracketSettingsChecklistComplete,
+  bracketSettingsChecklistHint,
+  poolSettingsChecklistComplete,
+  poolSettingsChecklistHint,
+} from "@/lib/tournaments/tournament-settings-checklist";
 import type { TeamGender, TournamentStatus } from "@/types";
 
 /** Fields required for permission checks across server and client. */
@@ -211,26 +218,77 @@ export function hostChecklistSteps(input: {
   status: string;
   description: string | null;
   address: string | null;
+  playFormat: PlayFormat | string;
   divisionCount: number;
   courtCount: number;
   registrationCount: number;
   pendingCount: number;
+  matchFormat: string;
+  setStartingScore: number;
+  setTargetScore: number;
+  tiebreakTargetScore: number;
+  warmupFormat: string;
+  poolTiebreakCriteria: readonly string[];
+  poolSettingsSavedAt: Date | null;
+  bracketCount: number;
+  goldTeamCount: number | null;
+  silverTeamCount: number | null;
+  bracketSettingsSavedAt: Date | null;
   hasPools: boolean;
-  hasBracket: boolean;
+  hasPoolsReleased: boolean;
+  hasSeededBrackets: boolean;
   hasScheduledMatches: boolean;
 }): HostChecklistStep[] {
   const {
     status,
     description,
     address,
+    playFormat,
     divisionCount,
     courtCount,
     registrationCount,
     pendingCount,
+    matchFormat,
+    setStartingScore,
+    setTargetScore,
+    tiebreakTargetScore,
+    warmupFormat,
+    poolTiebreakCriteria,
+    poolSettingsSavedAt,
+    bracketCount,
+    goldTeamCount,
+    silverTeamCount,
+    bracketSettingsSavedAt,
     hasPools,
-    hasBracket,
+    hasPoolsReleased,
+    hasSeededBrackets,
     hasScheduledMatches,
   } = input;
+
+  const isPoolToBracket = playFormat === "pool_to_bracket";
+
+  const poolSettingsInput = {
+    matchFormat,
+    setStartingScore,
+    setTargetScore,
+    tiebreakTargetScore,
+    warmupFormat,
+    poolTiebreakCriteria,
+    poolSettingsSavedAt,
+    hasPoolMatches: hasPools,
+  };
+
+  const bracketSettingsInput = {
+    playFormat,
+    bracketCount,
+    goldTeamCount,
+    silverTeamCount,
+    bracketSettingsSavedAt,
+  };
+
+  const poolSettingsDone = poolSettingsChecklistComplete(poolSettingsInput);
+  const bracketSettingsDone =
+    bracketSettingsChecklistComplete(bracketSettingsInput);
 
   const listingCheck = evaluateListingDetailsChecklist({
     description,
@@ -238,10 +296,10 @@ export function hostChecklistSteps(input: {
     hasScheduledMatches,
   });
 
-  return [
+  const steps: HostChecklistStep[] = [
     {
       id: "listing",
-      label: "Finalize details, fees & start time",
+      label: "Finalize listing details, fees & start time",
       done: listingCheck.complete,
       hint: listingCheck.complete
         ? undefined
@@ -251,49 +309,90 @@ export function hostChecklistSteps(input: {
       id: "setup",
       label: "Add pools and courts",
       done: divisionCount > 0 && courtCount > 0,
-      hint: "Configure competition structure before opening registration.",
+      hint: "Setup tab: add pools and courts. Play format was chosen when you created the tournament.",
     },
     {
       id: "open",
       label: "Open registration",
       done: status !== "draft",
-      hint: "Set status to Registration open when ready for teams.",
+      hint: "Set status to Registration open when the listing is ready for teams.",
     },
     {
       id: "confirm",
-      label: "Confirm registered teams",
+      label: "Close registration & confirm teams",
       done:
         status !== "draft" &&
         status !== "registration_open" &&
         (registrationCount === 0 || pendingCount === 0),
       hint:
         pendingCount > 0
-          ? `${pendingCount} pending approval`
-          : "Approve captains or close registration.",
+          ? `${pendingCount} pending approval on the Pending tab`
+          : "Approve captains on Pending, then close registration.",
     },
     {
-      id: "structure",
-      label: "Generate pool matches",
+      id: "pool-settings",
+      label: "Configure pool settings",
+      done: poolSettingsDone,
+      hint: poolSettingsDone
+        ? undefined
+        : poolSettingsChecklistHint(poolSettingsInput),
+    },
+    {
+      id: "pools",
+      label: isPoolToBracket
+        ? "Assign teams, seed pools & generate matches"
+        : "Assign teams & seed the bracket",
       done: hasPools,
-      hint: "Confirm teams and close registration, then generate matches from the Pools tab.",
+      hint: isPoolToBracket
+        ? "Teams tab: assign teams to pools. Pools tab: set seed order and save to create round-robin matches."
+        : "Teams tab: assign teams. Pools tab: save seed order to build the elimination bracket.",
     },
-    {
+  ];
+
+  if (isPoolToBracket) {
+    steps.push({
+      id: "bracket-settings",
+      label: "Configure bracket tiers",
+      done: bracketSettingsDone,
+      hint: bracketSettingsDone
+        ? undefined
+        : bracketSettingsChecklistHint(bracketSettingsInput),
+    });
+    steps.push({
+      id: "release",
+      label: "Release pools to teams",
+      done: hasPoolsReleased,
+      hint: "Pools tab: release when schedules are ready for captains and fans to view.",
+    });
+    steps.push({
       id: "bracket",
-      label: "Generate brackets",
-      done: hasBracket,
-      hint: "Create elimination brackets from the Bracket tab after pool play is set.",
-    },
+      label: "Seed brackets from pool play",
+      done: hasSeededBrackets,
+      hint: "Bracket tab: brackets seed automatically when every pool finishes.",
+    });
+  } else {
+    steps.push({
+      id: "bracket",
+      label: "Confirm bracket is seeded",
+      done: hasSeededBrackets,
+      hint: "Bracket tab: teams appear once pool seeding is saved.",
+    });
+  }
+
+  steps.push(
     {
       id: "schedule",
       label: "Schedule matches",
       done: hasScheduledMatches,
-      hint: "Use the schedule page to assign courts and times.",
+      hint: "Schedule page: assign courts and start times, or set times on the Matches tab.",
     },
     {
       id: "run",
       label: "Run event (live scoring)",
       done: status === "in_progress" || status === "completed",
       hint: "Set status to In progress on event day.",
-    },
-  ];
+    }
+  );
+
+  return steps;
 }
