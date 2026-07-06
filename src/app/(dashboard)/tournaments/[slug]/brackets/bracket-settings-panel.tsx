@@ -40,11 +40,12 @@ function settingsSummary(
   goldTeamCount: number | null,
   silverTeamCount: number | null
 ): string {
-  if (bracketCount <= 1) return "Single bracket (all pools combine)";
+  const start = "Sets start 0–0";
+  if (bracketCount <= 1) return `${start} · Single bracket (all pools combine)`;
   if (bracketCount === 2) {
-    return `Gold (${goldTeamCount ?? "?"} teams) · Silver (remainder) · all pools combine`;
+    return `${start} · Gold (${goldTeamCount ?? "?"} teams) · Silver (remainder) · all pools combine`;
   }
-  return `Gold (${goldTeamCount ?? "?"}) · Silver (${silverTeamCount ?? "?"}) · Bronze (remainder) · all pools combine`;
+  return `${start} · Gold (${goldTeamCount ?? "?"}) · Silver (${silverTeamCount ?? "?"}) · Bronze (remainder) · all pools combine`;
 }
 
 /**
@@ -271,8 +272,10 @@ export function BracketSettingsPanel({
           <DialogHeader>
             <DialogTitle>Bracket settings</DialogTitle>
             <DialogDescription>
-              All pools combine for bracket play. Choose how many elimination
-              brackets to run and how many teams advance into gold (and silver).
+              All pools combine for bracket play. Bracket sets always start at
+              0–0 (pool play may use a different starting score). Choose how
+              many elimination brackets to run and how many teams advance into
+              gold (and silver).
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

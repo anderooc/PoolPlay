@@ -1,10 +1,34 @@
 import type { MatchFormat } from "@/lib/labels/match-format";
 
+export const DEFAULT_BRACKET_SET_STARTING_SCORE = 0;
+
 export interface MatchFormatSettings {
   format: MatchFormat;
   startingScore: number;
   targetScore: number;
   tiebreakTargetScore: number;
+}
+
+/** True when the match belongs to an elimination bracket (not pool round-robin). */
+export function isBracketMatch(match: {
+  bracketId: string | null;
+  poolId?: string | null;
+}): boolean {
+  return match.bracketId != null;
+}
+
+/** Pool matches use `setStartingScore`; bracket matches use `bracketSetStartingScore`. */
+export function setStartingScoreForMatch(
+  tournament: {
+    setStartingScore: number;
+    bracketSetStartingScore?: number;
+  },
+  match: { bracketId: string | null; poolId?: string | null }
+): number {
+  if (isBracketMatch(match)) {
+    return tournament.bracketSetStartingScore ?? DEFAULT_BRACKET_SET_STARTING_SCORE;
+  }
+  return tournament.setStartingScore;
 }
 
 export interface CompletedSet {

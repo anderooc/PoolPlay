@@ -14,6 +14,7 @@ import { Radio, Clock, CheckCircle2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScoringCard } from "./scoring-card";
 import { LiveScoreViewer } from "./live-score-viewer";
+import { setStartingScoreForMatch } from "@/lib/tournaments/match-format";
 import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import {
   canScoreMatches,
@@ -170,7 +171,7 @@ export default async function ScoringPage({ params }: Props) {
                   match={match}
                   canScore={canScore}
                   matchFormat={tournament.matchFormat}
-                  setStartingScore={tournament.setStartingScore}
+                  setStartingScore={setStartingScoreForMatch(tournament, match)}
                   setTargetScore={tournament.setTargetScore}
                   tiebreakTargetScore={tournament.tiebreakTargetScore}
                   warmupFormat={tournament.warmupFormat}
@@ -195,7 +196,7 @@ export default async function ScoringPage({ params }: Props) {
                   match={match}
                   canScore={canScore}
                   matchFormat={tournament.matchFormat}
-                  setStartingScore={tournament.setStartingScore}
+                  setStartingScore={setStartingScoreForMatch(tournament, match)}
                   setTargetScore={tournament.setTargetScore}
                   tiebreakTargetScore={tournament.tiebreakTargetScore}
                   warmupFormat={tournament.warmupFormat}
@@ -220,7 +221,7 @@ export default async function ScoringPage({ params }: Props) {
                   match={match}
                   canScore={canScore}
                   matchFormat={tournament.matchFormat}
-                  setStartingScore={tournament.setStartingScore}
+                  setStartingScore={setStartingScoreForMatch(tournament, match)}
                   setTargetScore={tournament.setTargetScore}
                   tiebreakTargetScore={tournament.tiebreakTargetScore}
                   warmupFormat={tournament.warmupFormat}

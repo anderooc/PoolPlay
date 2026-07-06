@@ -222,8 +222,9 @@ export function PoolMatchFormatPanel({
           <DialogHeader>
             <DialogTitle>Pool play settings</DialogTitle>
             <DialogDescription>
-              Match format, warmup, and standings tie-breaks for this
-              tournament. Already played sets are not changed when you save.
+              Match format, warmup, and standings tie-breaks for pool play.
+              Bracket matches always start at 0–0. Already played sets are not
+              changed when you save.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -257,7 +258,7 @@ export function PoolMatchFormatPanel({
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="pool-set-starting-score">Starting score</Label>
+                <Label htmlFor="pool-set-starting-score">Pool starting score</Label>
                 <Input
                   id="pool-set-starting-score"
                   type="number"
