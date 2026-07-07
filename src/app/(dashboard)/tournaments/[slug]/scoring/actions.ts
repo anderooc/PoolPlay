@@ -3,13 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { matches, pools, sets, tournaments } from "@/lib/db/schema";
-import { asc, eq, and } from "drizzle-orm";
+import { asc, eq, and, ne } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { updateScoreSchema } from "@/lib/validators";
 import { canScoreMatches } from "@/lib/tournaments/permissions";
 import { getMatchTournamentId } from "@/lib/tournaments/match-query";
-import { tryFillBracketFromPoolPlay, advanceBracketWinner } from "@/lib/tournaments/bracket-structure";
-import { tryCompleteTournamentWhenBracketsDone } from "@/lib/tournaments/tournament-completion";
+import {
+  upsertSetScore,
+  completeMatchAndRunSideEffects,
+} from "@/lib/tournaments/match-finalize";
 import { evaluateMatchOutcome } from "@/lib/tournaments/match-format";
 
 async function assertCanScoreMatch(matchId: string) {
@@ -54,25 +56,7 @@ export async function updateScore(formData: FormData) {
   const gate = await assertCanScoreMatch(matchId);
   if (gate.error) return { error: gate.error };
 
-  const [existing] = await db
-    .select()
-    .from(sets)
-    .where(and(eq(sets.matchId, matchId), eq(sets.setNumber, setNumber)))
-    .limit(1);
-
-  if (existing) {
-    await db
-      .update(sets)
-      .set({ teamAScore, teamBScore })
-      .where(eq(sets.id, existing.id));
-  } else {
-    await db.insert(sets).values({
-      matchId,
-      setNumber,
-      teamAScore,
-      teamBScore,
-    });
-  }
+  await upsertSetScore(matchId, setNumber, teamAScore, teamBScore);
 
   const [match] = await db
     .select()
@@ -84,12 +68,14 @@ export async function updateScore(formData: FormData) {
     await db
       .update(matches)
       .set({ status: "in_progress", updatedAt: new Date() })
-      .where(eq(matches.id, matchId));
+      .where(
+        and(eq(matches.id, matchId), ne(matches.status, "completed"))
+      );
   }
 
   // After saving this set, auto-finalize when the tournament's match format
   // says enough sets have been played (e.g. 2-with-tiebreak, both sets split).
-  if (match && match.teamAId && match.teamBId) {
+  if (match && match.teamAId && match.teamBId && match.status !== "completed") {
     const tournament = gate.tournament;
     const allSets = await db
       .select({
@@ -108,17 +94,6 @@ export async function updateScore(formData: FormData) {
     );
 
     if (outcome.shouldFinalize) {
-      await db
-        .update(matches)
-        .set({
-          status: "completed",
-          winnerId: outcome.winnerId,
-          updatedAt: new Date(),
-        })
-        .where(eq(matches.id, matchId));
-
-      await advanceBracketWinner(matchId);
-
       const [poolRow] = match.poolId
         ? await db
             .select({ divisionId: pools.divisionId })
@@ -126,12 +101,17 @@ export async function updateScore(formData: FormData) {
             .where(eq(pools.id, match.poolId))
             .limit(1)
         : [];
-      if (poolRow?.divisionId) {
-        await tryFillBracketFromPoolPlay(poolRow.divisionId);
-      }
 
-      await tryCompleteTournamentWhenBracketsDone(tournament.id);
-      revalidatePath("/tournaments/[slug]", "page");
+      const { newlyCompleted } = await completeMatchAndRunSideEffects({
+        matchId,
+        winnerId: outcome.winnerId,
+        tournamentId: tournament.id,
+        divisionId: poolRow?.divisionId,
+      });
+
+      if (newlyCompleted) {
+        revalidatePath("/tournaments/[slug]", "page");
+      }
     }
   }
 
@@ -145,6 +125,7 @@ export async function finalizeMatch(matchId: string, winnerId: string) {
 
   const [match] = await db
     .select({
+      status: matches.status,
       poolId: matches.poolId,
       divisionId: pools.divisionId,
     })
@@ -153,24 +134,16 @@ export async function finalizeMatch(matchId: string, winnerId: string) {
     .where(eq(matches.id, matchId))
     .limit(1);
 
-  await db
-    .update(matches)
-    .set({
-      status: "completed",
-      winnerId,
-      updatedAt: new Date(),
-    })
-    .where(eq(matches.id, matchId));
-
-  await advanceBracketWinner(matchId);
-
-  if (match?.divisionId) {
-    await tryFillBracketFromPoolPlay(match.divisionId);
+  if (match?.status === "completed") {
+    return { success: true };
   }
 
-  if (gate.tournament) {
-    await tryCompleteTournamentWhenBracketsDone(gate.tournament.id);
-  }
+  await completeMatchAndRunSideEffects({
+    matchId,
+    winnerId,
+    tournamentId: gate.tournament!.id,
+    divisionId: match?.divisionId,
+  });
 
   revalidatePath(`/tournaments/[slug]/scoring`, "page");
   revalidatePath("/tournaments/[slug]", "page");
@@ -184,7 +157,9 @@ export async function startMatch(matchId: string) {
   await db
     .update(matches)
     .set({ status: "in_progress", updatedAt: new Date() })
-    .where(eq(matches.id, matchId));
+    .where(
+      and(eq(matches.id, matchId), ne(matches.status, "completed"))
+    );
 
   revalidatePath(`/tournaments/[slug]/scoring`, "page");
   return { success: true };

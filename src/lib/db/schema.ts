@@ -289,21 +289,30 @@ export const divisions = pgTable("divisions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const registrations = pgTable("registrations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  teamId: uuid("team_id")
-    .references(() => teams.id, { onDelete: "cascade" })
-    .notNull(),
-  tournamentId: uuid("tournament_id")
-    .references(() => tournaments.id, { onDelete: "cascade" })
-    .notNull(),
-  /** Set by tournament organizer when placing teams into divisions / pools */
-  divisionId: uuid("division_id").references(() => divisions.id, {
-    onDelete: "cascade",
-  }),
-  status: registrationStatusEnum("status").default("pending").notNull(),
-  registeredAt: timestamp("registered_at").defaultNow().notNull(),
-});
+export const registrations = pgTable(
+  "registrations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id")
+      .references(() => teams.id, { onDelete: "cascade" })
+      .notNull(),
+    tournamentId: uuid("tournament_id")
+      .references(() => tournaments.id, { onDelete: "cascade" })
+      .notNull(),
+    /** Set by tournament organizer when placing teams into divisions / pools */
+    divisionId: uuid("division_id").references(() => divisions.id, {
+      onDelete: "cascade",
+    }),
+    status: registrationStatusEnum("status").default("pending").notNull(),
+    registeredAt: timestamp("registered_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("registrations_team_tournament_unique").on(
+      t.teamId,
+      t.tournamentId
+    ),
+  ]
+);
 
 export const pools = pgTable("pools", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -407,15 +416,21 @@ export const matches = pgTable(
   ]
 );
 
-export const sets = pgTable("sets", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  matchId: uuid("match_id")
-    .references(() => matches.id, { onDelete: "cascade" })
-    .notNull(),
-  setNumber: integer("set_number").notNull(),
-  teamAScore: integer("team_a_score").default(0).notNull(),
-  teamBScore: integer("team_b_score").default(0).notNull(),
-});
+export const sets = pgTable(
+  "sets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    matchId: uuid("match_id")
+      .references(() => matches.id, { onDelete: "cascade" })
+      .notNull(),
+    setNumber: integer("set_number").notNull(),
+    teamAScore: integer("team_a_score").default(0).notNull(),
+    teamBScore: integer("team_b_score").default(0).notNull(),
+  },
+  (t) => [
+    uniqueIndex("sets_match_set_number_unique").on(t.matchId, t.setNumber),
+  ]
+);
 
 /**
  * Records text that tripped the content filter so admins can review false

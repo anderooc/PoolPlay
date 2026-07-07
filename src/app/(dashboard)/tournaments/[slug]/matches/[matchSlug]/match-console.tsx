@@ -657,6 +657,7 @@ function Scorekeeper({
   }, [a, b, matchId, setNumber, router]);
 
   function bump(team: "a" | "b", delta: number) {
+    if (saving) return;
     dirtyRef.current = true;
     if (team === "a") setA((prev) => Math.max(0, prev + delta));
     else setB((prev) => Math.max(0, prev + delta));
@@ -729,6 +730,7 @@ function Scorekeeper({
               name={left.name}
               value={left.value}
               onBump={(d) => bump(left.team, d)}
+              disabled={saving}
             />
           </div>
           <div className="min-w-0">
@@ -736,6 +738,7 @@ function Scorekeeper({
               name={right.name}
               value={right.value}
               onBump={(d) => bump(right.team, d)}
+              disabled={saving}
             />
           </div>
         </div>
@@ -790,10 +793,12 @@ function Stepper({
   name,
   value,
   onBump,
+  disabled = false,
 }: {
   name: string;
   value: number;
   onBump: (delta: number) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex min-w-0 flex-col items-center gap-2 rounded-lg border bg-muted/30 p-3">
@@ -812,7 +817,7 @@ function Stepper({
           size="icon"
           aria-label={`Decrease ${name} score`}
           onClick={() => onBump(-1)}
-          disabled={value <= 0}
+          disabled={disabled || value <= 0}
         >
           <Minus className="h-4 w-4" />
         </Button>
@@ -820,6 +825,7 @@ function Stepper({
           size="icon"
           aria-label={`Increase ${name} score`}
           onClick={() => onBump(1)}
+          disabled={disabled}
         >
           <Plus className="h-4 w-4" />
         </Button>

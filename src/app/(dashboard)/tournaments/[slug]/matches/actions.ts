@@ -9,7 +9,7 @@ import {
   teamMembers,
   tournaments,
 } from "@/lib/db/schema";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { updateScoreSchema } from "@/lib/validators";
 import {
@@ -17,11 +17,12 @@ import {
   isTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
 import { getMatchTournamentId } from "@/lib/tournaments/match-query";
-import { tryFillBracketFromPoolPlay, advanceBracketWinner, assignBracketRefsForBracket } from "@/lib/tournaments/bracket-structure";
+import { tryFillBracketFromPoolPlay, assignBracketRefsForBracket } from "@/lib/tournaments/bracket-structure";
+import { revertTournamentIfBracketsIncomplete } from "@/lib/tournaments/tournament-completion";
 import {
-  tryCompleteTournamentWhenBracketsDone,
-  revertTournamentIfBracketsIncomplete,
-} from "@/lib/tournaments/tournament-completion";
+  upsertSetScore,
+  completeMatchAndRunSideEffects,
+} from "@/lib/tournaments/match-finalize";
 import {
   evaluateMatchOutcome,
   isSetComplete,
@@ -186,20 +187,7 @@ export async function saveSetScore(formData: FormData) {
     return { error: gate.error };
   }
 
-  const [existing] = await db
-    .select()
-    .from(sets)
-    .where(and(eq(sets.matchId, matchId), eq(sets.setNumber, setNumber)))
-    .limit(1);
-
-  if (existing) {
-    await db
-      .update(sets)
-      .set({ teamAScore, teamBScore })
-      .where(eq(sets.id, existing.id));
-  } else {
-    await db.insert(sets).values({ matchId, setNumber, teamAScore, teamBScore });
-  }
+  await upsertSetScore(matchId, setNumber, teamAScore, teamBScore);
 
   // First score entry promotes an upcoming/warmup match to in progress.
   if (gate.match.status !== "in_progress" && gate.match.status !== "completed") {
@@ -212,7 +200,9 @@ export async function saveSetScore(formData: FormData) {
         warmupStartedAt: gate.match.warmupStartedAt ?? now,
         updatedAt: now,
       })
-      .where(eq(matches.id, matchId));
+      .where(
+        and(eq(matches.id, matchId), ne(matches.status, "completed"))
+      );
   }
 
   if (gate.match.teamAId && gate.match.teamBId) {
@@ -242,17 +232,6 @@ export async function saveSetScore(formData: FormData) {
     );
 
     if (outcome.shouldFinalize) {
-      await db
-        .update(matches)
-        .set({
-          status: "completed",
-          winnerId: outcome.winnerId,
-          updatedAt: new Date(),
-        })
-        .where(eq(matches.id, matchId));
-
-      await advanceBracketWinner(matchId);
-
       const [poolRow] = gate.match.poolId
         ? await db
             .select({ divisionId: pools.divisionId })
@@ -260,11 +239,13 @@ export async function saveSetScore(formData: FormData) {
             .where(eq(pools.id, gate.match.poolId))
             .limit(1)
         : [];
-      if (poolRow?.divisionId) {
-        await tryFillBracketFromPoolPlay(poolRow.divisionId);
-      }
 
-      await tryCompleteTournamentWhenBracketsDone(gate.tournament.id);
+      await completeMatchAndRunSideEffects({
+        matchId,
+        winnerId: outcome.winnerId,
+        tournamentId: gate.tournament.id,
+        divisionId: poolRow?.divisionId,
+      });
     }
   }
 
@@ -277,6 +258,10 @@ export async function finalizeMatch(matchId: string, winnerId: string | null) {
   const gate = await assertCanControlMatch(matchId);
   if (gate.error || !gate.match) return { error: gate.error };
 
+  if (gate.match.status === "completed") {
+    return { success: true as const };
+  }
+
   const [row] = await db
     .select({ poolId: matches.poolId, divisionId: pools.divisionId })
     .from(matches)
@@ -284,20 +269,16 @@ export async function finalizeMatch(matchId: string, winnerId: string | null) {
     .where(eq(matches.id, matchId))
     .limit(1);
 
-  await db
-    .update(matches)
-    .set({ status: "completed", winnerId, updatedAt: new Date() })
-    .where(eq(matches.id, matchId));
-
-  await advanceBracketWinner(matchId);
-
-  if (row?.divisionId) {
-    await tryFillBracketFromPoolPlay(row.divisionId);
+  if (!gate.tournament) {
+    return { error: "Tournament not found" };
   }
 
-  if (gate.tournament) {
-    await tryCompleteTournamentWhenBracketsDone(gate.tournament.id);
-  }
+  await completeMatchAndRunSideEffects({
+    matchId,
+    winnerId,
+    tournamentId: gate.tournament.id,
+    divisionId: row?.divisionId,
+  });
 
   revalidatePath(`/tournaments/[slug]/matches/[matchSlug]`, "page");
   revalidatePath("/tournaments/[slug]", "page");

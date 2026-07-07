@@ -18,6 +18,21 @@ function isNotNullViolation(e: unknown): boolean {
   return false;
 }
 
+function isUniqueViolation(e: unknown): boolean {
+  if (
+    typeof e === "object" &&
+    e !== null &&
+    "code" in e &&
+    (e as { code: string }).code === "23505"
+  ) {
+    return true;
+  }
+  if (typeof e === "object" && e !== null && "cause" in e) {
+    return isUniqueViolation((e as { cause: unknown }).cause);
+  }
+  return false;
+}
+
 export async function getFirstDivisionId(
   tournamentId: string
 ): Promise<string | null> {
@@ -47,6 +62,9 @@ export async function insertTeamRegistration(
   try {
     await db.insert(registrations).values(row);
   } catch (e) {
+    if (isUniqueViolation(e)) {
+      throw new Error("This team is already registered for this tournament");
+    }
     if (isNotNullViolation(e) && firstDivisionId) {
       await db.insert(registrations).values({
         ...row,
