@@ -34,15 +34,14 @@ import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import { userCanDownloadTournamentPacket } from "@/lib/tournaments/packet-access";
 import { userCanAccessTournamentWaiver } from "@/lib/tournaments/waiver-access";
 import {
+  buildTournamentTabGroups,
   DEFAULT_TOURNAMENT_TAB,
   parseTournamentTab,
   type TournamentTabId,
+  type TournamentTabItem,
 } from "./constants";
 import { TournamentPageHeading } from "./tournament-page-heading";
-import {
-  TournamentTabs,
-  type TournamentTabItem,
-} from "./tournament-tabs";
+import { TournamentTabs } from "./tournament-tabs";
 import { TournamentSetupPanel } from "./panels/setup-panel";
 import { TournamentRegistrationsPanel } from "./panels/registrations-panel";
 import { TournamentPoolPlayPanel } from "./panels/pool-play-panel";
@@ -236,6 +235,8 @@ export default async function TournamentDetailPage({
   if (showBracketTab) tabItems.push({ id: "bracket", label: "Bracket" });
   if (showMatchesTab) tabItems.push({ id: "matches", label: "Matches" });
 
+  const tabGroups = buildTournamentTabGroups(tabItems);
+
   const checklist = isOrganizer
     ? hostChecklistSteps({
         status: tournament.status,
@@ -365,7 +366,7 @@ export default async function TournamentDetailPage({
       <TournamentTabs
         slug={tournament.slug}
         activeTab={activeTab}
-        tabs={tabItems}
+        groups={tabGroups}
       />
 
       <Suspense key={activeTab} fallback={<TournamentPanelSkeleton />}>

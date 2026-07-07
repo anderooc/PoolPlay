@@ -12,6 +12,70 @@ export const TOURNAMENT_TABS = [
 
 export type TournamentTabId = (typeof TOURNAMENT_TABS)[number];
 
+export type TournamentTabGroupId = "preparation" | "matchday";
+
+export const TOURNAMENT_TAB_GROUP_ORDER = [
+  "preparation",
+  "matchday",
+] as const satisfies readonly TournamentTabGroupId[];
+
+export const TOURNAMENT_TAB_GROUP_LABELS: Record<
+  TournamentTabGroupId,
+  string
+> = {
+  preparation: "Preparation",
+  matchday: "Match day",
+};
+
+const TAB_GROUP_BY_ID: Record<TournamentTabId, TournamentTabGroupId> = {
+  setup: "preparation",
+  packet: "preparation",
+  waiver: "preparation",
+  messages: "preparation",
+  teams: "preparation",
+  pending: "preparation",
+  "pool-play": "matchday",
+  bracket: "matchday",
+  matches: "matchday",
+};
+
+export type TournamentTabItem = {
+  id: TournamentTabId;
+  label: string;
+  count?: number;
+  badge?: number;
+};
+
+export type TournamentTabGroup = {
+  id: TournamentTabGroupId;
+  label: string;
+  tabs: TournamentTabItem[];
+};
+
+export function buildTournamentTabGroups(
+  tabs: TournamentTabItem[]
+): TournamentTabGroup[] {
+  const byGroup = new Map<TournamentTabGroupId, TournamentTabItem[]>();
+  for (const tab of tabs) {
+    const groupId = TAB_GROUP_BY_ID[tab.id];
+    const list = byGroup.get(groupId) ?? [];
+    list.push(tab);
+    byGroup.set(groupId, list);
+  }
+
+  return TOURNAMENT_TAB_GROUP_ORDER.flatMap((groupId) => {
+    const groupTabs = byGroup.get(groupId);
+    if (!groupTabs?.length) return [];
+    return [
+      {
+        id: groupId,
+        label: TOURNAMENT_TAB_GROUP_LABELS[groupId],
+        tabs: groupTabs,
+      },
+    ];
+  });
+}
+
 export const DEFAULT_TOURNAMENT_TAB: TournamentTabId = "setup";
 
 export function isTournamentTabId(
