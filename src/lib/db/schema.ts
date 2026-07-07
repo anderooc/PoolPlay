@@ -34,6 +34,12 @@ export const registrationStatusEnum = pgEnum("registration_status", [
   "checked_in",
 ]);
 
+export const waiverCompletionMethodEnum = pgEnum("waiver_completion_method", [
+  "digital",
+  "captain_attested",
+  "host_override",
+]);
+
 export const divisionFormatEnum = pgEnum("division_format", [
   "pool_to_bracket",
   "single_elimination",
@@ -269,6 +275,21 @@ export const tournaments = pgTable("tournaments", {
    * payment, contact). Competition rules are auto-filled from settings.
    */
   packetNotes: text("packet_notes"),
+  /** When true, registered teams must complete the uploaded waiver before check-in. */
+  waiverEnabled: boolean("waiver_enabled").default(false).notNull(),
+  waiverAllowDownloadPrint: boolean("waiver_allow_download_print")
+    .default(true)
+    .notNull(),
+  waiverAllowThirdParty: boolean("waiver_allow_third_party")
+    .default(false)
+    .notNull(),
+  waiverAllowDigitalAck: boolean("waiver_allow_digital_ack")
+    .default(false)
+    .notNull(),
+  waiverThirdPartyUrl: text("waiver_third_party_url"),
+  waiverRequiredBeforeCheckIn: boolean("waiver_required_before_check_in")
+    .default(true)
+    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -315,6 +336,63 @@ export const registrations = pgTable(
     uniqueIndex("registrations_team_tournament_unique").on(
       t.teamId,
       t.tournamentId
+    ),
+  ]
+);
+
+export const tournamentWaivers = pgTable(
+  "tournament_waivers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tournamentId: uuid("tournament_id")
+      .references(() => tournaments.id, { onDelete: "cascade" })
+      .notNull(),
+    storagePath: text("storage_path").notNull(),
+    fileName: text("file_name").notNull(),
+    version: integer("version").notNull(),
+    uploadedByUserId: uuid("uploaded_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("tournament_waivers_tournament_version_unique").on(
+      t.tournamentId,
+      t.version
+    ),
+  ]
+);
+
+export const waiverCompletions = pgTable(
+  "waiver_completions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    waiverId: uuid("waiver_id")
+      .references(() => tournamentWaivers.id, { onDelete: "cascade" })
+      .notNull(),
+    tournamentId: uuid("tournament_id")
+      .references(() => tournaments.id, { onDelete: "cascade" })
+      .notNull(),
+    teamId: uuid("team_id")
+      .references(() => teams.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    method: waiverCompletionMethodEnum("method").notNull(),
+    signedName: text("signed_name"),
+    completedAt: timestamp("completed_at").defaultNow().notNull(),
+    attestedByUserId: uuid("attested_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    waivedByUserId: uuid("waived_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+  },
+  (t) => [
+    uniqueIndex("waiver_completions_waiver_user_unique").on(
+      t.waiverId,
+      t.userId
     ),
   ]
 );
@@ -508,7 +586,55 @@ export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
   divisions: many(divisions),
   registrations: many(registrations),
   courts: many(courts),
+  waivers: many(tournamentWaivers),
 }));
+
+export const tournamentWaiversRelations = relations(
+  tournamentWaivers,
+  ({ one, many }) => ({
+    tournament: one(tournaments, {
+      fields: [tournamentWaivers.tournamentId],
+      references: [tournaments.id],
+    }),
+    uploadedBy: one(users, {
+      fields: [tournamentWaivers.uploadedByUserId],
+      references: [users.id],
+    }),
+    completions: many(waiverCompletions),
+  })
+);
+
+export const waiverCompletionsRelations = relations(
+  waiverCompletions,
+  ({ one }) => ({
+    waiver: one(tournamentWaivers, {
+      fields: [waiverCompletions.waiverId],
+      references: [tournamentWaivers.id],
+    }),
+    tournament: one(tournaments, {
+      fields: [waiverCompletions.tournamentId],
+      references: [tournaments.id],
+    }),
+    team: one(teams, {
+      fields: [waiverCompletions.teamId],
+      references: [teams.id],
+    }),
+    user: one(users, {
+      fields: [waiverCompletions.userId],
+      references: [users.id],
+    }),
+    attestedBy: one(users, {
+      fields: [waiverCompletions.attestedByUserId],
+      references: [users.id],
+      relationName: "waiverAttestedBy",
+    }),
+    waivedBy: one(users, {
+      fields: [waiverCompletions.waivedByUserId],
+      references: [users.id],
+      relationName: "waiverWaivedBy",
+    }),
+  })
+);
 
 export const divisionsRelations = relations(divisions, ({ one, many }) => ({
   tournament: one(tournaments, {
