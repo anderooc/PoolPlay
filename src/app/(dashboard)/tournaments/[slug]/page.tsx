@@ -24,6 +24,7 @@ import {
   canRegisterTeams,
   hostChecklistSteps,
   isTournamentOrganizer,
+  tournamentPreparationLockedReason,
 } from "@/lib/tournaments/permissions";
 import {
   getTournamentPlaySignals,
@@ -74,6 +75,9 @@ export default async function TournamentDetailPage({
   const isOrganizer = isTournamentOrganizer(tournament, user);
   const canEditSetup =
     isOrganizer && canEditTournamentSetup(tournament, user);
+  const preparationLockedReason = isOrganizer
+    ? tournamentPreparationLockedReason(tournament)
+    : null;
   const showRegisterLink = canRegisterTeams(tournament);
 
   // Shell queries only — tab panels load their own heavy data.
@@ -381,7 +385,8 @@ export default async function TournamentDetailPage({
             tournamentId={id}
             slug={tournament.slug}
             packetNotes={tournament.packetNotes}
-            canEdit={isOrganizer}
+            canEdit={canEditSetup}
+            lockedReason={preparationLockedReason}
           />
         )}
         {activeTab === "waiver" && showWaiverTab && (
@@ -391,12 +396,16 @@ export default async function TournamentDetailPage({
             myTeamIds={myTeamIds}
             captainTeamIds={captainTeamIds}
             isOrganizer={isOrganizer}
+            canEditOrganizerSettings={canEditSetup}
+            lockedReason={preparationLockedReason}
           />
         )}
         {activeTab === "messages" && isOrganizer && (
           <TournamentMessagesTabPanel
             tournamentId={id}
             waiverEnabled={tournament.waiverEnabled}
+            canEdit={canEditSetup}
+            lockedReason={preparationLockedReason}
           />
         )}
         {activeTab === "teams" && showTeamsTab && (

@@ -26,6 +26,7 @@ import {
 import {
   canEditTournamentSetup,
   isTournamentOrganizer,
+  tournamentPreparationLockedReason,
 } from "@/lib/tournaments/permissions";
 
 const waiverSettingsSchema = z
@@ -131,7 +132,9 @@ export async function updateTournamentWaiverSettings(
 
   if (!canEditTournamentSetup(tournament, loaded.user)) {
     return {
-      error: "Waiver settings cannot be changed in the current tournament stage.",
+      error:
+        tournamentPreparationLockedReason(tournament) ??
+        "Waiver settings cannot be changed in the current tournament stage.",
     };
   }
 
@@ -178,7 +181,9 @@ export async function uploadTournamentWaiver(
 
   if (!canEditTournamentSetup(tournament, user)) {
     return {
-      error: "Waiver files cannot be uploaded in the current tournament stage.",
+      error:
+        tournamentPreparationLockedReason(tournament) ??
+        "Waiver files cannot be uploaded in the current tournament stage.",
     };
   }
 

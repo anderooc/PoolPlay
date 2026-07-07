@@ -20,6 +20,8 @@ export async function TournamentWaiverTabPanel({
   myTeamIds,
   captainTeamIds,
   isOrganizer,
+  canEditOrganizerSettings,
+  lockedReason,
 }: {
   tournament: {
     id: string;
@@ -35,6 +37,8 @@ export async function TournamentWaiverTabPanel({
   myTeamIds: string[];
   captainTeamIds: Set<string>;
   isOrganizer: boolean;
+  canEditOrganizerSettings: boolean;
+  lockedReason?: string | null;
 }) {
   const settings: TournamentWaiverSettings =
     waiverSettingsFromTournament(tournament);
@@ -82,10 +86,13 @@ export async function TournamentWaiverTabPanel({
 
   return (
     <div className="space-y-4">
+      {lockedReason ? (
+        <p className="text-sm text-muted-foreground">{lockedReason}</p>
+      ) : null}
       <TournamentWaiverSettingsPanel
         tournamentId={tournament.id}
         slug={tournament.slug}
-        canEdit={isOrganizer}
+        canEdit={canEditOrganizerSettings}
         initialSettings={settings}
         initialWaiver={
           latestWaiver

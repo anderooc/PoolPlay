@@ -89,10 +89,14 @@ export function TournamentMessagesPanel({
   tournamentId,
   waiverEnabled,
   sendHistory,
+  canEdit,
+  lockedReason,
 }: {
   tournamentId: string;
   waiverEnabled: boolean;
   sendHistory: EmailSendHistoryRow[];
+  canEdit: boolean;
+  lockedReason?: string | null;
 }) {
   const router = useRouter();
   const [audience, setAudience] =
@@ -109,6 +113,13 @@ export function TournamentMessagesPanel({
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!canEdit) {
+      setRecipientCount(null);
+      setSkippedNoCaptainCount(0);
+      setSkippedTeams([]);
+      setPreviewLoading(false);
+      return;
+    }
     let cancelled = false;
     setPreviewLoading(true);
     void previewTournamentEmailRecipients(tournamentId, audience).then(
@@ -129,9 +140,10 @@ export function TournamentMessagesPanel({
     return () => {
       cancelled = true;
     };
-  }, [audience, tournamentId]);
+  }, [audience, tournamentId, canEdit]);
 
   async function handleSendCustom() {
+    if (!canEdit) return;
     setSending(true);
     setError(null);
     setSuccess(null);
@@ -162,6 +174,7 @@ export function TournamentMessagesPanel({
   }
 
   async function handleSendWaiverReminder() {
+    if (!canEdit) return;
     setSendingReminder(true);
     setError(null);
     setSuccess(null);
@@ -187,6 +200,11 @@ export function TournamentMessagesPanel({
 
   return (
     <div className="space-y-4">
+      {lockedReason ? (
+        <p className="text-sm text-muted-foreground">{lockedReason}</p>
+      ) : null}
+      {canEdit ? (
+        <>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -329,6 +347,8 @@ Tournament staff`}
             </Button>
           </CardContent>
         </Card>
+      ) : null}
+        </>
       ) : null}
 
       <Card>

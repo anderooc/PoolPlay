@@ -13,7 +13,11 @@ import {
   resolveCaptainEmailRecipients,
   type TournamentEmailAudience,
 } from "@/lib/tournaments/email-recipients";
-import { isTournamentOrganizer } from "@/lib/tournaments/permissions";
+import {
+  canEditTournamentPreparation,
+  isTournamentOrganizer,
+  tournamentPreparationLockedReason,
+} from "@/lib/tournaments/permissions";
 import {
   buildWaiverReminderEmail,
   sendTournamentCaptainEmails,
@@ -44,6 +48,14 @@ async function loadOrganizerTournament(tournamentId: string) {
 
   if (!tournament || !isTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can send tournament emails." as const };
+  }
+
+  if (!canEditTournamentPreparation(tournament, user)) {
+    return {
+      error:
+        tournamentPreparationLockedReason(tournament) ??
+        "Emails cannot be sent in the current tournament stage.",
+    } as const;
   }
 
   return { user, tournament };

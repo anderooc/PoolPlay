@@ -47,11 +47,13 @@ export function TournamentPacketPanel({
   slug,
   initialPacketNotes,
   canEdit,
+  lockedReason,
 }: {
   tournamentId: string;
   slug: string;
   initialPacketNotes: string | null;
   canEdit: boolean;
+  lockedReason?: string | null;
 }) {
   const router = useRouter();
   const packetUrl = `/tournaments/${slug}/packet`;
@@ -99,6 +101,9 @@ export function TournamentPacketPanel({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {lockedReason ? (
+          <p className="text-sm text-muted-foreground">{lockedReason}</p>
+        ) : null}
         {canEdit ? (
           <div className="space-y-2">
             <Label htmlFor="packet-notes">Logistics & day-of notes</Label>
@@ -124,6 +129,17 @@ export function TournamentPacketPanel({
                 {saving ? "Saving…" : "Save packet notes"}
               </Button>
             </div>
+          </div>
+        ) : initialPacketNotes ? (
+          <div className="space-y-2">
+            <Label htmlFor="packet-notes-readonly">Logistics & day-of notes</Label>
+            <Textarea
+              id="packet-notes-readonly"
+              value={initialPacketNotes}
+              readOnly
+              rows={14}
+              className="font-mono text-sm"
+            />
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">

@@ -5,11 +5,13 @@ export function TournamentPacketTabPanel({
   slug,
   packetNotes,
   canEdit,
+  lockedReason,
 }: {
   tournamentId: string;
   slug: string;
   packetNotes: string | null;
   canEdit: boolean;
+  lockedReason?: string | null;
 }) {
   return (
     <TournamentPacketPanel
@@ -17,6 +19,7 @@ export function TournamentPacketTabPanel({
       slug={slug}
       initialPacketNotes={packetNotes}
       canEdit={canEdit}
+      lockedReason={lockedReason}
     />
   );
 }

@@ -110,6 +110,29 @@ export function canEditTournamentSetup(
   return allowed.includes(tournament.status as TournamentStatus);
 }
 
+/** User-facing reason when preparation tabs (packet, waiver, messages) are read-only. */
+export function tournamentPreparationLockedReason(
+  tournament: Pick<TournamentForPermissions, "date" | "status">
+): string | null {
+  if (isTournamentArchived(tournament.date)) {
+    return "This tournament is archived. Preparation changes are locked.";
+  }
+  if (tournament.status === "completed") {
+    return "This tournament is completed. Preparation changes are locked.";
+  }
+  if (tournament.status === "in_progress") {
+    return "Tournament is in progress. Preparation changes are locked.";
+  }
+  return null;
+}
+
+export function canEditTournamentPreparation(
+  tournament: TournamentForPermissions,
+  user: UserForPermissions
+): boolean {
+  return canEditTournamentSetup(tournament, user);
+}
+
 export function canEditRegistrations(
   tournament: TournamentForPermissions,
   user: UserForPermissions

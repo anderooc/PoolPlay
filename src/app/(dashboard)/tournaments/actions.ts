@@ -31,6 +31,7 @@ import {
   canEditRegistrations,
   canEditTournamentSetup,
   isTournamentOrganizer,
+  tournamentPreparationLockedReason,
 } from "@/lib/tournaments/permissions";
 import {
   getTeamWaiverCompliance,
@@ -284,6 +285,14 @@ export async function updateTournamentPacketNotes(
 
   if (!tournament || !isTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can edit the tournament packet." };
+  }
+
+  if (!canEditTournamentSetup(tournament, user)) {
+    return {
+      error:
+        tournamentPreparationLockedReason(tournament) ??
+        "The tournament packet cannot be edited in the current stage.",
+    };
   }
 
   const notes = trimmed || null;

@@ -6,9 +6,13 @@ import { TournamentMessagesPanel } from "../messages-panel";
 export async function TournamentMessagesTabPanel({
   tournamentId,
   waiverEnabled,
+  canEdit,
+  lockedReason,
 }: {
   tournamentId: string;
   waiverEnabled: boolean;
+  canEdit: boolean;
+  lockedReason?: string | null;
 }) {
   const sendHistory = await db
     .select({
@@ -30,6 +34,8 @@ export async function TournamentMessagesTabPanel({
       tournamentId={tournamentId}
       waiverEnabled={waiverEnabled}
       sendHistory={sendHistory}
+      canEdit={canEdit}
+      lockedReason={lockedReason}
     />
   );
 }
