@@ -50,6 +50,7 @@ import { TournamentBracketPanel } from "./panels/bracket-panel";
 import { TournamentMatchesPanel } from "./panels/matches-panel";
 import { TournamentPacketTabPanel } from "./panels/packet-panel";
 import { TournamentWaiverTabPanel } from "./panels/waiver-panel";
+import { TournamentMessagesTabPanel } from "./panels/messages-panel";
 import { TournamentPanelSkeleton } from "./panels/panel-skeleton";
 
 interface Props {
@@ -195,6 +196,7 @@ export default async function TournamentDetailPage({
   const allowedTabs = new Set<TournamentTabId>([DEFAULT_TOURNAMENT_TAB]);
   if (showPacketTab) allowedTabs.add("packet");
   if (showWaiverTab) allowedTabs.add("waiver");
+  if (isOrganizer) allowedTabs.add("messages");
   if (showTeamsTab) allowedTabs.add("teams");
   if (showPendingTab) allowedTabs.add("pending");
   if (showPoolPlayTab) allowedTabs.add("pool-play");
@@ -216,6 +218,9 @@ export default async function TournamentDetailPage({
   }
   if (showWaiverTab) {
     tabItems.push({ id: "waiver", label: "Waiver" });
+  }
+  if (isOrganizer) {
+    tabItems.push({ id: "messages", label: "Messages" });
   }
   if (showTeamsTab) {
     tabItems.push({ id: "teams", label: "Teams", count: confirmedCount });
@@ -385,6 +390,12 @@ export default async function TournamentDetailPage({
             myTeamIds={myTeamIds}
             captainTeamIds={captainTeamIds}
             isOrganizer={isOrganizer}
+          />
+        )}
+        {activeTab === "messages" && isOrganizer && (
+          <TournamentMessagesTabPanel
+            tournamentId={id}
+            waiverEnabled={tournament.waiverEnabled}
           />
         )}
         {activeTab === "teams" && showTeamsTab && (
