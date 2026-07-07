@@ -1,0 +1,1 @@
+export const TOURNAMENT_CHAT_BODY_MAX = 2000;

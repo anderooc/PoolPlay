@@ -28,12 +28,14 @@ import {
 } from "@/lib/tournaments/permissions";
 import {
   getTournamentPlaySignals,
-  tournamentHasScheduledMatches,
 } from "@/lib/tournaments/match-query";
 import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import { userCanDownloadTournamentPacket } from "@/lib/tournaments/packet-access";
 import { userCanAccessTournamentWaiver } from "@/lib/tournaments/waiver-access";
+import {
+  userCanViewTournamentChat,
+} from "@/lib/tournaments/chat-access";
 import {
   buildTournamentTabGroups,
   DEFAULT_TOURNAMENT_TAB,
@@ -51,7 +53,9 @@ import { TournamentMatchesPanel } from "./panels/matches-panel";
 import { TournamentPacketTabPanel } from "./panels/packet-panel";
 import { TournamentWaiverTabPanel } from "./panels/waiver-panel";
 import { TournamentMessagesTabPanel } from "./panels/messages-panel";
+import { TournamentChatTabPanel } from "./panels/chat-panel";
 import { TournamentPanelSkeleton } from "./panels/panel-skeleton";
+import { TournamentChatNotifier } from "./tournament-chat-notifier";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -88,8 +92,6 @@ export default async function TournamentDetailPage({
     registrationCounts,
     memberRows,
     hostSchool,
-    playSignals,
-    hasScheduledMatches,
   ] = await Promise.all([
     db
       .select({ fullName: users.fullName })
@@ -121,9 +123,12 @@ export default async function TournamentDetailPage({
       .from(teamMembers)
       .where(eq(teamMembers.userId, user.id)),
     getHostSchoolById(tournament.hostSchoolId),
-    getTournamentPlaySignals(id, { forOrganizer: isOrganizer }),
-    tournamentHasScheduledMatches(id),
   ]);
+
+  const playSignals = await getTournamentPlaySignals(id, {
+    forOrganizer: isOrganizer,
+  });
+  const hasScheduledMatches = playSignals.hasScheduledMatches;
 
   const organizer = organizerRows[0] ?? null;
   const courtCount = courtCountRow[0]?.value ?? 0;
@@ -192,6 +197,11 @@ export default async function TournamentDetailPage({
   const showPacketTab = isOrganizer || canDownloadPacket;
   const showWaiverTab =
     isOrganizer || (tournament.waiverEnabled && canAccessWaiver);
+  const showChatTab = await userCanViewTournamentChat(
+    tournament,
+    user,
+    myTeamIds
+  );
   const captainTeamIds = new Set(
     memberRows.filter((r) => r.role === "captain").map((r) => r.teamId)
   );
@@ -200,6 +210,7 @@ export default async function TournamentDetailPage({
   if (showPacketTab) allowedTabs.add("packet");
   if (showWaiverTab) allowedTabs.add("waiver");
   if (isOrganizer) allowedTabs.add("messages");
+  if (showChatTab) allowedTabs.add("chat");
   if (showTeamsTab) allowedTabs.add("teams");
   if (showPendingTab) allowedTabs.add("pending");
   if (showPoolPlayTab) allowedTabs.add("pool-play");
@@ -224,6 +235,9 @@ export default async function TournamentDetailPage({
   }
   if (isOrganizer) {
     tabItems.push({ id: "messages", label: "Messages" });
+  }
+  if (showChatTab) {
+    tabItems.push({ id: "chat", label: "Chat" });
   }
   if (showTeamsTab) {
     tabItems.push({ id: "teams", label: "Teams", count: confirmedCount });
@@ -367,6 +381,10 @@ export default async function TournamentDetailPage({
         </div>
       )}
 
+      {isOrganizer && showChatTab && tournament.status === "in_progress" ? (
+        <TournamentChatNotifier tournamentId={id} />
+      ) : null}
+
       <TournamentTabs
         slug={tournament.slug}
         activeTab={activeTab}
@@ -406,6 +424,13 @@ export default async function TournamentDetailPage({
             waiverEnabled={tournament.waiverEnabled}
             canEdit={canEditSetup}
             lockedReason={preparationLockedReason}
+          />
+        )}
+        {activeTab === "chat" && showChatTab && (
+          <TournamentChatTabPanel
+            tournamentId={id}
+            tournamentStatus={tournament.status}
+            organizerId={tournament.organizerId}
           />
         )}
         {activeTab === "teams" && showTeamsTab && (
