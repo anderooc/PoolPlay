@@ -52,6 +52,11 @@ export const tournamentEmailKindEnum = pgEnum("tournament_email_kind", [
   "waiver_reminder",
 ]);
 
+export const tournamentChatChannelKindEnum = pgEnum(
+  "tournament_chat_channel_kind",
+  ["announcements", "questions", "general"]
+);
+
 export const divisionFormatEnum = pgEnum("division_format", [
   "pool_to_bracket",
   "single_elimination",
@@ -428,6 +433,61 @@ export const tournamentEmailSends = pgTable("tournament_email_sends", {
   sentAt: timestamp("sent_at").defaultNow().notNull(),
 });
 
+export const tournamentChatChannels = pgTable(
+  "tournament_chat_channels",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tournamentId: uuid("tournament_id")
+      .references(() => tournaments.id, { onDelete: "cascade" })
+      .notNull(),
+    kind: tournamentChatChannelKindEnum("kind").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("tournament_chat_channels_tournament_kind_unique").on(
+      t.tournamentId,
+      t.kind
+    ),
+  ]
+);
+
+export const tournamentChatMessages = pgTable(
+  "tournament_chat_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    channelId: uuid("channel_id")
+      .references(() => tournamentChatChannels.id, { onDelete: "cascade" })
+      .notNull(),
+    tournamentId: uuid("tournament_id")
+      .references(() => tournaments.id, { onDelete: "cascade" })
+      .notNull(),
+    authorUserId: uuid("author_user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    teamId: uuid("team_id").references(() => teams.id, {
+      onDelete: "set null",
+    }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  }
+);
+
+export const tournamentChatReadCursors = pgTable(
+  "tournament_chat_read_cursors",
+  {
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    channelId: uuid("channel_id")
+      .references(() => tournamentChatChannels.id, { onDelete: "cascade" })
+      .notNull(),
+    lastReadAt: timestamp("last_read_at").defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.channelId] }),
+  ]
+);
+
 export const pools = pgTable("pools", {
   id: uuid("id").primaryKey().defaultRandom(),
   divisionId: uuid("division_id")
@@ -619,6 +679,8 @@ export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
   courts: many(courts),
   waivers: many(tournamentWaivers),
   emailSends: many(tournamentEmailSends),
+  chatChannels: many(tournamentChatChannels),
+  chatMessages: many(tournamentChatMessages),
 }));
 
 export const tournamentWaiversRelations = relations(
@@ -678,6 +740,54 @@ export const tournamentEmailSendsRelations = relations(
     sentBy: one(users, {
       fields: [tournamentEmailSends.sentByUserId],
       references: [users.id],
+    }),
+  })
+);
+
+export const tournamentChatChannelsRelations = relations(
+  tournamentChatChannels,
+  ({ one, many }) => ({
+    tournament: one(tournaments, {
+      fields: [tournamentChatChannels.tournamentId],
+      references: [tournaments.id],
+    }),
+    messages: many(tournamentChatMessages),
+    readCursors: many(tournamentChatReadCursors),
+  })
+);
+
+export const tournamentChatMessagesRelations = relations(
+  tournamentChatMessages,
+  ({ one }) => ({
+    channel: one(tournamentChatChannels, {
+      fields: [tournamentChatMessages.channelId],
+      references: [tournamentChatChannels.id],
+    }),
+    tournament: one(tournaments, {
+      fields: [tournamentChatMessages.tournamentId],
+      references: [tournaments.id],
+    }),
+    author: one(users, {
+      fields: [tournamentChatMessages.authorUserId],
+      references: [users.id],
+    }),
+    team: one(teams, {
+      fields: [tournamentChatMessages.teamId],
+      references: [teams.id],
+    }),
+  })
+);
+
+export const tournamentChatReadCursorsRelations = relations(
+  tournamentChatReadCursors,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [tournamentChatReadCursors.userId],
+      references: [users.id],
+    }),
+    channel: one(tournamentChatChannels, {
+      fields: [tournamentChatReadCursors.channelId],
+      references: [tournamentChatChannels.id],
     }),
   })
 );

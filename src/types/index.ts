@@ -9,6 +9,11 @@ export type TournamentStatus =
 
 export type RegistrationStatus = "pending" | "confirmed" | "checked_in";
 
+export type TournamentChatChannelKind =
+  | "announcements"
+  | "questions"
+  | "general";
+
 export type DivisionFormat =
   | "pool_to_bracket"
   | "single_elimination"
