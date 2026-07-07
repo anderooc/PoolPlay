@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,8 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { groupPendingRegistrationsBySchool } from "@/lib/tournaments/group-pending-registrations";
+import type { TeamWaiverCompliance } from "@/lib/tournaments/waiver-compliance";
+import { tournamentTabUrl } from "./constants";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -84,6 +87,7 @@ function isPendingChangeComplete(
 
 export function RegistrationList({
   tournamentId,
+  tournamentSlug,
   registrations,
   divisions,
   listKind,
@@ -92,8 +96,11 @@ export function RegistrationList({
   canCheckIn,
   canWithdraw,
   captainTeamIds,
+  waiverSummary = new Map(),
+  showWaiverStatus = false,
 }: {
   tournamentId: string;
+  tournamentSlug: string;
   registrations: Registration[];
   divisions: DivisionOption[];
   /** Confirmed roster vs awaiting approval. */
@@ -104,6 +111,14 @@ export function RegistrationList({
   canCheckIn: boolean;
   canWithdraw: boolean;
   captainTeamIds: Set<string>;
+  waiverSummary?: Map<
+    string,
+    Pick<
+      TeamWaiverCompliance,
+      "required" | "complete" | "completedCount" | "totalCount"
+    >
+  >;
+  showWaiverStatus?: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState<PendingChange | null>(null);
@@ -358,6 +373,11 @@ export function RegistrationList({
     const showUniversity =
       !groupBySchool || (groupBySchool && !reg.schoolId);
     const isSelected = showBulkSelect && selectedIds.has(reg.id);
+    const waiver = waiverSummary.get(reg.teamId);
+    const canManageWaiverRow =
+      showWaiverStatus &&
+      waiver?.required &&
+      (canManageRegistrations || captainTeamIds.has(reg.teamId));
 
     return (
       <div
@@ -400,8 +420,28 @@ export function RegistrationList({
               )}
             </p>
           )}
+          {showWaiverStatus && waiver?.required ? (
+            <p
+              className={cn(
+                "mt-0.5 text-xs",
+                waiver.complete
+                  ? "text-muted-foreground"
+                  : "text-amber-700 dark:text-amber-400"
+              )}
+            >
+              Waiver · {waiver.completedCount}/{waiver.totalCount} complete
+            </p>
+          ) : null}
         </div>
         <div className="flex shrink-0 flex-row flex-wrap items-center justify-end gap-2">
+          {canManageWaiverRow && !waiver?.complete ? (
+            <Link
+              href={tournamentTabUrl(tournamentSlug, "waiver")}
+              className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Complete waivers
+            </Link>
+          ) : null}
           {showDivisionAssignment && (
             <div className="flex items-center gap-2">
               <Label

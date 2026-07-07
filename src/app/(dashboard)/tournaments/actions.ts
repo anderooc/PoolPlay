@@ -33,6 +33,11 @@ import {
   isTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
 import {
+  getTeamWaiverCompliance,
+  waiverBlocksCheckIn,
+} from "@/lib/tournaments/waiver-compliance";
+import { waiverSettingsFromTournament } from "@/lib/tournaments/waiver-access";
+import {
   ensureDivisionAutoPool,
   syncDivisionAutoPoolMembers,
   syncManyDivisionPools,
@@ -756,6 +761,14 @@ export async function updateRegistrationStatus(
     if (!canCheckInRegistrations(tournament, user)) {
       return {
         error: "Teams can only be checked in while the tournament is in progress.",
+      };
+    }
+
+    const waiverSettings = waiverSettingsFromTournament(tournament);
+    const compliance = await getTeamWaiverCompliance(tournament, reg.teamId);
+    if (waiverBlocksCheckIn(waiverSettings, compliance)) {
+      return {
+        error: `Waiver incomplete (${compliance.completedCount}/${compliance.totalCount}). Complete waivers or waive players before check-in.`,
       };
     }
   } else if (!canEditRegistrations(tournament, user)) {

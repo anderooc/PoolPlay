@@ -1,6 +1,7 @@
 export const TOURNAMENT_TABS = [
   "setup",
   "packet",
+  "waiver",
   "teams",
   "pending",
   "pool-play",

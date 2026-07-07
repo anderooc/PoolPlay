@@ -16,6 +16,7 @@ import {
   isTournamentOrganizer,
   type UserForPermissions,
 } from "@/lib/tournaments/permissions";
+import { getTeamsWaiverSummary } from "@/lib/tournaments/waiver-compliance";
 import { RegistrationList } from "../registration-list";
 
 export async function TournamentRegistrationsPanel({
@@ -81,6 +82,14 @@ export async function TournamentRegistrationsPanel({
             (r) => r.status === "pending" && myTeamIds.has(r.teamId)
           );
 
+  const waiverSummary =
+    listKind === "teams" && tournament.waiverEnabled
+      ? await getTeamsWaiverSummary(
+          tournament,
+          rows.map((row) => row.teamId)
+        )
+      : new Map();
+
   return (
     <div className="space-y-3">
       {listKind === "teams" && canManageRegistrations && (
@@ -103,6 +112,7 @@ export async function TournamentRegistrationsPanel({
       )}
       <RegistrationList
         tournamentId={tournament.id}
+        tournamentSlug={tournament.slug}
         registrations={rows}
         divisions={divisionOptions}
         listKind={listKind}
@@ -111,6 +121,8 @@ export async function TournamentRegistrationsPanel({
         canCheckIn={canCheckIn}
         canWithdraw={canRegisterTeams(tournament)}
         captainTeamIds={captainIds}
+        waiverSummary={waiverSummary}
+        showWaiverStatus={listKind === "teams" && tournament.waiverEnabled}
       />
     </div>
   );

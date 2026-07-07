@@ -32,6 +32,7 @@ import {
 import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import { userCanDownloadTournamentPacket } from "@/lib/tournaments/packet-access";
+import { userCanAccessTournamentWaiver } from "@/lib/tournaments/waiver-access";
 import {
   DEFAULT_TOURNAMENT_TAB,
   parseTournamentTab,
@@ -48,6 +49,7 @@ import { TournamentPoolPlayPanel } from "./panels/pool-play-panel";
 import { TournamentBracketPanel } from "./panels/bracket-panel";
 import { TournamentMatchesPanel } from "./panels/matches-panel";
 import { TournamentPacketTabPanel } from "./panels/packet-panel";
+import { TournamentWaiverTabPanel } from "./panels/waiver-panel";
 import { TournamentPanelSkeleton } from "./panels/panel-skeleton";
 
 interface Props {
@@ -140,6 +142,11 @@ export default async function TournamentDetailPage({
     user,
     new Set(myTeamIds)
   );
+  const canAccessWaiver = await userCanAccessTournamentWaiver(
+    tournament,
+    user,
+    new Set(myTeamIds)
+  );
   let myPendingCount = 0;
   if (!isOrganizer && myTeamIds.length > 0) {
     const [myPendingRow] = await db
@@ -179,9 +186,15 @@ export default async function TournamentDetailPage({
   const showMatchesTab = playSignals.hasVisibleMatches;
 
   const showPacketTab = isOrganizer || canDownloadPacket;
+  const showWaiverTab =
+    isOrganizer || (tournament.waiverEnabled && canAccessWaiver);
+  const captainTeamIds = new Set(
+    memberRows.filter((r) => r.role === "captain").map((r) => r.teamId)
+  );
 
   const allowedTabs = new Set<TournamentTabId>([DEFAULT_TOURNAMENT_TAB]);
   if (showPacketTab) allowedTabs.add("packet");
+  if (showWaiverTab) allowedTabs.add("waiver");
   if (showTeamsTab) allowedTabs.add("teams");
   if (showPendingTab) allowedTabs.add("pending");
   if (showPoolPlayTab) allowedTabs.add("pool-play");
@@ -200,6 +213,9 @@ export default async function TournamentDetailPage({
   ];
   if (showPacketTab) {
     tabItems.push({ id: "packet", label: "Packet" });
+  }
+  if (showWaiverTab) {
+    tabItems.push({ id: "waiver", label: "Waiver" });
   }
   if (showTeamsTab) {
     tabItems.push({ id: "teams", label: "Teams", count: confirmedCount });
@@ -360,6 +376,15 @@ export default async function TournamentDetailPage({
             slug={tournament.slug}
             packetNotes={tournament.packetNotes}
             canEdit={isOrganizer}
+          />
+        )}
+        {activeTab === "waiver" && showWaiverTab && (
+          <TournamentWaiverTabPanel
+            tournament={tournament}
+            userId={user.id}
+            myTeamIds={myTeamIds}
+            captainTeamIds={captainTeamIds}
+            isOrganizer={isOrganizer}
           />
         )}
         {activeTab === "teams" && showTeamsTab && (
