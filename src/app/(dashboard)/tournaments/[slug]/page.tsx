@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Calendar, User } from "lucide-react";
+import { Calendar, Download, User } from "lucide-react";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -31,6 +31,7 @@ import {
 } from "@/lib/tournaments/match-query";
 import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
+import { userCanDownloadTournamentPacket } from "@/lib/tournaments/packet-access";
 import {
   DEFAULT_TOURNAMENT_TAB,
   parseTournamentTab,
@@ -46,6 +47,7 @@ import { TournamentRegistrationsPanel } from "./panels/registrations-panel";
 import { TournamentPoolPlayPanel } from "./panels/pool-play-panel";
 import { TournamentBracketPanel } from "./panels/bracket-panel";
 import { TournamentMatchesPanel } from "./panels/matches-panel";
+import { TournamentPacketTabPanel } from "./panels/packet-panel";
 import { TournamentPanelSkeleton } from "./panels/panel-skeleton";
 
 interface Props {
@@ -133,6 +135,11 @@ export default async function TournamentDetailPage({
   }
 
   const myTeamIds = memberRows.map((r) => r.teamId);
+  const canDownloadPacket = await userCanDownloadTournamentPacket(
+    tournament,
+    user,
+    new Set(myTeamIds)
+  );
   let myPendingCount = 0;
   if (!isOrganizer && myTeamIds.length > 0) {
     const [myPendingRow] = await db
@@ -171,7 +178,10 @@ export default async function TournamentDetailPage({
     : playSignals.hasBrackets;
   const showMatchesTab = playSignals.hasVisibleMatches;
 
+  const showPacketTab = isOrganizer || canDownloadPacket;
+
   const allowedTabs = new Set<TournamentTabId>([DEFAULT_TOURNAMENT_TAB]);
+  if (showPacketTab) allowedTabs.add("packet");
   if (showTeamsTab) allowedTabs.add("teams");
   if (showPendingTab) allowedTabs.add("pending");
   if (showPoolPlayTab) allowedTabs.add("pool-play");
@@ -188,6 +198,9 @@ export default async function TournamentDetailPage({
   const tabItems: TournamentTabItem[] = [
     { id: "setup", label: "Setup" },
   ];
+  if (showPacketTab) {
+    tabItems.push({ id: "packet", label: "Packet" });
+  }
   if (showTeamsTab) {
     tabItems.push({ id: "teams", label: "Teams", count: confirmedCount });
   }
@@ -298,6 +311,18 @@ export default async function TournamentDetailPage({
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-2">
+            {canDownloadPacket && !isOrganizer && (
+              <Link
+                href={`/tournaments/${tournament.slug}/packet`}
+                className={buttonVariants({
+                  variant: "outline",
+                  className: "inline-flex items-center gap-2",
+                })}
+              >
+                <Download className="h-4 w-4" />
+                Tournament packet
+              </Link>
+            )}
             {showRegisterLink && (
               <Link
                 href={`/tournaments/${tournament.slug}/register`}
@@ -327,6 +352,14 @@ export default async function TournamentDetailPage({
           <TournamentSetupPanel
             tournamentId={id}
             canEditSetup={canEditSetup}
+          />
+        )}
+        {activeTab === "packet" && showPacketTab && (
+          <TournamentPacketTabPanel
+            tournamentId={id}
+            slug={tournament.slug}
+            packetNotes={tournament.packetNotes}
+            canEdit={isOrganizer}
           />
         )}
         {activeTab === "teams" && showTeamsTab && (

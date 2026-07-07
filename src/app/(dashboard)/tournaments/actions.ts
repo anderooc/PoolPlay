@@ -251,6 +251,48 @@ export async function updateTournamentListingDetails(
   };
 }
 
+const PACKET_NOTES_MAX_LENGTH = 12000;
+
+export async function updateTournamentPacketNotes(
+  tournamentId: string,
+  packetNotes: string
+) {
+  const user = await requireUser();
+
+  const trimmed = packetNotes.trim();
+  if (trimmed.length > PACKET_NOTES_MAX_LENGTH) {
+    return {
+      error: `Packet notes must be ${PACKET_NOTES_MAX_LENGTH} characters or fewer.`,
+    };
+  }
+
+  const contentError = await flagBlockedContent(user.id, [
+    { area: "tournament.packet_notes", text: trimmed || null },
+  ]);
+  if (contentError) return { error: contentError };
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+    return { error: "Only the organizer can edit the tournament packet." };
+  }
+
+  const notes = trimmed || null;
+
+  await db
+    .update(tournaments)
+    .set({ packetNotes: notes, updatedAt: new Date() })
+    .where(eq(tournaments.id, tournamentId));
+
+  revalidatePath("/tournaments/[slug]", "page");
+
+  return { success: true as const, packetNotes: notes };
+}
+
 /**
  * Updates the per-set scoring rules used everywhere matches are scored. Already
  * completed sets are not touched so changing format mid-tournament is safe.

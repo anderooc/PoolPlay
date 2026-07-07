@@ -264,6 +264,11 @@ export const tournaments = pgTable("tournaments", {
   poolSettingsSavedAt: timestamp("pool_settings_saved_at"),
   /** Set when the organizer saves Bracket settings on the Bracket tab. */
   bracketSettingsSavedAt: timestamp("bracket_settings_saved_at"),
+  /**
+   * Logistics for the downloadable tournament packet (parking, check-in, agenda,
+   * payment, contact). Competition rules are auto-filled from settings.
+   */
+  packetNotes: text("packet_notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

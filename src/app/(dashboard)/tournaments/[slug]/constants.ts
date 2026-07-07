@@ -1,5 +1,6 @@
 export const TOURNAMENT_TABS = [
   "setup",
+  "packet",
   "teams",
   "pending",
   "pool-play",
