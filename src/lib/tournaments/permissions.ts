@@ -12,7 +12,7 @@ import {
   poolSettingsChecklistComplete,
   poolSettingsChecklistHint,
 } from "@/lib/tournaments/tournament-settings-checklist";
-import type { TeamGender, TournamentStatus } from "@/types";
+import type { TeamGender } from "@/types";
 
 /** Fields required for permission checks across server and client. */
 export type TournamentForPermissions = {
@@ -101,13 +101,7 @@ export function canEditTournamentSetup(
   user: UserForPermissions
 ): boolean {
   if (!isTournamentOrganizer(tournament, user)) return false;
-  if (isTournamentArchived(tournament.date)) return false;
-  const allowed: TournamentStatus[] = [
-    "draft",
-    "registration_open",
-    "registration_closed",
-  ];
-  return allowed.includes(tournament.status as TournamentStatus);
+  return !isTournamentArchived(tournament.date);
 }
 
 /** User-facing reason when preparation tabs (packet, waiver, messages) are read-only. */
@@ -116,12 +110,6 @@ export function tournamentPreparationLockedReason(
 ): string | null {
   if (isTournamentArchived(tournament.date)) {
     return "This tournament is archived. Preparation changes are locked.";
-  }
-  if (tournament.status === "completed") {
-    return "This tournament is completed. Preparation changes are locked.";
-  }
-  if (tournament.status === "in_progress") {
-    return "Tournament is in progress. Preparation changes are locked.";
   }
   return null;
 }
