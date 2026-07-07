@@ -69,6 +69,7 @@ export async function getTournamentPlaySignals(
   hasBrackets: boolean;
   hasSeededBrackets: boolean;
   hasVisibleMatches: boolean;
+  hasScheduledMatches: boolean;
 }> {
   const forOrganizer = options?.forOrganizer ?? false;
 
@@ -80,8 +81,13 @@ export async function getTournamentPlaySignals(
           isNotNull(divAlias.poolsReleasedAt)
         );
 
-  const [poolMatchRow, bracketRow, seededBracketRow, visibleMatchRow] =
-    await Promise.all([
+  const [
+    poolMatchRow,
+    bracketRow,
+    seededBracketRow,
+    visibleMatchRow,
+    scheduledMatchRow,
+  ] = await Promise.all([
     // Pool matches anywhere in the tournament (checklist + organizer Pools tab).
     db
       .select({ id: matches.id })
@@ -119,6 +125,23 @@ export async function getTournamentPlaySignals(
       .leftJoin(divFromBracket, eq(brackets.divisionId, divFromBracket.id))
       .where(or(releasedOnly(divFromPool), releasedOnly(divFromBracket)))
       .limit(1),
+    db
+      .select({ id: matches.id })
+      .from(matches)
+      .leftJoin(pools, eq(matches.poolId, pools.id))
+      .leftJoin(divFromPool, eq(pools.divisionId, divFromPool.id))
+      .leftJoin(brackets, eq(matches.bracketId, brackets.id))
+      .leftJoin(divFromBracket, eq(brackets.divisionId, divFromBracket.id))
+      .where(
+        and(
+          or(
+            eq(divFromPool.tournamentId, tournamentId),
+            eq(divFromBracket.tournamentId, tournamentId)
+          ),
+          isNotNull(matches.scheduledTime)
+        )
+      )
+      .limit(1),
   ]);
 
   return {
@@ -126,6 +149,7 @@ export async function getTournamentPlaySignals(
     hasBrackets: bracketRow.length > 0,
     hasSeededBrackets: seededBracketRow.length > 0,
     hasVisibleMatches: visibleMatchRow.length > 0,
+    hasScheduledMatches: scheduledMatchRow.length > 0,
   };
 }
 
