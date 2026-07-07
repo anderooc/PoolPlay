@@ -40,6 +40,18 @@ export const waiverCompletionMethodEnum = pgEnum("waiver_completion_method", [
   "host_override",
 ]);
 
+export const tournamentEmailAudienceEnum = pgEnum("tournament_email_audience", [
+  "captains_confirmed",
+  "captains_all",
+  "captains_pending",
+  "captains_waiver_incomplete",
+]);
+
+export const tournamentEmailKindEnum = pgEnum("tournament_email_kind", [
+  "custom",
+  "waiver_reminder",
+]);
+
 export const divisionFormatEnum = pgEnum("division_format", [
   "pool_to_bracket",
   "single_elimination",
@@ -397,6 +409,25 @@ export const waiverCompletions = pgTable(
   ]
 );
 
+export const tournamentEmailSends = pgTable("tournament_email_sends", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  tournamentId: uuid("tournament_id")
+    .references(() => tournaments.id, { onDelete: "cascade" })
+    .notNull(),
+  sentByUserId: uuid("sent_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  kind: tournamentEmailKindEnum("kind").notNull(),
+  audience: tournamentEmailAudienceEnum("audience").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  recipientCount: integer("recipient_count").notNull(),
+  skippedNoCaptainCount: integer("skipped_no_captain_count")
+    .default(0)
+    .notNull(),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+});
+
 export const pools = pgTable("pools", {
   id: uuid("id").primaryKey().defaultRandom(),
   divisionId: uuid("division_id")
@@ -587,6 +618,7 @@ export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
   registrations: many(registrations),
   courts: many(courts),
   waivers: many(tournamentWaivers),
+  emailSends: many(tournamentEmailSends),
 }));
 
 export const tournamentWaiversRelations = relations(
@@ -632,6 +664,20 @@ export const waiverCompletionsRelations = relations(
       fields: [waiverCompletions.waivedByUserId],
       references: [users.id],
       relationName: "waiverWaivedBy",
+    }),
+  })
+);
+
+export const tournamentEmailSendsRelations = relations(
+  tournamentEmailSends,
+  ({ one }) => ({
+    tournament: one(tournaments, {
+      fields: [tournamentEmailSends.tournamentId],
+      references: [tournaments.id],
+    }),
+    sentBy: one(users, {
+      fields: [tournamentEmailSends.sentByUserId],
+      references: [users.id],
     }),
   })
 );
