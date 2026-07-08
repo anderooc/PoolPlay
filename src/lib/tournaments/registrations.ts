@@ -51,7 +51,7 @@ export async function insertTeamRegistration(
   teamId: string,
   status: "confirmed" | "pending",
   firstDivisionId: string | null = null
-) {
+): Promise<string> {
   const row = {
     teamId,
     tournamentId,
@@ -60,23 +60,31 @@ export async function insertTeamRegistration(
   };
 
   try {
-    await db.insert(registrations).values(row);
+    const [inserted] = await db
+      .insert(registrations)
+      .values(row)
+      .returning({ id: registrations.id });
+    return inserted!.id;
   } catch (e) {
     if (isUniqueViolation(e)) {
       throw new Error("This team is already registered for this tournament");
     }
     if (isNotNullViolation(e) && firstDivisionId) {
-      await db.insert(registrations).values({
-        ...row,
-        divisionId: firstDivisionId,
-      });
-    } else if (isNotNullViolation(e) && !firstDivisionId) {
+      const [inserted] = await db
+        .insert(registrations)
+        .values({
+          ...row,
+          divisionId: firstDivisionId,
+        })
+        .returning({ id: registrations.id });
+      return inserted!.id;
+    }
+    if (isNotNullViolation(e) && !firstDivisionId) {
       throw new Error(
         "Add at least one pool to this tournament before registering teams. (Or run the DB migration so pool assignment can be unset until you assign teams.)"
       );
-    } else {
-      throw e;
     }
+    throw e;
   }
 }
 
