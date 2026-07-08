@@ -29,6 +29,7 @@ import {
   getFirstDivisionId,
   insertTeamRegistration,
 } from "@/lib/tournaments/registrations";
+import { createRegistrationPayment } from "@/lib/tournaments/payment-compliance";
 
 type TournamentRow = typeof tournaments.$inferSelect;
 
@@ -145,11 +146,27 @@ export async function registerTeams(tournamentId: string, teamIds: string[]) {
 
   try {
     for (const teamId of uniqueIds) {
-      await insertTeamRegistration(
+      const [team] = await db
+        .select({ schoolId: teams.schoolId })
+        .from(teams)
+        .where(eq(teams.id, teamId))
+        .limit(1);
+
+      const registrationId = await insertTeamRegistration(
         tournamentId,
         teamId,
         isHost ? "confirmed" : "pending",
         firstDivisionId
+      );
+
+      await createRegistrationPayment(
+        tournament,
+        registrationId,
+        teamId,
+        team?.schoolId ?? null,
+        isHost
+          ? { hostWaived: true, hostUserId: user.id }
+          : undefined
       );
     }
   } catch (e) {

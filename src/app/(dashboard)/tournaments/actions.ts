@@ -38,6 +38,11 @@ import {
   waiverBlocksCheckIn,
 } from "@/lib/tournaments/waiver-compliance";
 import { waiverSettingsFromTournament } from "@/lib/tournaments/waiver-access";
+import { paymentSettingsFromTournament } from "@/lib/tournaments/payment-access";
+import {
+  getPaymentsByRegistrationIds,
+  paymentBlocksConfirm,
+} from "@/lib/tournaments/payment-compliance";
 import {
   ensureDivisionAutoPool,
   syncDivisionAutoPoolMembers,
@@ -786,6 +791,19 @@ export async function updateRegistrationStatus(
     };
   }
 
+  if (status === "confirmed") {
+    const paymentSettings = paymentSettingsFromTournament(tournament);
+    const payments = await getPaymentsByRegistrationIds([registrationId]);
+    const payment = payments.get(registrationId);
+    if (paymentBlocksConfirm(paymentSettings, payment)) {
+      const label =
+        payment?.status === "submitted"
+          ? "Payment submitted — confirm or waive before approving registration."
+          : "Payment required before confirming this registration.";
+      return { error: label };
+    }
+  }
+
   await db
     .update(registrations)
     .set({ status })
@@ -842,6 +860,19 @@ export async function confirmPendingRegistrations(
     return {
       error: "Some registrations are missing or no longer pending",
     };
+  }
+
+  const paymentSettings = paymentSettingsFromTournament(tournament);
+  if (paymentSettings.enabled && paymentSettings.requiredBeforeConfirm) {
+    const payments = await getPaymentsByRegistrationIds(uniqueIds);
+    const blocked = uniqueIds.filter((id) =>
+      paymentBlocksConfirm(paymentSettings, payments.get(id))
+    );
+    if (blocked.length > 0) {
+      return {
+        error: `Payment required before confirming ${blocked.length} registration${blocked.length === 1 ? "" : "s"}. Mark paid or waive on the Payment tab.`,
+      };
+    }
   }
 
   await db
