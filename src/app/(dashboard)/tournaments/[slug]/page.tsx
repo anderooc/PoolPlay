@@ -33,6 +33,7 @@ import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import { userCanDownloadTournamentPacket } from "@/lib/tournaments/packet-access";
 import { userCanAccessTournamentWaiver } from "@/lib/tournaments/waiver-access";
+import { userCanAccessTournamentPayment } from "@/lib/tournaments/payment-access";
 import {
   userCanViewTournamentChat,
 } from "@/lib/tournaments/chat-access";
@@ -52,6 +53,7 @@ import { TournamentBracketPanel } from "./panels/bracket-panel";
 import { TournamentMatchesPanel } from "./panels/matches-panel";
 import { TournamentPacketTabPanel } from "./panels/packet-panel";
 import { TournamentWaiverTabPanel } from "./panels/waiver-panel";
+import { TournamentPaymentTabPanel } from "./panels/payment-panel";
 import { TournamentMessagesTabPanel } from "./panels/messages-panel";
 import { TournamentChatTabPanel } from "./panels/chat-panel";
 import { TournamentPanelSkeleton } from "./panels/panel-skeleton";
@@ -156,6 +158,11 @@ export default async function TournamentDetailPage({
     user,
     new Set(myTeamIds)
   );
+  const canAccessPayment = await userCanAccessTournamentPayment(
+    tournament,
+    user,
+    new Set(myTeamIds)
+  );
   let myPendingCount = 0;
   if (!isOrganizer && myTeamIds.length > 0) {
     const [myPendingRow] = await db
@@ -197,6 +204,8 @@ export default async function TournamentDetailPage({
   const showPacketTab = isOrganizer || canDownloadPacket;
   const showWaiverTab =
     isOrganizer || (tournament.waiverEnabled && canAccessWaiver);
+  const showPaymentTab =
+    isOrganizer || (tournament.paymentEnabled && canAccessPayment);
   const showChatTab = await userCanViewTournamentChat(
     tournament,
     user,
@@ -209,6 +218,7 @@ export default async function TournamentDetailPage({
   const allowedTabs = new Set<TournamentTabId>([DEFAULT_TOURNAMENT_TAB]);
   if (showPacketTab) allowedTabs.add("packet");
   if (showWaiverTab) allowedTabs.add("waiver");
+  if (showPaymentTab) allowedTabs.add("payment");
   if (isOrganizer) allowedTabs.add("messages");
   if (showChatTab) allowedTabs.add("chat");
   if (showTeamsTab) allowedTabs.add("teams");
@@ -232,6 +242,9 @@ export default async function TournamentDetailPage({
   }
   if (showWaiverTab) {
     tabItems.push({ id: "waiver", label: "Waiver" });
+  }
+  if (showPaymentTab) {
+    tabItems.push({ id: "payment", label: "Payment" });
   }
   if (isOrganizer) {
     tabItems.push({ id: "messages", label: "Messages" });
@@ -411,6 +424,16 @@ export default async function TournamentDetailPage({
           <TournamentWaiverTabPanel
             tournament={tournament}
             userId={user.id}
+            myTeamIds={myTeamIds}
+            captainTeamIds={captainTeamIds}
+            isOrganizer={isOrganizer}
+            canEditOrganizerSettings={canEditSetup}
+            lockedReason={preparationLockedReason}
+          />
+        )}
+        {activeTab === "payment" && showPaymentTab && (
+          <TournamentPaymentTabPanel
+            tournament={tournament}
             myTeamIds={myTeamIds}
             captainTeamIds={captainTeamIds}
             isOrganizer={isOrganizer}

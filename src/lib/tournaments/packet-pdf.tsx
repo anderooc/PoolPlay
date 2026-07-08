@@ -153,6 +153,12 @@ export function TournamentPacketDocument({ data }: { data: PacketData }) {
           </Section>
         ) : null}
 
+        {data.paymentInstructions ? (
+          <Section title="Entry fees & payment">
+            <Text style={styles.notes}>{data.paymentInstructions}</Text>
+          </Section>
+        ) : null}
+
         <Section title="Competition rules — pool play">
           <Bullet>Format: {data.playFormatLabel}</Bullet>
           <Bullet>Match format: {data.poolRules.matchFormatLabel}</Bullet>

@@ -17,6 +17,7 @@ import {
   type UserForPermissions,
 } from "@/lib/tournaments/permissions";
 import { getTeamsWaiverSummary } from "@/lib/tournaments/waiver-compliance";
+import { getPaymentsByRegistrationIds } from "@/lib/tournaments/payment-compliance";
 import { RegistrationList } from "../registration-list";
 
 export async function TournamentRegistrationsPanel({
@@ -90,6 +91,11 @@ export async function TournamentRegistrationsPanel({
         )
       : new Map();
 
+  const paymentSummary =
+    tournament.paymentEnabled && rows.length > 0
+      ? await getPaymentsByRegistrationIds(rows.map((row) => row.id))
+      : new Map();
+
   return (
     <div className="space-y-3">
       {listKind === "teams" && canManageRegistrations && (
@@ -123,6 +129,8 @@ export async function TournamentRegistrationsPanel({
         captainTeamIds={captainIds}
         waiverSummary={waiverSummary}
         showWaiverStatus={listKind === "teams" && tournament.waiverEnabled}
+        paymentSummary={paymentSummary}
+        showPaymentStatus={tournament.paymentEnabled}
       />
     </div>
   );

@@ -21,6 +21,10 @@ import {
 import { formatWarmupFormatLabel } from "@/lib/labels/warmup-format";
 import { formatTournamentDateDisplay } from "@/lib/date-iso";
 import { getHostSchoolById } from "@/lib/tournaments/host-school";
+import {
+  paymentInstructionsText,
+  paymentSettingsFromTournament,
+} from "@/lib/tournaments/payment-access";
 import { warmupMinutesForFormat } from "@/lib/labels/warmup-format";
 import { format } from "date-fns";
 
@@ -47,6 +51,7 @@ export type PacketData = {
   address: string | null;
   description: string | null;
   packetNotes: string | null;
+  paymentInstructions: string | null;
   genderLabel: string;
   regionLabel: string;
   hostSchoolName: string | null;
@@ -307,6 +312,9 @@ export async function gatherPacketData(
     address: tournament.address,
     description: tournament.description,
     packetNotes: tournament.packetNotes,
+    paymentInstructions: paymentInstructionsText(
+      paymentSettingsFromTournament(tournament)
+    ),
     genderLabel:
       TEAM_GENDER_LABELS[
         tournament.gender as keyof typeof TEAM_GENDER_LABELS

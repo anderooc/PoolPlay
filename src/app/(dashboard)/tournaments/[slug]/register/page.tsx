@@ -15,6 +15,10 @@ import {
   isTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
+import {
+  paymentInstructionsText,
+  paymentSettingsFromTournament,
+} from "@/lib/tournaments/payment-access";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BackLink } from "@/components/layout/back-link";
 import { RegisterForm } from "./register-form";
@@ -143,6 +147,10 @@ export default async function RegisterPage({ params }: Props) {
     ? "No verified schools are available yet."
     : `You don't have any ${tournamentGenderLabel} teams eligible to register. Teams must be admin-approved (standalone) or under a verified school.`;
 
+  const paymentInstructions = paymentInstructionsText(
+    paymentSettingsFromTournament(tournament)
+  );
+
   return (
     <div className="space-y-3">
       <BackLink href={`/tournaments/${tournament.slug}`}>
@@ -187,6 +195,18 @@ export default async function RegisterPage({ params }: Props) {
             )}
           </CardHeader>
           <CardContent className="overflow-visible">
+            {paymentInstructions && !isHost ? (
+              <div className="mb-4 rounded-md border border-border/80 bg-muted/20 p-3">
+                <p className="text-sm font-medium">Entry fee</p>
+                <pre className="mt-1 whitespace-pre-wrap font-sans text-sm text-muted-foreground">
+                  {paymentInstructions}
+                </pre>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  After registering, mark payment as sent on the tournament
+                  Payment tab.
+                </p>
+              </div>
+            ) : null}
             {showForm ? (
               <RegisterForm
                 tournamentId={id}

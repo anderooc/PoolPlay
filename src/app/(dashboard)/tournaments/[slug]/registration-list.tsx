@@ -35,6 +35,11 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { groupPendingRegistrationsBySchool } from "@/lib/tournaments/group-pending-registrations";
 import type { TeamWaiverCompliance } from "@/lib/tournaments/waiver-compliance";
+import type { RegistrationPaymentRow } from "@/lib/tournaments/payment-compliance";
+import {
+  formatFeeCents,
+  paymentStatusLabel,
+} from "@/lib/tournaments/payment-access";
 import { tournamentTabUrl } from "./constants";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -98,6 +103,8 @@ export function RegistrationList({
   captainTeamIds,
   waiverSummary = new Map(),
   showWaiverStatus = false,
+  paymentSummary = new Map(),
+  showPaymentStatus = false,
 }: {
   tournamentId: string;
   tournamentSlug: string;
@@ -119,6 +126,8 @@ export function RegistrationList({
     >
   >;
   showWaiverStatus?: boolean;
+  paymentSummary?: Map<string, RegistrationPaymentRow>;
+  showPaymentStatus?: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState<PendingChange | null>(null);
@@ -378,6 +387,13 @@ export function RegistrationList({
       showWaiverStatus &&
       waiver?.required &&
       (canManageRegistrations || captainTeamIds.has(reg.teamId));
+    const payment = paymentSummary.get(reg.id);
+    const canManagePaymentRow =
+      showPaymentStatus &&
+      payment &&
+      payment.status !== "confirmed" &&
+      payment.status !== "waived" &&
+      (canManageRegistrations || captainTeamIds.has(reg.teamId));
 
     return (
       <div
@@ -432,6 +448,19 @@ export function RegistrationList({
               Waiver · {waiver.completedCount}/{waiver.totalCount} complete
             </p>
           ) : null}
+          {showPaymentStatus && payment ? (
+            <p
+              className={cn(
+                "mt-0.5 text-xs",
+                payment.status === "confirmed" || payment.status === "waived"
+                  ? "text-muted-foreground"
+                  : "text-amber-700 dark:text-amber-400"
+              )}
+            >
+              Payment · {formatFeeCents(payment.amountCents)} ·{" "}
+              {paymentStatusLabel(payment.status)}
+            </p>
+          ) : null}
         </div>
         <div className="flex shrink-0 flex-row flex-wrap items-center justify-end gap-2">
           {canManageWaiverRow && !waiver?.complete ? (
@@ -440,6 +469,14 @@ export function RegistrationList({
               className="text-xs font-medium text-primary underline-offset-4 hover:underline"
             >
               Complete waivers
+            </Link>
+          ) : null}
+          {canManagePaymentRow ? (
+            <Link
+              href={tournamentTabUrl(tournamentSlug, "payment")}
+              className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+            >
+              {payment?.status === "unpaid" ? "Submit payment" : "View payment"}
             </Link>
           ) : null}
           {showDivisionAssignment && (
