@@ -39,7 +39,7 @@ import type { RegistrationPaymentRow } from "@/lib/tournaments/payment-complianc
 import {
   formatFeeCents,
   paymentStatusLabel,
-} from "@/lib/tournaments/payment-access";
+} from "@/lib/tournaments/payment-settings";
 import { tournamentTabUrl } from "./constants";
 import { Checkbox } from "@/components/ui/checkbox";
 import {

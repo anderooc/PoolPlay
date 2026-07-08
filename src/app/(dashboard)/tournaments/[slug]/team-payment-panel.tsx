@@ -27,7 +27,7 @@ import {
   paymentMethodLabel,
   paymentStatusLabel,
   type TournamentPaymentSettings,
-} from "@/lib/tournaments/payment-access";
+} from "@/lib/tournaments/payment-settings";
 import type { RegistrationPaymentRow } from "@/lib/tournaments/payment-compliance";
 import type { RegistrationPaymentMethod } from "@/types";
 import {

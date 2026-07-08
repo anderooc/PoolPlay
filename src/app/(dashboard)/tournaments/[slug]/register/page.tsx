@@ -18,7 +18,7 @@ import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import {
   paymentInstructionsText,
   paymentSettingsFromTournament,
-} from "@/lib/tournaments/payment-access";
+} from "@/lib/tournaments/payment-settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BackLink } from "@/components/layout/back-link";
 import { RegisterForm } from "./register-form";

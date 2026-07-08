@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { TournamentPaymentSettings } from "@/lib/tournaments/payment-access";
+import type { TournamentPaymentSettings } from "@/lib/tournaments/payment-settings";
 import { updateTournamentPaymentSettings } from "./payment/actions";
 
 function centsToDollarInput(cents: number | null): string {
@@ -164,7 +164,7 @@ export function TournamentPaymentSettingsPanel({
                     <Input
                       id="first-team-fee"
                       inputMode="decimal"
-                      placeholder="150"
+                      placeholder="Amount in USD"
                       value={draft.firstTeamFeeDollars}
                       onChange={(e) =>
                         setDraft((d) => ({

@@ -4,7 +4,7 @@ import { registrations, teams } from "@/lib/db/schema";
 import {
   paymentSettingsFromTournament,
   type TournamentPaymentSettings,
-} from "@/lib/tournaments/payment-access";
+} from "@/lib/tournaments/payment-settings";
 import { getPaymentsByRegistrationIds } from "@/lib/tournaments/payment-compliance";
 import { TournamentPaymentSettingsPanel } from "../payment-settings-panel";
 import { TeamPaymentPanel } from "../team-payment-panel";

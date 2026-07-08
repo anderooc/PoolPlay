@@ -24,7 +24,7 @@ import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import {
   paymentInstructionsText,
   paymentSettingsFromTournament,
-} from "@/lib/tournaments/payment-access";
+} from "@/lib/tournaments/payment-settings";
 import { warmupMinutesForFormat } from "@/lib/labels/warmup-format";
 import { format } from "date-fns";
 

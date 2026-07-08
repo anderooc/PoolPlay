@@ -12,7 +12,7 @@ import type {
 import {
   paymentSettingsFromTournament,
   type TournamentPaymentSettings,
-} from "@/lib/tournaments/payment-access";
+} from "@/lib/tournaments/payment-settings";
 
 const ACTIVE_REGISTRATION_STATUSES = [
   "pending",
