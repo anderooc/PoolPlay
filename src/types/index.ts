@@ -14,6 +14,20 @@ export type TournamentChatChannelKind =
   | "questions"
   | "general";
 
+export type RegistrationPaymentStatus =
+  | "unpaid"
+  | "submitted"
+  | "confirmed"
+  | "waived";
+
+export type RegistrationPaymentMethod =
+  | "venmo"
+  | "zelle"
+  | "cashapp"
+  | "check"
+  | "cash"
+  | "other";
+
 export type DivisionFormat =
   | "pool_to_bracket"
   | "single_elimination"

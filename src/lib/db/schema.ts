@@ -57,6 +57,16 @@ export const tournamentChatChannelKindEnum = pgEnum(
   ["announcements", "questions", "general"]
 );
 
+export const registrationPaymentStatusEnum = pgEnum(
+  "registration_payment_status",
+  ["unpaid", "submitted", "confirmed", "waived"]
+);
+
+export const registrationPaymentMethodEnum = pgEnum(
+  "registration_payment_method",
+  ["venmo", "zelle", "cashapp", "check", "cash", "other"]
+);
+
 export const divisionFormatEnum = pgEnum("division_format", [
   "pool_to_bracket",
   "single_elimination",
@@ -307,6 +317,16 @@ export const tournaments = pgTable("tournaments", {
   waiverRequiredBeforeCheckIn: boolean("waiver_required_before_check_in")
     .default(true)
     .notNull(),
+  paymentEnabled: boolean("payment_enabled").default(false).notNull(),
+  paymentRequiredBeforeConfirm: boolean("payment_required_before_confirm")
+    .default(true)
+    .notNull(),
+  paymentFirstTeamFeeCents: integer("payment_first_team_fee_cents"),
+  paymentAdditionalTeamFeeCents: integer("payment_additional_team_fee_cents"),
+  paymentVenmoHandle: text("payment_venmo_handle"),
+  paymentZelleHandle: text("payment_zelle_handle"),
+  paymentCashappHandle: text("payment_cashapp_handle"),
+  paymentOtherInstructions: text("payment_other_instructions"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -356,6 +376,38 @@ export const registrations = pgTable(
     ),
   ]
 );
+
+export const registrationPayments = pgTable("registration_payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  registrationId: uuid("registration_id")
+    .references(() => registrations.id, { onDelete: "cascade" })
+    .notNull()
+    .unique(),
+  tournamentId: uuid("tournament_id")
+    .references(() => tournaments.id, { onDelete: "cascade" })
+    .notNull(),
+  teamId: uuid("team_id")
+    .references(() => teams.id, { onDelete: "cascade" })
+    .notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  status: registrationPaymentStatusEnum("status").default("unpaid").notNull(),
+  submittedMethod: registrationPaymentMethodEnum("submitted_method"),
+  submittedNote: text("submitted_note"),
+  submittedByUserId: uuid("submitted_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  submittedAt: timestamp("submitted_at"),
+  confirmedByUserId: uuid("confirmed_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  confirmedAt: timestamp("confirmed_at"),
+  waivedByUserId: uuid("waived_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  waivedAt: timestamp("waived_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
 export const tournamentWaivers = pgTable(
   "tournament_waivers",
@@ -816,7 +868,44 @@ export const registrationsRelations = relations(registrations, ({ one }) => ({
     fields: [registrations.divisionId],
     references: [divisions.id],
   }),
+  payment: one(registrationPayments, {
+    fields: [registrations.id],
+    references: [registrationPayments.registrationId],
+  }),
 }));
+
+export const registrationPaymentsRelations = relations(
+  registrationPayments,
+  ({ one }) => ({
+    registration: one(registrations, {
+      fields: [registrationPayments.registrationId],
+      references: [registrations.id],
+    }),
+    tournament: one(tournaments, {
+      fields: [registrationPayments.tournamentId],
+      references: [tournaments.id],
+    }),
+    team: one(teams, {
+      fields: [registrationPayments.teamId],
+      references: [teams.id],
+    }),
+    submittedBy: one(users, {
+      fields: [registrationPayments.submittedByUserId],
+      references: [users.id],
+      relationName: "paymentSubmittedBy",
+    }),
+    confirmedBy: one(users, {
+      fields: [registrationPayments.confirmedByUserId],
+      references: [users.id],
+      relationName: "paymentConfirmedBy",
+    }),
+    waivedBy: one(users, {
+      fields: [registrationPayments.waivedByUserId],
+      references: [users.id],
+      relationName: "paymentWaivedBy",
+    }),
+  })
+);
 
 export const poolsRelations = relations(pools, ({ one, many }) => ({
   division: one(divisions, {
