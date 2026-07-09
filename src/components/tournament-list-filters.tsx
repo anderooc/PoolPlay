@@ -17,37 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { TeamGender, TeamRegion } from "@/types";
 import { SlidersHorizontal } from "lucide-react";
-
-const toggleClassName = (pressed: boolean) =>
-  cn(
-    "h-9 w-full min-w-0 border px-3 py-1.5 text-xs font-medium leading-snug whitespace-normal text-center",
-    pressed
-      ? "border-primary bg-primary/10 text-foreground shadow-none"
-      : "bg-transparent text-muted-foreground"
-  );
-
-function FilterToggle({
-  label,
-  pressed,
-  onClick,
-}: {
-  label: string;
-  pressed: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="lg"
-      className={toggleClassName(pressed)}
-      onClick={onClick}
-      aria-pressed={pressed}
-    >
-      {label}
-    </Button>
-  );
-}
+import { FilterToggle } from "@/components/filter-toggle";
 
 function FilterSwitchRow({
   label,
@@ -195,7 +165,7 @@ export function TournamentListFilters({
 
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Region</Label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {TEAM_REGIONS.map((value) => (
                 <FilterToggle
                   key={value}
