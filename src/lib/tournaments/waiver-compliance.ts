@@ -153,17 +153,82 @@ export async function getTeamsWaiverSummary(
     >
   >();
 
-  await Promise.all(
-    teamIds.map(async (teamId) => {
-      const compliance = await getTeamWaiverCompliance(tournament, teamId);
-      summary.set(teamId, {
-        required: compliance.required,
-        complete: compliance.complete,
-        completedCount: compliance.completedCount,
-        totalCount: compliance.totalCount,
-      });
+  if (teamIds.length === 0) return summary;
+
+  const settings = waiverSettingsFromTournament(tournament);
+  const waiver = await getLatestTournamentWaiver(tournament.id);
+
+  const rosterRows = await db
+    .select({
+      teamId: teamMembers.teamId,
+      userId: teamMembers.userId,
+      role: teamMembers.role,
+      fullName: users.fullName,
     })
-  );
+    .from(teamMembers)
+    .innerJoin(users, eq(teamMembers.userId, users.id))
+    .where(inArray(teamMembers.teamId, teamIds))
+    .orderBy(asc(users.fullName));
+
+  const rosterByTeam = new Map<string, typeof rosterRows>();
+  for (const row of rosterRows) {
+    const list = rosterByTeam.get(row.teamId);
+    if (list) list.push(row);
+    else rosterByTeam.set(row.teamId, [row]);
+  }
+
+  if (!settings.enabled || !waiver) {
+    for (const teamId of teamIds) {
+      const roster = rosterByTeam.get(teamId) ?? [];
+      summary.set(teamId, {
+        required: false,
+        complete: true,
+        completedCount: roster.length,
+        totalCount: roster.length,
+      });
+    }
+    return summary;
+  }
+
+  const userIds = [...new Set(rosterRows.map((row) => row.userId))];
+  const completionRows =
+    userIds.length === 0
+      ? []
+      : await db
+          .select({
+            teamId: waiverCompletions.teamId,
+            userId: waiverCompletions.userId,
+          })
+          .from(waiverCompletions)
+          .where(
+            and(
+              eq(waiverCompletions.waiverId, waiver.id),
+              inArray(waiverCompletions.teamId, teamIds),
+              inArray(waiverCompletions.userId, userIds)
+            )
+          );
+
+  const completedUsersByTeam = new Map<string, Set<string>>();
+  for (const row of completionRows) {
+    const set = completedUsersByTeam.get(row.teamId);
+    if (set) set.add(row.userId);
+    else completedUsersByTeam.set(row.teamId, new Set([row.userId]));
+  }
+
+  for (const teamId of teamIds) {
+    const roster = rosterByTeam.get(teamId) ?? [];
+    const completedUsers = completedUsersByTeam.get(teamId);
+    const completedCount = roster.filter((member) =>
+      completedUsers?.has(member.userId)
+    ).length;
+
+    summary.set(teamId, {
+      required: true,
+      complete: completedCount === roster.length && roster.length > 0,
+      completedCount,
+      totalCount: roster.length,
+    });
+  }
 
   return summary;
 }
