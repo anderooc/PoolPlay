@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Outfit, Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
+import { Outfit, Plus_Jakarta_Sans } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { APP_DEFAULT_DESCRIPTION, APP_NAME } from "@/lib/metadata";
 import "./globals.css";
@@ -16,11 +16,6 @@ const outfit = Outfit({
   subsets: ["latin"],
   display: "swap",
   weight: ["500", "600", "700", "800"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
@@ -40,7 +35,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${plusJakarta.variable} ${outfit.variable} ${geistMono.variable} h-full`}
+      className={`${plusJakarta.variable} ${outfit.variable} h-full`}
     >
       <body
         className={`${plusJakarta.className} flex min-h-full flex-col antialiased`}
