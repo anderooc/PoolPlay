@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { db } from "@/lib/db";
 import { schoolMembers, schools } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -8,7 +9,7 @@ export type UserSchoolSummary = {
 };
 
 /** The school a user belongs to, if any (one school per user). */
-export async function getUserSchoolSummary(
+export const getUserSchoolSummary = cache(async function getUserSchoolSummary(
   userId: string
 ): Promise<UserSchoolSummary | null> {
   const [row] = await db
@@ -19,4 +20,4 @@ export async function getUserSchoolSummary(
     .limit(1);
 
   return row ?? null;
-}
+});

@@ -19,7 +19,13 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <Header isAdmin={admin} schoolsHref={schoolsHref} />
+      <Header
+        isAdmin={admin}
+        schoolsHref={schoolsHref}
+        user={
+          user ? { fullName: user.fullName, email: user.email } : null
+        }
+      />
       <Suspense fallback={null}>
         <DashboardContentEnter>
           <Sidebar isAdmin={admin} schoolsHref={schoolsHref} />

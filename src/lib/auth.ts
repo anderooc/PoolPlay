@@ -19,7 +19,7 @@ function adminBootstrapEmails(): Set<string> {
   );
 }
 
-export async function getCurrentAuthProfile() {
+export const getCurrentAuthProfile = cache(async function getCurrentAuthProfile() {
   const supabase = await createClient();
   const {
     data: { user: authUser },
@@ -34,7 +34,7 @@ export async function getCurrentAuthProfile() {
       authUser.email?.split("@")[0] ??
       "User",
   };
-}
+});
 
 /**
  * De-duplicates the auth-user + DB lookup within a single server request.

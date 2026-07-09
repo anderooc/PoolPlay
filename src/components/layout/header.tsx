@@ -1,19 +1,23 @@
-import { getCurrentAuthProfile } from "@/lib/auth";
 import { MobileNav } from "./mobile-nav";
 import { HeaderNav } from "./header-nav";
 import { PoolPlayMark } from "./poolplay-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "./user-menu";
 
-export async function Header({
+export type HeaderUserProfile = {
+  fullName: string;
+  email: string;
+};
+
+export function Header({
   isAdmin = false,
   schoolsHref,
+  user,
 }: {
   isAdmin?: boolean;
   schoolsHref?: string;
+  user?: HeaderUserProfile | null;
 }) {
-  const user = await getCurrentAuthProfile();
-
   return (
     <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur-sm transition-[background-color,backdrop-filter,padding,gap] duration-300 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 md:gap-4 md:px-6">
       <PoolPlayMark href="/" wordmarkClassName="text-lg font-bold" />
