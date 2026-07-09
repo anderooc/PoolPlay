@@ -5,12 +5,34 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { navLinks } from "./nav-links";
+import { navLinks, type NavLink } from "./nav-links";
 import { Button } from "@/components/ui/button";
 
 const SIDEBAR_COLLAPSED_KEY = "poolplay-sidebar-collapsed";
 
-export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
+function navHref(link: NavLink, schoolsHref?: string): string {
+  if (link.activePrefix === "/schools" && schoolsHref) return schoolsHref;
+  return link.href;
+}
+
+function navActive(link: NavLink, pathname: string): boolean {
+  if (link.activePrefix) {
+    return (
+      pathname === link.activePrefix ||
+      pathname.startsWith(`${link.activePrefix}/`)
+    );
+  }
+  if (link.exact) return pathname === link.href;
+  return pathname.startsWith(link.href);
+}
+
+export function Sidebar({
+  isAdmin = false,
+  schoolsHref,
+}: {
+  isAdmin?: boolean;
+  schoolsHref?: string;
+}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -49,13 +71,12 @@ export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
         {visibleLinks.map((link) => {
           const Icon = link.icon;
-          const active = link.exact
-            ? pathname === link.href
-            : pathname.startsWith(link.href);
+          const href = navHref(link, schoolsHref);
+          const active = navActive(link, pathname);
           return (
             <Link
-              key={link.href}
-              href={link.href}
+              key={link.label}
+              href={href}
               title={hydrated && collapsed ? link.label : undefined}
               className={cn(
                 "flex items-center gap-3 rounded-md py-2 text-sm font-medium transition-colors",

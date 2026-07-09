@@ -13,6 +13,8 @@ export interface NavLink {
   href: string;
   icon: LucideIcon;
   exact?: boolean;
+  /** Highlight when pathname equals or is nested under this prefix. */
+  activePrefix?: string;
   /** Render only for admin users. */
   adminOnly?: boolean;
 }
@@ -20,7 +22,12 @@ export interface NavLink {
 export const navLinks: NavLink[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, exact: true },
   { label: "Tournaments", href: "/tournaments", icon: Trophy },
-  { label: "Schools", href: "/schools", icon: Building2 },
+  {
+    label: "Schools",
+    href: "/schools",
+    icon: Building2,
+    activePrefix: "/schools",
+  },
   { label: "Teams", href: "/teams", icon: Users },
   { label: "Schedule", href: "/schedule", icon: Calendar },
   { label: "Admin", href: "/admin", icon: ShieldAlert, adminOnly: true },

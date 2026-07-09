@@ -5,6 +5,7 @@ import { DashboardContentEnter } from "@/components/layout/dashboard-content-ent
 import { RouteFade } from "@/components/layout/route-fade";
 import { Toaster } from "@/components/ui/sonner";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getUserSchoolSummary } from "@/lib/schools/navigation";
 
 export default async function DashboardLayout({
   children,
@@ -13,13 +14,15 @@ export default async function DashboardLayout({
 }) {
   const user = await getCurrentUser();
   const admin = isAdmin(user);
+  const mySchool = user ? await getUserSchoolSummary(user.id) : null;
+  const schoolsHref = mySchool ? `/schools/${mySchool.slug}` : undefined;
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <Header isAdmin={admin} />
+      <Header isAdmin={admin} schoolsHref={schoolsHref} />
       <Suspense fallback={null}>
         <DashboardContentEnter>
-          <Sidebar isAdmin={admin} />
+          <Sidebar isAdmin={admin} schoolsHref={schoolsHref} />
           <main className="flex-1 overflow-y-scroll overflow-x-hidden p-4 [scrollbar-gutter:stable] md:p-6">
             <RouteFade>{children}</RouteFade>
           </main>

@@ -11,11 +11,33 @@ import {
   SheetTrigger,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { navLinks } from "./nav-links";
+import { navLinks, type NavLink } from "./nav-links";
 import { PoolPlayMark } from "./poolplay-mark";
 import { useState } from "react";
 
-export function MobileNav({ isAdmin = false }: { isAdmin?: boolean }) {
+function navHref(link: NavLink, schoolsHref?: string): string {
+  if (link.activePrefix === "/schools" && schoolsHref) return schoolsHref;
+  return link.href;
+}
+
+function navActive(link: NavLink, pathname: string): boolean {
+  if (link.activePrefix) {
+    return (
+      pathname === link.activePrefix ||
+      pathname.startsWith(`${link.activePrefix}/`)
+    );
+  }
+  if (link.exact) return pathname === link.href;
+  return pathname.startsWith(link.href);
+}
+
+export function MobileNav({
+  isAdmin = false,
+  schoolsHref,
+}: {
+  isAdmin?: boolean;
+  schoolsHref?: string;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const visibleLinks = navLinks.filter((link) => !link.adminOnly || isAdmin);
@@ -37,13 +59,12 @@ export function MobileNav({ isAdmin = false }: { isAdmin?: boolean }) {
         <nav className="space-y-1 p-3">
           {visibleLinks.map((link) => {
             const Icon = link.icon;
-            const active = link.exact
-              ? pathname === link.href
-              : pathname.startsWith(link.href);
+            const href = navHref(link, schoolsHref);
+            const active = navActive(link, pathname);
             return (
               <Link
-                key={link.href}
-                href={link.href}
+                key={link.label}
+                href={href}
                 onClick={() => setOpen(false)}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
