@@ -130,8 +130,7 @@ export default async function SchoolDetailPage({ params }: Props) {
     eligibility
   );
 
-  // Members of this school have one school — they don't need the "All
-  // schools" back link. Visitors / admins browsing other schools still see it.
+  // Members can browse other schools via /schools; back link always points there.
   const isMyOwnSchool = isSchoolMember(membershipForPermissions);
   const canDeleteFromMenu = canManage;
   const canLeaveFromMenu =
@@ -143,7 +142,9 @@ export default async function SchoolDetailPage({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      {!isMyOwnSchool && <BackLink href="/schools">All schools</BackLink>}
+      <BackLink href="/schools">
+        {isMyOwnSchool ? "Find schools" : "All schools"}
+      </BackLink>
 
       <div className="space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">

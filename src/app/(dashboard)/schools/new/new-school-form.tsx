@@ -48,7 +48,7 @@ export function NewSchoolForm() {
 
   return (
     <div className="space-y-3">
-      <BackLink href="/schools">All schools</BackLink>
+      <BackLink href="/schools">Find schools</BackLink>
       <div className="mx-auto max-w-lg">
         <Card className="shadow-sm shadow-primary/5">
           <CardHeader>
