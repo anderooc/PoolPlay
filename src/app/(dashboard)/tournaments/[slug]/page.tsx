@@ -46,18 +46,9 @@ import {
 } from "./constants";
 import { TournamentPageHeading } from "./tournament-page-heading";
 import { TournamentTabs } from "./tournament-tabs";
-import { TournamentSetupPanel } from "./panels/setup-panel";
-import { TournamentRegistrationsPanel } from "./panels/registrations-panel";
-import { TournamentPoolPlayPanel } from "./panels/pool-play-panel";
-import { TournamentBracketPanel } from "./panels/bracket-panel";
-import { TournamentMatchesPanel } from "./panels/matches-panel";
-import { TournamentPacketTabPanel } from "./panels/packet-panel";
-import { TournamentWaiverTabPanel } from "./panels/waiver-panel";
-import { TournamentPaymentTabPanel } from "./panels/payment-panel";
-import { TournamentMessagesTabPanel } from "./panels/messages-panel";
-import { TournamentChatTabPanel } from "./panels/chat-panel";
 import { TournamentPanelSkeleton } from "./panels/panel-skeleton";
 import { TournamentChatNotifier } from "./tournament-chat-notifier";
+import { TournamentActivePanel } from "./tournament-active-panel";
 import type { Metadata } from "next";
 import {
   getTournamentNameBySlug,
@@ -144,11 +135,6 @@ export default async function TournamentDetailPage({
     getHostSchoolById(tournament.hostSchoolId),
   ]);
 
-  const playSignals = await getTournamentPlaySignals(id, {
-    forOrganizer: isOrganizer,
-  });
-  const hasScheduledMatches = playSignals.hasScheduledMatches;
-
   const organizer = organizerRows[0] ?? null;
   const courtCount = courtCountRow[0]?.value ?? 0;
   const divisionCount = tournamentDivisions.length;
@@ -165,35 +151,38 @@ export default async function TournamentDetailPage({
   }
 
   const myTeamIds = memberRows.map((r) => r.teamId);
-  const canDownloadPacket = await userCanDownloadTournamentPacket(
-    tournament,
-    user,
-    new Set(myTeamIds)
-  );
-  const canAccessWaiver = await userCanAccessTournamentWaiver(
-    tournament,
-    user,
-    new Set(myTeamIds)
-  );
-  const canAccessPayment = await userCanAccessTournamentPayment(
-    tournament,
-    user,
-    new Set(myTeamIds)
-  );
-  let myPendingCount = 0;
-  if (!isOrganizer && myTeamIds.length > 0) {
-    const [myPendingRow] = await db
-      .select({ value: count() })
-      .from(registrations)
-      .where(
-        and(
-          eq(registrations.tournamentId, id),
-          eq(registrations.status, "pending"),
-          inArray(registrations.teamId, myTeamIds)
-        )
-      );
-    myPendingCount = myPendingRow?.value ?? 0;
-  }
+  const myTeamIdsSet = new Set(myTeamIds);
+
+  const [
+    playSignals,
+    canDownloadPacket,
+    canAccessWaiver,
+    canAccessPayment,
+    showChatTab,
+    myPendingRow,
+  ] = await Promise.all([
+    getTournamentPlaySignals(id, { forOrganizer: isOrganizer }),
+    userCanDownloadTournamentPacket(tournament, user, myTeamIdsSet),
+    userCanAccessTournamentWaiver(tournament, user, myTeamIdsSet),
+    userCanAccessTournamentPayment(tournament, user, myTeamIdsSet),
+    userCanViewTournamentChat(tournament, user, myTeamIds),
+    !isOrganizer && myTeamIds.length > 0
+      ? db
+          .select({ value: count() })
+          .from(registrations)
+          .where(
+            and(
+              eq(registrations.tournamentId, id),
+              eq(registrations.status, "pending"),
+              inArray(registrations.teamId, myTeamIds)
+            )
+          )
+          .then((rows) => rows[0])
+      : Promise.resolve(undefined),
+  ]);
+
+  const hasScheduledMatches = playSignals.hasScheduledMatches;
+  const myPendingCount = myPendingRow?.value ?? 0;
 
   const hasPoolPlayFormat = tournamentDivisions.some(
     (d) => d.format === "pool_to_bracket"
@@ -223,11 +212,6 @@ export default async function TournamentDetailPage({
     isOrganizer || (tournament.waiverEnabled && canAccessWaiver);
   const showPaymentTab =
     isOrganizer || (tournament.paymentEnabled && canAccessPayment);
-  const showChatTab = await userCanViewTournamentChat(
-    tournament,
-    user,
-    myTeamIds
-  );
   const captainTeamIds = new Set(
     memberRows.filter((r) => r.role === "captain").map((r) => r.teamId)
   );
@@ -422,85 +406,27 @@ export default async function TournamentDetailPage({
       />
 
       <Suspense key={activeTab} fallback={<TournamentPanelSkeleton />}>
-        {activeTab === "setup" && (
-          <TournamentSetupPanel
-            tournamentId={id}
-            canEditSetup={canEditSetup}
-          />
-        )}
-        {activeTab === "packet" && showPacketTab && (
-          <TournamentPacketTabPanel
-            tournamentId={id}
-            slug={tournament.slug}
-            packetNotes={tournament.packetNotes}
-            canEdit={canEditSetup}
-            lockedReason={preparationLockedReason}
-          />
-        )}
-        {activeTab === "waiver" && showWaiverTab && (
-          <TournamentWaiverTabPanel
-            tournament={tournament}
-            userId={user.id}
-            myTeamIds={myTeamIds}
-            captainTeamIds={captainTeamIds}
-            isOrganizer={isOrganizer}
-            canEditOrganizerSettings={canEditSetup}
-            lockedReason={preparationLockedReason}
-          />
-        )}
-        {activeTab === "payment" && showPaymentTab && (
-          <TournamentPaymentTabPanel
-            tournament={tournament}
-            myTeamIds={myTeamIds}
-            captainTeamIds={captainTeamIds}
-            isOrganizer={isOrganizer}
-            canEditOrganizerSettings={canEditSetup}
-            lockedReason={preparationLockedReason}
-          />
-        )}
-        {activeTab === "messages" && isOrganizer && (
-          <TournamentMessagesTabPanel
-            tournamentId={id}
-            waiverEnabled={tournament.waiverEnabled}
-            canEdit={canEditSetup}
-            lockedReason={preparationLockedReason}
-          />
-        )}
-        {activeTab === "chat" && showChatTab && (
-          <TournamentChatTabPanel
-            tournamentId={id}
-            tournamentStatus={tournament.status}
-            organizerId={tournament.organizerId}
-          />
-        )}
-        {activeTab === "teams" && showTeamsTab && (
-          <TournamentRegistrationsPanel
-            tournament={tournament}
-            user={user}
-            listKind="teams"
-          />
-        )}
-        {activeTab === "pending" && showPendingTab && (
-          <TournamentRegistrationsPanel
-            tournament={tournament}
-            user={user}
-            listKind="pending"
-          />
-        )}
-        {activeTab === "pool-play" && showPoolPlayTab && (
-          <TournamentPoolPlayPanel
-            tournament={tournament}
-            user={user}
-            initialDivisionId={sp.division ?? null}
-            focusPoolId={sp.pool ?? null}
-          />
-        )}
-        {activeTab === "bracket" && showBracketTab && (
-          <TournamentBracketPanel tournament={tournament} user={user} />
-        )}
-        {activeTab === "matches" && showMatchesTab && (
-          <TournamentMatchesPanel tournament={tournament} user={user} />
-        )}
+        <TournamentActivePanel
+          activeTab={activeTab}
+          tournament={tournament}
+          user={user}
+          canEditSetup={canEditSetup}
+          preparationLockedReason={preparationLockedReason}
+          myTeamIds={myTeamIds}
+          captainTeamIds={captainTeamIds}
+          isOrganizer={isOrganizer}
+          showPacketTab={showPacketTab}
+          showWaiverTab={showWaiverTab}
+          showPaymentTab={showPaymentTab}
+          showChatTab={showChatTab}
+          showTeamsTab={showTeamsTab}
+          showPendingTab={showPendingTab}
+          showPoolPlayTab={showPoolPlayTab}
+          showBracketTab={showBracketTab}
+          showMatchesTab={showMatchesTab}
+          divisionId={sp.division ?? null}
+          focusPoolId={sp.pool ?? null}
+        />
       </Suspense>
     </div>
   );

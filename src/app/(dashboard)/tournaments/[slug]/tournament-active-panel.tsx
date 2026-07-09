@@ -1,0 +1,206 @@
+import type { users, tournaments } from "@/lib/db/schema";
+import type { InferSelectModel } from "drizzle-orm";
+import type { TournamentTabId } from "./constants";
+
+type User = typeof users.$inferSelect;
+type Tournament = InferSelectModel<typeof tournaments>;
+
+type TournamentActivePanelProps = {
+  activeTab: TournamentTabId;
+  tournament: Tournament;
+  user: User;
+  canEditSetup: boolean;
+  preparationLockedReason: string | null;
+  myTeamIds: string[];
+  captainTeamIds: Set<string>;
+  isOrganizer: boolean;
+  showPacketTab: boolean;
+  showWaiverTab: boolean;
+  showPaymentTab: boolean;
+  showChatTab: boolean;
+  showTeamsTab: boolean;
+  showPendingTab: boolean;
+  showPoolPlayTab: boolean;
+  showBracketTab: boolean;
+  showMatchesTab: boolean;
+  divisionId: string | null;
+  focusPoolId: string | null;
+};
+
+/** Loads only the active tab panel module per request (code-split server components). */
+export async function TournamentActivePanel({
+  activeTab,
+  tournament,
+  user,
+  canEditSetup,
+  preparationLockedReason,
+  myTeamIds,
+  captainTeamIds,
+  isOrganizer,
+  showPacketTab,
+  showWaiverTab,
+  showPaymentTab,
+  showChatTab,
+  showTeamsTab,
+  showPendingTab,
+  showPoolPlayTab,
+  showBracketTab,
+  showMatchesTab,
+  divisionId,
+  focusPoolId,
+}: TournamentActivePanelProps) {
+  switch (activeTab) {
+    case "setup": {
+      const { TournamentSetupPanel } = await import("./panels/setup-panel");
+      return (
+        <TournamentSetupPanel
+          tournamentId={tournament.id}
+          canEditSetup={canEditSetup}
+        />
+      );
+    }
+    case "packet":
+      if (!showPacketTab) return null;
+      {
+        const { TournamentPacketTabPanel } = await import(
+          "./panels/packet-panel"
+        );
+        return (
+          <TournamentPacketTabPanel
+            tournamentId={tournament.id}
+            slug={tournament.slug}
+            packetNotes={tournament.packetNotes}
+            canEdit={canEditSetup}
+            lockedReason={preparationLockedReason}
+          />
+        );
+      }
+    case "waiver":
+      if (!showWaiverTab) return null;
+      {
+        const { TournamentWaiverTabPanel } = await import(
+          "./panels/waiver-panel"
+        );
+        return (
+          <TournamentWaiverTabPanel
+            tournament={tournament}
+            userId={user.id}
+            myTeamIds={myTeamIds}
+            captainTeamIds={captainTeamIds}
+            isOrganizer={isOrganizer}
+            canEditOrganizerSettings={canEditSetup}
+            lockedReason={preparationLockedReason}
+          />
+        );
+      }
+    case "payment":
+      if (!showPaymentTab) return null;
+      {
+        const { TournamentPaymentTabPanel } = await import(
+          "./panels/payment-panel"
+        );
+        return (
+          <TournamentPaymentTabPanel
+            tournament={tournament}
+            myTeamIds={myTeamIds}
+            captainTeamIds={captainTeamIds}
+            isOrganizer={isOrganizer}
+            canEditOrganizerSettings={canEditSetup}
+            lockedReason={preparationLockedReason}
+          />
+        );
+      }
+    case "messages":
+      if (!isOrganizer) return null;
+      {
+        const { TournamentMessagesTabPanel } = await import(
+          "./panels/messages-panel"
+        );
+        return (
+          <TournamentMessagesTabPanel
+            tournamentId={tournament.id}
+            waiverEnabled={tournament.waiverEnabled}
+            canEdit={canEditSetup}
+            lockedReason={preparationLockedReason}
+          />
+        );
+      }
+    case "chat":
+      if (!showChatTab) return null;
+      {
+        const { TournamentChatTabPanel } = await import("./panels/chat-panel");
+        return (
+          <TournamentChatTabPanel
+            tournamentId={tournament.id}
+            tournamentStatus={tournament.status}
+            organizerId={tournament.organizerId}
+          />
+        );
+      }
+    case "teams":
+      if (!showTeamsTab) return null;
+      {
+        const { TournamentRegistrationsPanel } = await import(
+          "./panels/registrations-panel"
+        );
+        return (
+          <TournamentRegistrationsPanel
+            tournament={tournament}
+            user={user}
+            listKind="teams"
+          />
+        );
+      }
+    case "pending":
+      if (!showPendingTab) return null;
+      {
+        const { TournamentRegistrationsPanel } = await import(
+          "./panels/registrations-panel"
+        );
+        return (
+          <TournamentRegistrationsPanel
+            tournament={tournament}
+            user={user}
+            listKind="pending"
+          />
+        );
+      }
+    case "pool-play":
+      if (!showPoolPlayTab) return null;
+      {
+        const { TournamentPoolPlayPanel } = await import(
+          "./panels/pool-play-panel"
+        );
+        return (
+          <TournamentPoolPlayPanel
+            tournament={tournament}
+            user={user}
+            initialDivisionId={divisionId}
+            focusPoolId={focusPoolId}
+          />
+        );
+      }
+    case "bracket":
+      if (!showBracketTab) return null;
+      {
+        const { TournamentBracketPanel } = await import(
+          "./panels/bracket-panel"
+        );
+        return (
+          <TournamentBracketPanel tournament={tournament} user={user} />
+        );
+      }
+    case "matches":
+      if (!showMatchesTab) return null;
+      {
+        const { TournamentMatchesPanel } = await import(
+          "./panels/matches-panel"
+        );
+        return (
+          <TournamentMatchesPanel tournament={tournament} user={user} />
+        );
+      }
+    default:
+      return null;
+  }
+}
