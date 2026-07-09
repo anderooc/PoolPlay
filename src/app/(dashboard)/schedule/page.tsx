@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { matches, teams, courts, tournaments, pools, brackets, divisions } from "@/lib/db/schema";
+import { matches, tournaments } from "@/lib/db/schema";
 import { eq, isNotNull, asc } from "drizzle-orm";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
@@ -9,7 +9,7 @@ import { CalendarClock } from "lucide-react";
 import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { ScheduleControls } from "./schedule-controls";
-import { warmupMinutesForFormat, type WarmupFormat } from "@/lib/labels/warmup-format";
+import { enrichScheduledMatches } from "@/lib/schedule/enrich-scheduled-matches";
 import { pageMetadata } from "@/lib/metadata";
 
 export const metadata = pageMetadata("Schedule");
@@ -18,100 +18,19 @@ export default async function SchedulePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const scheduledMatches = await db
-    .select()
-    .from(matches)
-    .where(isNotNull(matches.scheduledTime))
-    .orderBy(asc(matches.scheduledTime));
+  const [scheduledMatches, userTournaments] = await Promise.all([
+    db
+      .select()
+      .from(matches)
+      .where(isNotNull(matches.scheduledTime))
+      .orderBy(asc(matches.scheduledTime)),
+    db
+      .select({ id: tournaments.id, name: tournaments.name })
+      .from(tournaments)
+      .where(eq(tournaments.organizerId, user.id)),
+  ]);
 
-  const enrichedMatches = await Promise.all(
-    scheduledMatches.map(async (match) => {
-      const teamA = match.teamAId
-        ? (
-            await db
-              .select({ name: teams.name })
-              .from(teams)
-              .where(eq(teams.id, match.teamAId))
-              .limit(1)
-          )[0]
-        : null;
-
-      const teamB = match.teamBId
-        ? (
-            await db
-              .select({ name: teams.name })
-              .from(teams)
-              .where(eq(teams.id, match.teamBId))
-              .limit(1)
-          )[0]
-        : null;
-
-      const court = match.courtId
-        ? (
-            await db
-              .select({ name: courts.name })
-              .from(courts)
-              .where(eq(courts.id, match.courtId))
-              .limit(1)
-          )[0]
-        : null;
-
-      let contextLabel = "";
-      let warmupFormat: WarmupFormat = "none";
-      if (match.poolId) {
-        const [pool] = await db
-          .select({
-            name: pools.name,
-            warmupFormat: tournaments.warmupFormat,
-          })
-          .from(pools)
-          .innerJoin(divisions, eq(pools.divisionId, divisions.id))
-          .innerJoin(tournaments, eq(divisions.tournamentId, tournaments.id))
-          .where(eq(pools.id, match.poolId))
-          .limit(1);
-        contextLabel = pool?.name ?? "Pool";
-        warmupFormat = pool?.warmupFormat ?? "none";
-      } else if (match.bracketId) {
-        const [info] = await db
-          .select({ warmupFormat: tournaments.warmupFormat })
-          .from(brackets)
-          .innerJoin(divisions, eq(brackets.divisionId, divisions.id))
-          .innerJoin(tournaments, eq(divisions.tournamentId, tournaments.id))
-          .where(eq(brackets.id, match.bracketId))
-          .limit(1);
-        warmupFormat = info?.warmupFormat ?? "none";
-        if (match.bracketRound) {
-          contextLabel = `Bracket R${match.bracketRound}`;
-        }
-      }
-
-      const refTeam = match.refTeamId
-        ? (
-            await db
-              .select({ name: teams.name })
-              .from(teams)
-              .where(eq(teams.id, match.refTeamId))
-              .limit(1)
-          )[0]
-        : null;
-
-      const warmupMinutes = warmupMinutesForFormat(warmupFormat);
-      const warmupStart =
-        match.scheduledTime && warmupMinutes > 0
-          ? new Date(match.scheduledTime.getTime() - warmupMinutes * 60 * 1000)
-          : null;
-
-      return {
-        ...match,
-        teamAName: teamA?.name ?? "TBD",
-        teamBName: teamB?.name ?? "TBD",
-        courtName: court?.name ?? "Unassigned",
-        refTeamName: refTeam?.name ?? null,
-        contextLabel,
-        warmupStart,
-      };
-    })
-  );
+  const enrichedMatches = await enrichScheduledMatches(scheduledMatches);
 
   // Group by date
   const byDate = new Map<string, typeof enrichedMatches>();
@@ -122,12 +41,6 @@ export default async function SchedulePage() {
     if (!byDate.has(dateKey)) byDate.set(dateKey, []);
     byDate.get(dateKey)!.push(match);
   }
-
-  // Get tournaments the user organizes
-  const userTournaments = await db
-    .select({ id: tournaments.id, name: tournaments.name })
-    .from(tournaments)
-    .where(eq(tournaments.organizerId, user.id));
 
   return (
     <div className="space-y-6">
