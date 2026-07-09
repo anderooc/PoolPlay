@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { divisions, sets, teams, courts, teamMembers } from "@/lib/db/schema";
+import { divisions, sets, teams, courts, teamMembers, tournaments } from "@/lib/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { BackLink } from "@/components/layout/back-link";
 import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
@@ -20,9 +20,42 @@ import { setStartingScoreForMatch } from "@/lib/tournaments/match-format";
 import { tournamentTabUrl } from "../../constants";
 import { ByeMatchNotice } from "./bye-match-notice";
 import { MatchConsole } from "./match-console";
+import type { Metadata } from "next";
+import { getTournamentNameBySlug } from "@/lib/tournaments/metadata";
+import { pageMetadata, pageTitle } from "@/lib/metadata";
 
 interface Props {
   params: Promise<{ slug: string; matchSlug: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: Pick<Props, "params">): Promise<Metadata> {
+  const { slug, matchSlug: rawMatchSlug } = await params;
+  const matchSlug = decodeURIComponent(rawMatchSlug).trim();
+  const tournamentName = await getTournamentNameBySlug(slug);
+  if (!tournamentName) return pageMetadata("Match");
+
+  const [tournament] = await db
+    .select({ id: tournaments.id })
+    .from(tournaments)
+    .where(eq(tournaments.slug, slug))
+    .limit(1);
+  if (!tournament) return pageMetadata(pageTitle("Match", tournamentName));
+
+  const match = await resolveMatchInTournament(tournament.id, matchSlug);
+  if (!match) return pageMetadata(pageTitle("Match", tournamentName));
+
+  const [teamA, teamB] = await Promise.all([
+    loadTeam(match.teamAId),
+    loadTeam(match.teamBId),
+  ]);
+  const matchup =
+    teamA?.name && teamB?.name
+      ? `${teamA.name} vs ${teamB.name}`
+      : teamA?.name ?? teamB?.name ?? "Match";
+
+  return pageMetadata(pageTitle(matchup, tournamentName));
 }
 
 async function loadTeam(teamId: string | null) {

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Outfit, Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { APP_DEFAULT_DESCRIPTION, APP_NAME } from "@/lib/metadata";
 import "./globals.css";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -23,9 +24,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PoolPlay | Collegiate club volleyball tournaments",
-  description:
-    "Organize tournaments, manage teams, run pools and brackets, schedule courts, and track live scores for college club volleyball.",
+  title: {
+    default: `${APP_NAME} | Collegiate club volleyball tournaments`,
+    template: `%s · ${APP_NAME}`,
+  },
+  description: APP_DEFAULT_DESCRIPTION,
 };
 
 export default function RootLayout({

@@ -14,6 +14,20 @@ export const TOURNAMENT_TABS = [
 
 export type TournamentTabId = (typeof TOURNAMENT_TABS)[number];
 
+export const TOURNAMENT_TAB_LABELS: Record<TournamentTabId, string> = {
+  setup: "Setup",
+  packet: "Packet",
+  waiver: "Waiver",
+  payment: "Payment",
+  messages: "Messages",
+  chat: "Chat",
+  teams: "Teams",
+  pending: "Pending",
+  "pool-play": "Pools",
+  bracket: "Bracket",
+  matches: "Matches",
+};
+
 export type TournamentTabGroupId = "preparation" | "matchday";
 
 export const TOURNAMENT_TAB_GROUP_ORDER = [

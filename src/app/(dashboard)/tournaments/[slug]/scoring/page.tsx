@@ -25,9 +25,21 @@ import {
   getMatchDivisionIdMap,
   getUnreleasedDivisionIds,
 } from "@/lib/tournaments/unreleased-divisions";
+import type { Metadata } from "next";
+import { getTournamentNameBySlug } from "@/lib/tournaments/metadata";
+import { pageMetadata, pageTitle } from "@/lib/metadata";
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: Pick<Props, "params">): Promise<Metadata> {
+  const { slug } = await params;
+  const name = await getTournamentNameBySlug(slug);
+  if (!name) return pageMetadata("Live scoring");
+  return pageMetadata(pageTitle("Live scoring", name));
 }
 
 export default async function ScoringPage({ params }: Props) {

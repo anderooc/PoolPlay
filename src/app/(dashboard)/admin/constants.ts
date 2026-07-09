@@ -15,6 +15,15 @@ export const ADMIN_TABS = [
 
 export type AdminTabId = (typeof ADMIN_TABS)[number];
 
+export const ADMIN_TAB_LABELS: Record<AdminTabId, string> = {
+  overview: "Overview",
+  users: "Users",
+  tournaments: "Tournaments",
+  schools: "Schools",
+  teams: "Teams",
+  flags: "Content flags",
+};
+
 export const DEFAULT_ADMIN_TAB: AdminTabId = "overview";
 
 export function isAdminTabId(value: string | undefined): value is AdminTabId {

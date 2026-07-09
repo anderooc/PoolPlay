@@ -13,6 +13,9 @@ import {
   filterVisibleTournaments,
   getUserSchoolIds,
 } from "@/lib/tournaments/access";
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata("Tournaments");
 
 export const dynamic = "force-dynamic";
 

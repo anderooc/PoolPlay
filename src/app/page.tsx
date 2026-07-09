@@ -6,6 +6,9 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Trophy, Users, Calendar, Zap, ArrowRight, Volleyball } from "lucide-react";
 import { getCurrentAuthProfile } from "@/lib/auth";
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata("Home");
 
 const FEATURES = [
   {

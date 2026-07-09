@@ -23,6 +23,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata("Dashboard");
 
 export const dynamic = "force-dynamic";
 

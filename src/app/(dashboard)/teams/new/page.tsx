@@ -4,6 +4,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { schoolMembers, schools } from "@/lib/db/schema";
 import { NewTeamForm } from "./new-team-form";
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata("New team");
 
 interface Props {
   searchParams?: Promise<{ schoolId?: string }>;

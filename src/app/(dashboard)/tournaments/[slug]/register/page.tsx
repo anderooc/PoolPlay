@@ -22,9 +22,21 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BackLink } from "@/components/layout/back-link";
 import { RegisterForm } from "./register-form";
+import type { Metadata } from "next";
+import { getTournamentNameBySlug } from "@/lib/tournaments/metadata";
+import { pageMetadata, pageTitle } from "@/lib/metadata";
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: Pick<Props, "params">): Promise<Metadata> {
+  const { slug } = await params;
+  const name = await getTournamentNameBySlug(slug);
+  if (!name) return pageMetadata("Register");
+  return pageMetadata(pageTitle("Register", name));
 }
 
 const teamSelectFields = {

@@ -13,6 +13,9 @@ import { Building2, Plus, Users } from "lucide-react";
 import { isStandaloneTeam } from "@/lib/teams/verification";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata("Teams");
 
 export default async function TeamsPage() {
   const user = await getCurrentUser();

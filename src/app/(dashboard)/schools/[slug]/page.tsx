@@ -33,9 +33,24 @@ import {
 import { SchoolHeaderActions } from "./school-header-actions";
 import { SchoolRoster } from "./school-roster";
 import { VerificationControls } from "./verification-controls";
+import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/metadata";
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: Pick<Props, "params">): Promise<Metadata> {
+  const { slug } = await params;
+  const [school] = await db
+    .select({ name: schools.name })
+    .from(schools)
+    .where(eq(schools.slug, slug))
+    .limit(1);
+
+  return pageMetadata(school?.name ?? "School");
 }
 
 export const dynamic = "force-dynamic";

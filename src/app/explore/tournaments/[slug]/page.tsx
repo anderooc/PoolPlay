@@ -18,9 +18,20 @@ import { isTournamentPublishedForPublic } from "@/lib/tournaments/permissions";
 import { formatTournamentDateDisplay } from "@/lib/date-iso";
 import { ArrowRight, Calendar, User } from "lucide-react";
 import { TournamentLocationLink } from "@/components/tournament-location-link";
+import type { Metadata } from "next";
+import { getTournamentNameBySlug } from "@/lib/tournaments/metadata";
+import { pageMetadata } from "@/lib/metadata";
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: Pick<Props, "params">): Promise<Metadata> {
+  const { slug } = await params;
+  const name = await getTournamentNameBySlug(slug);
+  return pageMetadata(name ?? "Tournament");
 }
 
 export default async function ExploreTournamentPage({ params }: Props) {

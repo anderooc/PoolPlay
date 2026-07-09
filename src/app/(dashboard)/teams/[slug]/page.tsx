@@ -21,9 +21,24 @@ import { isStandaloneTeam } from "@/lib/teams/verification";
 import { AddMemberForm } from "./add-member-form";
 import { RosterRow } from "./roster-row";
 import { TeamDeleteButton } from "./team-delete-button";
+import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/metadata";
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: Pick<Props, "params">): Promise<Metadata> {
+  const { slug } = await params;
+  const [team] = await db
+    .select({ name: teams.name })
+    .from(teams)
+    .where(eq(teams.slug, slug))
+    .limit(1);
+
+  return pageMetadata(team?.name ?? "Team");
 }
 
 export default async function TeamDetailPage({ params }: Props) {

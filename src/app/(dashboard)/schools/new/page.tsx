@@ -4,6 +4,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { schoolMembers, schools } from "@/lib/db/schema";
 import { NewSchoolForm } from "./new-school-form";
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata("New school");
 
 export const dynamic = "force-dynamic";
 

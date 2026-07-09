@@ -12,6 +12,9 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Building2, Plus } from "lucide-react";
 import { formatTeamGender, formatTeamRegion } from "@/lib/labels/team";
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata("Schools");
 
 export const dynamic = "force-dynamic";
 

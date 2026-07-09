@@ -58,10 +58,27 @@ import { TournamentMessagesTabPanel } from "./panels/messages-panel";
 import { TournamentChatTabPanel } from "./panels/chat-panel";
 import { TournamentPanelSkeleton } from "./panels/panel-skeleton";
 import { TournamentChatNotifier } from "./tournament-chat-notifier";
+import type { Metadata } from "next";
+import {
+  getTournamentNameBySlug,
+  tournamentDetailTitle,
+} from "@/lib/tournaments/metadata";
+import { pageMetadata } from "@/lib/metadata";
 
 interface Props {
   params: Promise<{ slug: string }>;
   searchParams?: Promise<{ tab?: string; division?: string; pool?: string }>;
+}
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: Pick<Props, "params" | "searchParams">): Promise<Metadata> {
+  const { slug } = await params;
+  const sp = (await searchParams) ?? {};
+  const name = await getTournamentNameBySlug(slug);
+  if (!name) return pageMetadata("Tournament");
+  return pageMetadata(tournamentDetailTitle(name, sp.tab));
 }
 
 export default async function TournamentDetailPage({

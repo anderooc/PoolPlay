@@ -10,6 +10,9 @@ import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { ScheduleControls } from "./schedule-controls";
 import { warmupMinutesForFormat, type WarmupFormat } from "@/lib/labels/warmup-format";
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata("Schedule");
 
 export default async function SchedulePage() {
   const user = await getCurrentUser();

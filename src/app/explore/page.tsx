@@ -10,6 +10,9 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { getCurrentAuthProfile } from "@/lib/auth";
 import { TournamentGrid } from "@/components/tournament-grid";
 import { enrichTournamentsWithHostSchools } from "@/lib/tournaments/host-school";
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata("Explore tournaments");
 
 export const dynamic = "force-dynamic";
 
