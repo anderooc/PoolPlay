@@ -8,6 +8,7 @@ import {
   useLayoutEffect,
   useEffect,
 } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -16,8 +17,6 @@ import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { TournamentHostSchoolLink } from "@/components/tournament-host-school-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
-import { DatePickerCalendar } from "@/components/date-picker";
-import { DateScrollWheel } from "@/components/date-scroll-wheel";
 import {
   Popover,
   PopoverContent,
@@ -38,6 +37,34 @@ import { cn } from "@/lib/utils";
 import { isTournamentArchived, todayISO } from "@/lib/tournament-status";
 import type { TeamGender, TeamRegion } from "@/types";
 import type { TournamentHostSchool } from "@/lib/tournaments/host-school";
+
+const DateScrollWheel = dynamic(
+  () =>
+    import("@/components/date-scroll-wheel").then((mod) => ({
+      default: mod.DateScrollWheel,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="flex h-[180px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground"
+        aria-hidden
+      >
+        Loading schedule…
+      </div>
+    ),
+  }
+);
+
+const DatePickerCalendar = dynamic(
+  () =>
+    import("@/components/date-picker").then((mod) => ({
+      default: mod.DatePickerCalendar,
+    })),
+  {
+    loading: () => <div className="h-[280px] w-[280px]" aria-hidden />,
+  }
+);
 
 /**
  * Distance from the top of the schedule container to the active date
