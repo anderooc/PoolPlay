@@ -13,6 +13,7 @@ import {
   filterVisibleTournaments,
   getUserSchoolIds,
 } from "@/lib/tournaments/access";
+import { tournamentListColumns } from "@/lib/tournaments/list-columns";
 import { pageMetadata } from "@/lib/metadata";
 
 export const metadata = pageMetadata("Tournaments");
@@ -24,7 +25,7 @@ export default async function TournamentsPage() {
   if (!user) redirect("/login");
 
   const [allTournaments, userSchoolIds] = await Promise.all([
-    db.select().from(tournaments).orderBy(asc(tournaments.date)),
+    db.select(tournamentListColumns).from(tournaments).orderBy(asc(tournaments.date)),
     getUserSchoolIds(user.id),
   ]);
 

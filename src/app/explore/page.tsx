@@ -10,6 +10,7 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { getCurrentAuthProfile } from "@/lib/auth";
 import { TournamentGrid } from "@/components/tournament-grid";
 import { enrichTournamentsWithHostSchools } from "@/lib/tournaments/host-school";
+import { tournamentListColumns } from "@/lib/tournaments/list-columns";
 import { pageMetadata } from "@/lib/metadata";
 
 export const metadata = pageMetadata("Explore tournaments");
@@ -21,7 +22,7 @@ export default async function ExplorePage() {
 
   const allTournaments = await enrichTournamentsWithHostSchools(
     await db
-      .select()
+      .select(tournamentListColumns)
       .from(tournaments)
       .where(ne(tournaments.status, "draft"))
       .orderBy(desc(tournaments.date))
