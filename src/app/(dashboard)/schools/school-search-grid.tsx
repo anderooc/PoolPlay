@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Building2, Search } from "lucide-react";
+import { Building2, Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -14,18 +15,11 @@ import type {
   TeamGender,
   TeamRegion,
 } from "@/types";
+import type { SchoolSearchItem } from "@/lib/schools/search";
+import { searchSchoolsForDiscovery } from "./actions";
 import { SchoolListFilters } from "./school-list-filters";
 
-export type SchoolSearchItem = {
-  id: string;
-  slug: string;
-  name: string;
-  university: string;
-  gender: TeamGender;
-  region: TeamRegion;
-  verificationStatus: SchoolVerificationStatus;
-  teamCount: number;
-};
+const SEARCH_DEBOUNCE_MS = 300;
 
 function toggleSetValue<T extends string>(set: Set<T>, value: T): Set<T> {
   const next = new Set(set);
@@ -34,38 +28,35 @@ function toggleSetValue<T extends string>(set: Set<T>, value: T): Set<T> {
   return next;
 }
 
-function matchesQuery(school: SchoolSearchItem, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
+function SchoolCard({ school }: { school: SchoolSearchItem }) {
   return (
-    school.name.toLowerCase().includes(q) ||
-    school.university.toLowerCase().includes(q)
+    <Link href={`/schools/${school.slug}`}>
+      <Card className="h-full cursor-pointer transition-colors duration-150 hover:bg-muted/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg leading-tight">{school.name}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground">{school.university}</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant="secondary">{formatTeamGender(school.gender)}</Badge>
+            <Badge variant="outline">{formatTeamRegion(school.region)}</Badge>
+            <StatusBadge
+              kind="verification"
+              status={school.verificationStatus}
+            />
+            <span className="text-xs text-muted-foreground">
+              {school.teamCount} team{school.teamCount === 1 ? "" : "s"}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
 
-function matchesFilters(
-  school: SchoolSearchItem,
-  genderFilter: ReadonlySet<TeamGender>,
-  regionFilter: ReadonlySet<TeamRegion>,
-  verificationFilter: ReadonlySet<SchoolVerificationStatus>
-): boolean {
-  if (genderFilter.size > 0 && !genderFilter.has(school.gender)) {
-    return false;
-  }
-  if (regionFilter.size > 0 && !regionFilter.has(school.region)) {
-    return false;
-  }
-  if (
-    verificationFilter.size > 0 &&
-    !verificationFilter.has(school.verificationStatus)
-  ) {
-    return false;
-  }
-  return true;
-}
-
-export function SchoolSearchGrid({ schools }: { schools: SchoolSearchItem[] }) {
+export function SchoolSearchGrid({ hasSchools }: { hasSchools: boolean }) {
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [genderFilter, setGenderFilter] = useState<Set<TeamGender>>(
     () => new Set()
   );
@@ -75,24 +66,102 @@ export function SchoolSearchGrid({ schools }: { schools: SchoolSearchItem[] }) {
   const [verificationFilter, setVerificationFilter] = useState<
     Set<SchoolVerificationStatus>
   >(() => new Set());
+  const [results, setResults] = useState<SchoolSearchItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(query);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  const searchInput = useMemo(
+    () => ({
+      query: debouncedQuery,
+      genders: [...genderFilter],
+      regions: [...regionFilter],
+      verificationStatuses: [...verificationFilter],
+    }),
+    [debouncedQuery, genderFilter, regionFilter, verificationFilter]
+  );
 
   const hasSearchCriteria =
-    query.trim().length > 0 ||
+    debouncedQuery.trim().length > 0 ||
     genderFilter.size > 0 ||
     regionFilter.size > 0 ||
     verificationFilter.size > 0;
 
-  const filtered = useMemo(
+  const searchKey = useMemo(
     () =>
-      schools.filter(
-        (school) =>
-          matchesQuery(school, query) &&
-          matchesFilters(school, genderFilter, regionFilter, verificationFilter)
-      ),
-    [schools, query, genderFilter, regionFilter, verificationFilter]
+      JSON.stringify({
+        query: debouncedQuery.trim(),
+        genders: [...genderFilter].sort(),
+        regions: [...regionFilter].sort(),
+        verificationStatuses: [...verificationFilter].sort(),
+      }),
+    [debouncedQuery, genderFilter, regionFilter, verificationFilter]
   );
 
-  if (schools.length === 0) {
+  useEffect(() => {
+    if (!hasSearchCriteria) {
+      setResults([]);
+      setTotal(0);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    void searchSchoolsForDiscovery({ ...searchInput, offset: 0 }).then(
+      (response) => {
+        if (cancelled) return;
+        if ("error" in response) {
+          setError(response.error);
+          setResults([]);
+          setTotal(0);
+        } else {
+          setResults(response.schools);
+          setTotal(response.total);
+          setError(null);
+        }
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasSearchCriteria, searchKey, searchInput]);
+
+  const loadMore = useCallback(async () => {
+    if (!hasSearchCriteria || loadingMore || results.length >= total) return;
+
+    setLoadingMore(true);
+    setError(null);
+
+    const response = await searchSchoolsForDiscovery({
+      ...searchInput,
+      offset: results.length,
+    });
+
+    if ("error" in response) {
+      setError(response.error);
+    } else {
+      setResults((prev) => [...prev, ...response.schools]);
+      setTotal(response.total);
+    }
+
+    setLoadingMore(false);
+  }, [hasSearchCriteria, loadingMore, results.length, searchInput, total]);
+
+  if (!hasSchools) {
     return (
       <EmptyState
         icon={Building2}
@@ -147,50 +216,59 @@ export function SchoolSearchGrid({ schools }: { schools: SchoolSearchItem[] }) {
           title="Search or filter schools"
           description="Type a school or university name, or use filters for gender, region, and verification status."
         />
-      ) : filtered.length === 0 ? (
+      ) : loading ? (
+        <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          Searching schools…
+        </div>
+      ) : error ? (
+        <EmptyState
+          icon={Building2}
+          title="Search failed"
+          description={error}
+        />
+      ) : results.length === 0 ? (
         <EmptyState
           icon={Building2}
           title="No matches"
           description={
-            query.trim()
-              ? `Nothing matches "${query.trim()}". Try different words or filters.`
+            debouncedQuery.trim()
+              ? `Nothing matches "${debouncedQuery.trim()}". Try different words or filters.`
               : "No schools match the selected filters. Try adjusting or clearing filters."
           }
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((school) => (
-            <Link key={school.id} href={`/schools/${school.slug}`}>
-              <Card className="h-full cursor-pointer transition-colors duration-150 hover:bg-muted/30">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg leading-tight">
-                    {school.name}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    {school.university}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge variant="secondary">
-                      {formatTeamGender(school.gender)}
-                    </Badge>
-                    <Badge variant="outline">
-                      {formatTeamRegion(school.region)}
-                    </Badge>
-                    <StatusBadge
-                      kind="verification"
-                      status={school.verificationStatus}
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {school.teamCount} team
-                      {school.teamCount === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            {total === 1 ? "1 school" : `${total} schools`}
+            {results.length < total
+              ? ` · showing ${results.length}`
+              : null}
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {results.map((school) => (
+              <SchoolCard key={school.id} school={school} />
+            ))}
+          </div>
+          {results.length < total ? (
+            <div className="flex justify-center pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void loadMore()}
+                disabled={loadingMore}
+              >
+                {loadingMore ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading…
+                  </>
+                ) : (
+                  `Load more (${total - results.length} remaining)`
+                )}
+              </Button>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

@@ -28,6 +28,69 @@ import {
   type CurrentSchoolMembership,
 } from "@/lib/schools/permissions";
 import type { SchoolMemberRole } from "@/types";
+import { z } from "zod";
+import { TEAM_GENDERS, TEAM_REGIONS } from "@/lib/constants/team";
+import {
+  hasSchoolSearchCriteria,
+  searchSchools,
+  type SchoolSearchItem,
+} from "@/lib/schools/search";
+
+const schoolSearchSchema = z.object({
+  query: z.string().max(200).optional().default(""),
+  genders: z.array(z.enum(TEAM_GENDERS)).optional().default([]),
+  regions: z.array(z.enum(TEAM_REGIONS)).optional().default([]),
+  verificationStatuses: z
+    .array(z.enum(["pending", "verified", "rejected"]))
+    .optional()
+    .default([]),
+  offset: z.number().int().min(0).optional().default(0),
+});
+
+export type SchoolSearchResult =
+  | { error: string }
+  | {
+      success: true;
+      schools: SchoolSearchItem[];
+      total: number;
+      limit: number;
+      offset: number;
+    };
+
+export async function searchSchoolsForDiscovery(
+  input: z.input<typeof schoolSearchSchema>
+): Promise<SchoolSearchResult> {
+  await requireUser();
+
+  const parsed = schoolSearchSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: "Invalid search." };
+  }
+
+  const { query, genders, regions, verificationStatuses, offset } =
+    parsed.data;
+
+  if (
+    !hasSchoolSearchCriteria({
+      query,
+      genders,
+      regions,
+      verificationStatuses,
+    })
+  ) {
+    return { error: "Enter a search term or choose at least one filter." };
+  }
+
+  const result = await searchSchools({
+    query,
+    genders,
+    regions,
+    verificationStatuses,
+    offset,
+  });
+
+  return { success: true, ...result };
+}
 
 async function loadMembership(
   schoolId: string,

@@ -1,13 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { asc, count, eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { schools, teams } from "@/lib/db/schema";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { Plus } from "lucide-react";
 import { getUserSchoolSummary } from "@/lib/schools/navigation";
+import { countSchools } from "@/lib/schools/search";
 import { pageMetadata } from "@/lib/metadata";
 import { SchoolSearchGrid } from "./school-search-grid";
 
@@ -19,23 +17,9 @@ export default async function SchoolsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [mySchool, rows] = await Promise.all([
+  const [mySchool, schoolCount] = await Promise.all([
     getUserSchoolSummary(user.id),
-    db
-      .select({
-        id: schools.id,
-        slug: schools.slug,
-        name: schools.name,
-        university: schools.university,
-        gender: schools.gender,
-        region: schools.region,
-        verificationStatus: schools.verificationStatus,
-        teamCount: count(teams.id),
-      })
-      .from(schools)
-      .leftJoin(teams, eq(teams.schoolId, schools.id))
-      .groupBy(schools.id)
-      .orderBy(asc(schools.name)),
+    countSchools(),
   ]);
 
   return (
@@ -67,7 +51,7 @@ export default async function SchoolsPage() {
         }
       />
 
-      <SchoolSearchGrid schools={rows} />
+      <SchoolSearchGrid hasSchools={schoolCount > 0} />
     </div>
   );
 }
