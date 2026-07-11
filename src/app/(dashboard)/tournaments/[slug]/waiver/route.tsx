@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { userCanAccessTournamentWaiver } from "@/lib/tournaments/waiver-access";
 import { getLatestTournamentWaiver } from "@/lib/tournaments/waiver-compliance";
 import { downloadTournamentWaiverPdf } from "@/lib/tournaments/waiver-storage";
+import { contentDispositionHeader } from "@/lib/security/content-disposition";
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
@@ -60,7 +61,9 @@ export async function GET(_request: Request, context: RouteContext) {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": contentDispositionHeader(filename, {
+          fallback: `${slug}-waiver.pdf`,
+        }),
         "Cache-Control": "no-store",
       },
     });

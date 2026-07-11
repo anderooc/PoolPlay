@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { gatherPacketData } from "@/lib/tournaments/packet-data";
 import { userCanDownloadTournamentPacket } from "@/lib/tournaments/packet-access";
 import { TournamentPacketDocument } from "@/lib/tournaments/packet-pdf";
+import { contentDispositionHeader } from "@/lib/security/content-disposition";
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
@@ -67,9 +68,10 @@ export async function GET(request: Request, context: RouteContext) {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": preview
-        ? `inline; filename="${filename}"`
-        : `attachment; filename="${filename}"`,
+      "Content-Disposition": contentDispositionHeader(filename, {
+        inline: preview,
+        fallback: "tournament-packet.pdf",
+      }),
       "Cache-Control": "no-store",
     },
   });
