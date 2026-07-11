@@ -10,7 +10,9 @@ export async function updateSession(request: NextRequest) {
     (pathname.startsWith("/dashboard") ||
       pathname.startsWith("/teams") ||
       pathname.startsWith("/tournaments") ||
-      pathname.startsWith("/schedule"));
+      pathname.startsWith("/schedule") ||
+      pathname.startsWith("/schools") ||
+      pathname.startsWith("/admin"));
 
   // Skip auth lookup entirely for public pages.
   if (!isAuthPage && !isProtectedPage) {
