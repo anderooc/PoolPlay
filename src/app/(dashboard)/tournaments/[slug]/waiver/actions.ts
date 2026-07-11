@@ -23,6 +23,7 @@ import {
   tournamentWaiverStoragePath,
   uploadTournamentWaiverPdf,
 } from "@/lib/tournaments/waiver-storage";
+import { isPdfBytes } from "@/lib/security/pdf";
 import {
   canEditTournamentSetup,
   isTournamentOrganizer,
@@ -61,13 +62,13 @@ const waiverSettingsSchema = z
     if (value.thirdPartyUrl) {
       try {
         const url = new URL(value.thirdPartyUrl);
-        if (url.protocol !== "https:" && url.protocol !== "http:") {
+        if (url.protocol !== "https:") {
           throw new Error("invalid");
         }
       } catch {
         ctx.addIssue({
           code: "custom",
-          message: "Third-party link must be a valid URL.",
+          message: "Third-party link must be a valid HTTPS URL.",
           path: ["thirdPartyUrl"],
         });
       }
@@ -201,6 +202,10 @@ export async function uploadTournamentWaiver(
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
+  if (!isPdfBytes(bytes)) {
+    return { error: "Waiver must be a valid PDF file." };
+  }
+
   const waiverId = randomUUID();
   const storagePath = tournamentWaiverStoragePath(tournamentId, waiverId);
 
