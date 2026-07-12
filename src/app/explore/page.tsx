@@ -30,6 +30,7 @@ import { TournamentGrid } from "@/components/tournament-grid";
 import { enrichTournamentsWithHostSchools } from "@/lib/tournaments/host-school";
 import { tournamentListColumns } from "@/lib/tournaments/list-columns";
 import { pageMetadata } from "@/lib/metadata";
+import { PublicSiteFooter } from "@/components/layout/public-site-footer";
 
 export const metadata = pageMetadata("Explore tournaments");
 
@@ -100,9 +101,7 @@ export default async function ExplorePage() {
         </div>
       </main>
 
-      <footer className="border-t py-6 text-center text-sm text-muted-foreground">
-        <PoolPlayMark wordmarkClassName="text-sm font-bold" />
-      </footer>
+      <PublicSiteFooter />
     </div>
   );
 }

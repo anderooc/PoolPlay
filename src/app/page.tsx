@@ -25,6 +25,7 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { Trophy, Users, Calendar, Zap, ArrowRight, Volleyball } from "lucide-react";
 import { getCurrentAuthProfile } from "@/lib/auth";
 import { pageMetadata } from "@/lib/metadata";
+import { PublicSiteFooter } from "@/components/layout/public-site-footer";
 
 export const metadata = pageMetadata("Home");
 
@@ -252,12 +253,7 @@ export default async function HomePage() {
         )}
       </main>
 
-      <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-        <PoolPlayMark wordmarkClassName="text-sm font-bold" />
-        <p className="mt-2 text-xs">
-          Tournament hub for collegiate club volleyball.
-        </p>
-      </footer>
+      <PublicSiteFooter showTagline />
     </div>
   );
 }

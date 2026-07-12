@@ -20,6 +20,9 @@ import type { Metadata } from "next";
 
 export const APP_NAME = "PoolPlay";
 
+export const COPYRIGHT_HOLDER = "Andrew Chang";
+export const COPYRIGHT_YEAR = 2026;
+
 export const APP_DEFAULT_DESCRIPTION =
   "Organize tournaments, manage teams, run pools and brackets, schedule courts, and track live scores for college club volleyball.";
 
