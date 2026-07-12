@@ -23,11 +23,18 @@ import { PoolPlayMark } from "@/components/layout/poolplay-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Trophy, Users, Calendar, Zap, ArrowRight, Volleyball } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { getCurrentAuthProfile } from "@/lib/auth";
 import { pageMetadata } from "@/lib/metadata";
 import { PublicSiteFooter } from "@/components/layout/public-site-footer";
+import { TournamentDemoSection } from "@/components/marketing/tournament-demo-section";
+import { AudienceSplitSection } from "@/components/marketing/audience-split-section";
+import { FeaturedTournamentsSection } from "@/components/marketing/featured-tournaments-section";
+import { OperationsFeaturesSection } from "@/components/marketing/operations-features-section";
 
 export const metadata = pageMetadata("Home");
+
+export const dynamic = "force-dynamic";
 
 const FEATURES = [
   {
@@ -57,9 +64,9 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { value: "4", label: "Bracket formats" },
-  { value: "9", label: "Regions covered" },
-  { value: "Live", label: "Real-time scoring" },
+  { value: "50+", label: "Teams per tournament" },
+  { value: "1,000+", label: "Matches tracked" },
+  { value: "9", label: "Regions nationwide" },
 ];
 
 export default async function HomePage() {
@@ -125,7 +132,7 @@ export default async function HomePage() {
               </h1>
 
               <p className="mx-auto mt-6 max-w-xl text-pretty text-base text-muted-foreground sm:text-lg">
-                Pools, brackets, court scheduling, and live scores in one place —
+                Pools, brackets, court scheduling, and live scores in one place,
                 so hosts, teams, and fans can ditch the spreadsheets and group
                 chats.
               </p>
@@ -152,6 +159,16 @@ export default async function HomePage() {
                   >
                     Browse Tournaments
                   </Link>
+                  <Link
+                    href="#demo"
+                    className={buttonVariants({
+                      size: "lg",
+                      variant: "ghost",
+                      className: "h-11 px-6 text-sm",
+                    })}
+                  >
+                    Watch demo
+                  </Link>
                 </div>
               )}
 
@@ -174,42 +191,66 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="relative border-t bg-muted/20">
+        <AudienceSplitSection />
+
+        <TournamentDemoSection />
+
+        <FeaturedTournamentsSection />
+
+        <section className="relative border-t">
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 bg-line-grid [mask-image:radial-gradient(ellipse_70%_80%_at_50%_50%,black,transparent)]"
           />
           <div className="container relative mx-auto px-4 py-20">
-            <div className="mx-auto mb-12 max-w-2xl text-center">
-              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            <div className="max-w-2xl">
+              <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
                 Everything to run game day
               </h2>
-              <p className="mt-3 text-muted-foreground">
+              <p className="mt-3 max-w-xl text-pretty text-muted-foreground">
                 From the first registration to the final point.
               </p>
             </div>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {FEATURES.map((feature) => (
-                <div
+
+            <div className="mt-12 overflow-hidden rounded-3xl ring-1 ring-border/70">
+              {FEATURES.map((feature, index) => (
+                <article
                   key={feature.title}
-                  className="group relative overflow-hidden rounded-2xl border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5"
+                  className={cn(
+                    "group relative grid gap-6 overflow-hidden px-6 py-8 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-8 sm:px-10 sm:py-10",
+                    index > 0 && "border-t border-border/60",
+                    index % 2 === 0
+                      ? "bg-muted/20"
+                      : "bg-gradient-to-r from-primary/[0.05] via-card to-secondary/[0.05]"
+                  )}
                 >
+                  <feature.icon
+                    aria-hidden
+                    className="pointer-events-none absolute -bottom-6 -right-4 h-28 w-28 text-foreground/[0.04] sm:h-32 sm:w-32"
+                  />
                   <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${feature.accent} ring-1 ring-inset ring-foreground/5 transition-transform duration-300 group-hover:scale-110`}
+                    className={cn(
+                      "relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ring-1 ring-inset ring-foreground/5 transition-transform duration-300 group-hover:scale-105",
+                      feature.accent
+                    )}
                   >
                     <feature.icon className="h-6 w-6" />
                   </div>
-                  <h3 className="mt-4 font-heading text-lg font-semibold">
-                    {feature.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    {feature.desc}
-                  </p>
-                </div>
+                  <div className="relative min-w-0">
+                    <h3 className="font-heading text-xl font-semibold tracking-tight">
+                      {feature.title}
+                    </h3>
+                    <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground sm:text-base">
+                      {feature.desc}
+                    </p>
+                  </div>
+                </article>
               ))}
             </div>
           </div>
         </section>
+
+        <OperationsFeaturesSection />
 
         {!user && (
           <section className="container mx-auto px-4 py-20">
