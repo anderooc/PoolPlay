@@ -1,3 +1,19 @@
+-- PoolPlay - Collegiate club volleyball tournament hub
+-- Copyright (C) 2026 Andrew Chang
+--
+-- This program is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 -- Tournament-wide match format settings drive scoring defaults and auto-finalization.
 -- play_all_3:        play all 3 sets regardless of standing (common 3-team pool format)
 -- best_of_2:         play exactly 2 sets, ties allowed (broken by points in standings)
