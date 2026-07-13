@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 const TOP_LINKS = [
   { href: "/", label: "Home" },
   { href: "/explore", label: "Explore" },
+  { href: "/about", label: "About" },
   { href: "/dashboard", label: "Dashboard" },
 ] as const;
 

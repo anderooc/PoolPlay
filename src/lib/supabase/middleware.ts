@@ -22,7 +22,8 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
-  const isPublicPage = pathname.startsWith("/explore");
+  const isPublicPage =
+    pathname.startsWith("/explore") || pathname.startsWith("/about");
   const isProtectedPage =
     !isPublicPage &&
     (pathname.startsWith("/dashboard") ||

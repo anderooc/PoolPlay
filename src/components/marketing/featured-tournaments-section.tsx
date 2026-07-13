@@ -155,7 +155,10 @@ function TournamentTile({
             gender={tournament.gender}
             region={tournament.region}
           />
-          <TournamentHostSchoolLink school={tournament.hostSchool} />
+          <TournamentHostSchoolLink
+            school={tournament.hostSchool}
+            asLink={false}
+          />
         </div>
       </div>
     </Link>

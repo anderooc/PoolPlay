@@ -29,7 +29,18 @@ export function PublicSiteFooter({ showTagline = false }: { showTagline?: boolea
           Tournament hub for collegiate club volleyball.
         </p>
       ) : null}
-      <p className="mt-2 text-xs">
+      <nav
+        aria-label="Footer"
+        className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs"
+      >
+        <Link href="/about" className="underline-offset-4 hover:underline">
+          About
+        </Link>
+        <Link href="/explore" className="underline-offset-4 hover:underline">
+          Explore
+        </Link>
+      </nav>
+      <p className="mt-3 text-xs">
         © {COPYRIGHT_YEAR} {COPYRIGHT_HOLDER}. Licensed under{" "}
         <Link
           href="https://www.gnu.org/licenses/gpl-3.0.html"

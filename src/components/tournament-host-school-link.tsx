@@ -24,25 +24,38 @@ import type { TournamentHostSchool } from "@/lib/tournaments/host-school";
 export function TournamentHostSchoolLink({
   school,
   className,
+  asLink = true,
 }: {
   school: TournamentHostSchool | null | undefined;
   className?: string;
+  /** Set false when rendered inside another link to avoid nested anchors. */
+  asLink?: boolean;
 }) {
   if (!school) return null;
 
-  return (
-    <Link
-      href={`/schools/${school.slug}`}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-        className
-      )}
-    >
+  const classNames = cn(
+    "inline-flex items-center gap-1.5 rounded-full border bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground",
+    asLink && "hover:bg-muted/60 hover:text-foreground",
+    className
+  );
+
+  const content = (
+    <>
       <Building2 className="h-3 w-3 shrink-0" />
       <span>Hosted by {school.name}</span>
       {school.verificationStatus === "verified" && (
         <CheckCircle2 className="h-3 w-3 shrink-0 text-success" />
       )}
+    </>
+  );
+
+  if (!asLink) {
+    return <span className={classNames}>{content}</span>;
+  }
+
+  return (
+    <Link href={`/schools/${school.slug}`} className={classNames}>
+      {content}
     </Link>
   );
 }
