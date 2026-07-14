@@ -137,6 +137,19 @@ export const teamVerificationStatusEnum = pgEnum("team_verification_status", [
 
 export const teamGenderEnum = pgEnum("team_gender", ["mens", "womens"]);
 
+export const userPlayerGenderEnum = pgEnum("user_player_gender", [
+  "male",
+  "female",
+]);
+
+export const volleyballPositionEnum = pgEnum("volleyball_position", [
+  "outside_hitter",
+  "middle_blocker",
+  "opposite_hitter",
+  "setter",
+  "libero_ds",
+]);
+
 export const teamRegionEnum = pgEnum("team_region", [
   "north",
   "northeast",
@@ -157,6 +170,12 @@ export const users = pgTable("users", {
   email: text("email").unique().notNull(),
   fullName: text("full_name").notNull(),
   university: text("university"),
+  avatarStoragePath: text("avatar_storage_path"),
+  /** Player's own gender for profile display; unrelated to team/school gender. */
+  playerGender: userPlayerGenderEnum("player_gender"),
+  volleyballPosition: volleyballPositionEnum("volleyball_position"),
+  displayEmail: text("display_email"),
+  displaySchool: text("display_school"),
   role: userRoleEnum("role").default("player").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

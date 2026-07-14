@@ -18,6 +18,10 @@
 
 import { z } from "zod/v4";
 import { TEAM_GENDERS, TEAM_REGIONS } from "@/lib/constants/team";
+import {
+  USER_PLAYER_GENDERS,
+  VOLLEYBALL_POSITIONS,
+} from "@/lib/constants/profile";
 import { PLAY_FORMATS } from "@/lib/labels/play-format";
 import { isCollegeEmail } from "@/lib/utils/college-email";
 
@@ -36,6 +40,30 @@ export const signUpSchema = z.object({
 export const loginSchema = z.object({
   email: z.email(),
   password: z.string().min(1, "Password is required"),
+});
+
+const optionalEnum = <T extends readonly string[]>(values: T) =>
+  z
+    .union([z.enum(values), z.literal("")])
+    .optional()
+    .transform((value) => (value === "" || value === undefined ? null : value));
+
+export const updateProfileSchema = z.object({
+  fullName: z.string().trim().min(1, "Name is required").max(120),
+  playerGender: optionalEnum(USER_PLAYER_GENDERS),
+  volleyballPosition: optionalEnum(VOLLEYBALL_POSITIONS),
+  displayEmail: z
+    .union([z.literal(""), z.email("Enter a valid email address")])
+    .optional()
+    .transform((value) => (value === "" || value === undefined ? null : value)),
+  displaySchool: z
+    .string()
+    .max(120)
+    .optional()
+    .transform((value) => {
+      const trimmed = value?.trim() ?? "";
+      return trimmed.length > 0 ? trimmed : null;
+    }),
 });
 
 export const forgotPasswordSchema = z.object({
@@ -160,6 +188,7 @@ export const updateMatchFormatSchema = updateMatchFormatBaseSchema
 
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type CreateTeamInput = z.infer<typeof createTeamSchema>;
 export type CreateTournamentInput = z.infer<typeof createTournamentSchema>;
 export type CreateDivisionInput = z.infer<typeof createDivisionSchema>;

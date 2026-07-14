@@ -76,3 +76,12 @@ export type TeamRegion =
   | "southeast"
   | "west"
   | "northwest";
+
+export type UserPlayerGender = "male" | "female";
+
+export type VolleyballPosition =
+  | "outside_hitter"
+  | "middle_blocker"
+  | "opposite_hitter"
+  | "setter"
+  | "libero_ds";
