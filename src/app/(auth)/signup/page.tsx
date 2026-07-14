@@ -115,7 +115,7 @@ export default function SignupPage() {
                 disabled={isPending}
               />
               <p className="text-xs text-muted-foreground">
-                Must be an institutional address (e.g. .edu, .ac.uk, .edu.au).
+                Must be an institutional address (i.e. edu).
               </p>
             </div>
             <div className="space-y-2">
