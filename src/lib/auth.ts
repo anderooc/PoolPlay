@@ -96,13 +96,17 @@ export const getCurrentUser = cache(async () => {
   // but the DB insert failed, e.g. due to a connection issue at the time).
   // Auto-create the missing row so the app doesn't redirect-loop.
   const meta = authUser.user_metadata ?? {};
+  const university = (meta.university as string)?.trim() || null;
+  const accountEmail = authUser.email ?? "";
   const [newUser] = await db
     .insert(users)
     .values({
       authId: authUser.id,
-      email: authUser.email ?? "",
+      email: accountEmail,
       fullName: (meta.full_name as string) || authUser.email?.split("@")[0] || "User",
-      university: (meta.university as string) || null,
+      university,
+      displayEmail: accountEmail || null,
+      displaySchool: university,
       role: shouldBeAdmin ? "admin" : "player",
     })
     .onConflictDoNothing({ target: users.authId })

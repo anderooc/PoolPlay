@@ -180,6 +180,8 @@ export async function signup(formData: FormData) {
         email: parsed.data.email,
         fullName: parsed.data.fullName,
         university: parsed.data.university || null,
+        displayEmail: parsed.data.email,
+        displaySchool: parsed.data.university?.trim() || null,
         role: "player",
       });
     } catch {
