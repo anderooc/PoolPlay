@@ -52,18 +52,6 @@ export const updateProfileSchema = z.object({
   fullName: z.string().trim().min(1, "Name is required").max(120),
   playerGender: optionalEnum(USER_PLAYER_GENDERS),
   volleyballPosition: optionalEnum(VOLLEYBALL_POSITIONS),
-  displayEmail: z
-    .union([z.literal(""), z.email("Enter a valid email address")])
-    .optional()
-    .transform((value) => (value === "" || value === undefined ? null : value)),
-  displaySchool: z
-    .string()
-    .max(120)
-    .optional()
-    .transform((value) => {
-      const trimmed = value?.trim() ?? "";
-      return trimmed.length > 0 ? trimmed : null;
-    }),
 });
 
 export const forgotPasswordSchema = z.object({

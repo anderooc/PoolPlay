@@ -39,23 +39,17 @@ export async function updateProfile(formData: FormData) {
     fullName: formData.get("fullName"),
     playerGender: formData.get("playerGender"),
     volleyballPosition: formData.get("volleyballPosition"),
-    displayEmail: formData.get("displayEmail"),
-    displaySchool: formData.get("displaySchool"),
   });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
 
-  const contentError = checkContentFilter(
-    parsed.data.fullName,
-    parsed.data.displaySchool ?? undefined
-  );
+  const contentError = checkContentFilter(parsed.data.fullName);
   if (contentError) return { error: contentError };
 
   const moderationError = await flagBlockedContent(user.id, [
     { area: "profile.full_name", text: parsed.data.fullName },
-    { area: "profile.display_school", text: parsed.data.displaySchool },
   ]);
   if (moderationError) return { error: moderationError };
 
@@ -88,8 +82,6 @@ export async function updateProfile(formData: FormData) {
       fullName: parsed.data.fullName,
       playerGender: parsed.data.playerGender,
       volleyballPosition: parsed.data.volleyballPosition,
-      displayEmail: parsed.data.displayEmail,
-      displaySchool: parsed.data.displaySchool,
       avatarStoragePath,
       updatedAt: new Date(),
     })

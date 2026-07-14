@@ -126,35 +126,19 @@ export function ProfileForm({ defaults }: { defaults: ProfileFormDefaults }) {
           Public profile
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        <dl className="grid gap-4 text-sm sm:grid-cols-2">
+          <div className="space-y-1">
+            <dt className="text-muted-foreground">Email</dt>
+            <dd className="font-medium">{defaults.displayEmail ?? "—"}</dd>
+          </div>
+          <div className="space-y-1">
+            <dt className="text-muted-foreground">School</dt>
+            <dd className="font-medium">{defaults.displaySchool ?? "—"}</dd>
+          </div>
+        </dl>
+
         <form onSubmit={onSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="displayEmail">Display email</Label>
-            <Input
-              id="displayEmail"
-              name="displayEmail"
-              type="email"
-              defaultValue={defaults.displayEmail ?? ""}
-              disabled={loading}
-              autoComplete="email"
-            />
-            <p className="text-xs text-muted-foreground">
-              Shown on your profile. Does not change your sign-in email.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="displaySchool">Display school</Label>
-            <Input
-              id="displaySchool"
-              name="displaySchool"
-              defaultValue={defaults.displaySchool ?? ""}
-              placeholder="e.g. Emory University"
-              maxLength={120}
-              disabled={loading}
-            />
-          </div>
-
           <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
             <Avatar className="h-20 w-20 ring-2 ring-border">
               {previewUrl ? (
