@@ -22,8 +22,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { signUpSchema, loginSchema } from "@/lib/validators";
+import { signUpSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "@/lib/validators";
 import { checkContentFilter } from "@/lib/utils/content-filter";
+import { appBaseUrl } from "@/lib/email/resend";
 
 export async function login(formData: FormData) {
   const raw = {
@@ -53,6 +54,77 @@ export async function login(formData: FormData) {
   }
 
   redirect("/dashboard?welcome=1");
+}
+
+export async function requestPasswordReset(formData: FormData) {
+  const raw = {
+    email: formData.get("email") as string,
+  };
+
+  const parsed = forgotPasswordSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const supabase = await createClient();
+  const redirectTo = `${appBaseUrl()}/auth/callback?next=/reset-password`;
+
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+      redirectTo,
+    });
+    if (error) {
+      return { error: error.message };
+    }
+  } catch {
+    return {
+      error:
+        "Authentication service is unavailable or blocked from this network. Try again in a few minutes or switch networks.",
+    };
+  }
+
+  return {
+    success: true as const,
+    message:
+      "If an account exists for that email, we sent a link to reset your password.",
+  };
+}
+
+export async function updatePassword(formData: FormData) {
+  const raw = {
+    password: formData.get("password") as string,
+    confirmPassword: formData.get("confirmPassword") as string,
+  };
+
+  const parsed = resetPasswordSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Your reset link expired. Request a new one from the sign-in page." };
+  }
+
+  try {
+    const { error } = await supabase.auth.updateUser({
+      password: parsed.data.password,
+    });
+    if (error) {
+      return { error: error.message };
+    }
+  } catch {
+    return {
+      error:
+        "Authentication service is unavailable or blocked from this network. Try again in a few minutes or switch networks.",
+    };
+  }
+
+  redirect("/login?reset=success");
 }
 
 export async function signup(formData: FormData) {

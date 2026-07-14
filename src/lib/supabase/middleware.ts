@@ -21,7 +21,12 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
+  const isForgotPasswordPage = pathname === "/forgot-password";
+  const isResetPasswordPage = pathname === "/reset-password";
+  const isAuthPage =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    isForgotPasswordPage;
   const isPublicPage =
     pathname.startsWith("/explore") || pathname.startsWith("/about");
   const isProtectedPage =
@@ -34,7 +39,7 @@ export async function updateSession(request: NextRequest) {
       pathname.startsWith("/admin"));
 
   // Skip auth lookup entirely for public pages.
-  if (!isAuthPage && !isProtectedPage) {
+  if (!isAuthPage && !isProtectedPage && !isResetPasswordPage) {
     return NextResponse.next({ request });
   }
 
@@ -66,6 +71,12 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user && isProtectedPage) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
+  if (!user && isResetPasswordPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
