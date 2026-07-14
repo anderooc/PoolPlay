@@ -24,6 +24,7 @@ import { RouteFade } from "@/components/layout/route-fade";
 import { Toaster } from "@/components/ui/sonner";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { getUserSchoolSummary } from "@/lib/schools/navigation";
+import { profileAvatarPublicUrl } from "@/lib/profile/avatar-storage";
 
 export default async function DashboardLayout({
   children,
@@ -41,7 +42,13 @@ export default async function DashboardLayout({
         isAdmin={admin}
         schoolsHref={schoolsHref}
         user={
-          user ? { fullName: user.fullName, email: user.email } : null
+          user
+            ? {
+                fullName: user.fullName,
+                email: user.email,
+                avatarUrl: profileAvatarPublicUrl(user.avatarStoragePath),
+              }
+            : null
         }
       />
       <Suspense fallback={null}>

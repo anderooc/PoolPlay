@@ -18,7 +18,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,15 +30,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { logout } from "@/app/(auth)/actions";
 
 interface UserMenuProps {
   fullName: string;
   email: string;
+  avatarUrl?: string | null;
 }
 
-export function UserMenu({ fullName, email }: UserMenuProps) {
+export function UserMenu({ fullName, email, avatarUrl }: UserMenuProps) {
   const initials = fullName
     .split(" ")
     .map((n) => n[0])
@@ -56,6 +58,7 @@ export function UserMenu({ fullName, email }: UserMenuProps) {
         }
       >
         <Avatar className="h-9 w-9 ring-2 ring-transparent transition-all hover:ring-border">
+          {avatarUrl ? <AvatarImage src={avatarUrl} alt="" /> : null}
           <AvatarFallback className="bg-primary/10 text-primary font-medium">
             {initials}
           </AvatarFallback>
@@ -73,6 +76,13 @@ export function UserMenu({ fullName, email }: UserMenuProps) {
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="cursor-pointer"
+          render={<Link href="/profile" />}
+        >
+          <UserRound className="mr-2 h-4 w-4" />
+          Edit profile
+        </DropdownMenuItem>
         <DropdownMenuItem
           className="cursor-pointer"
           onClick={() => logout()}

@@ -25,6 +25,7 @@ import { UserMenu } from "./user-menu";
 export type HeaderUserProfile = {
   fullName: string;
   email: string;
+  avatarUrl?: string | null;
 };
 
 export function Header({
@@ -44,7 +45,13 @@ export function Header({
       <div className="flex-1" />
       <div className="flex shrink-0 items-center gap-1">
         <ThemeToggle />
-        {user && <UserMenu fullName={user.fullName} email={user.email} />}
+        {user && (
+          <UserMenu
+            fullName={user.fullName}
+            email={user.email}
+            avatarUrl={user.avatarUrl}
+          />
+        )}
       </div>
     </header>
   );

@@ -32,6 +32,7 @@ export async function updateSession(request: NextRequest) {
   const isProtectedPage =
     !isPublicPage &&
     (pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/profile") ||
       pathname.startsWith("/teams") ||
       pathname.startsWith("/tournaments") ||
       pathname.startsWith("/schedule") ||
