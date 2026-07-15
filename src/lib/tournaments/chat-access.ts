@@ -29,7 +29,7 @@ import { isAdmin } from "@/lib/auth";
 import { isSchoolOfficerOrAbove } from "@/lib/schools/permissions";
 import { isTournamentArchived } from "@/lib/tournament-status";
 import {
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
   type TournamentForPermissions,
   type UserForPermissions,
 } from "@/lib/tournaments/permissions";
@@ -71,7 +71,7 @@ export async function userCanViewTournamentChat(
   user: UserForPermissions,
   userTeamIds: Iterable<string>
 ): Promise<boolean> {
-  if (isTournamentOrganizer(tournament, user) || isAdmin(user)) return true;
+  if (await resolveIsTournamentOrganizer(tournament, user) || isAdmin(user)) return true;
 
   const teamIds =
     userTeamIds instanceof Set ? [...userTeamIds] : [...userTeamIds];

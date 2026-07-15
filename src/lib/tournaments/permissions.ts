@@ -16,8 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { cache } from "react";
 import { TEAM_GENDER_LABELS } from "@/lib/constants/team";
 import { isAdmin } from "@/lib/auth";
+import { getHostingSchoolForUser } from "@/lib/schools/hosting";
 import { isTournamentArchived } from "@/lib/tournament-status";
 import type { PlayFormat } from "@/lib/labels/play-format";
 import {
@@ -46,20 +48,50 @@ export type UserForPermissions = {
   role: string;
 };
 
+/** True when the user is president/officer of the given host school. */
+export const resolveHostSchoolOfficer = cache(
+  async (
+    hostSchoolId: string | null | undefined,
+    userId: string
+  ): Promise<boolean> => {
+    if (!hostSchoolId) return false;
+    const school = await getHostingSchoolForUser(hostSchoolId, userId, false);
+    return school != null;
+  }
+);
+
+/**
+ * Sync host check. Pass `isHostSchoolOfficer` when already resolved
+ * (prefer `resolveIsTournamentOrganizer` on the server).
+ */
 export function isTournamentOrganizer(
   tournament: Pick<TournamentForPermissions, "organizerId">,
-  user: UserForPermissions
+  user: UserForPermissions,
+  isHostSchoolOfficer = false
 ): boolean {
-  return tournament.organizerId === user.id || isAdmin(user);
+  return (
+    tournament.organizerId === user.id ||
+    isAdmin(user) ||
+    isHostSchoolOfficer
+  );
+}
+
+/** Creator, admin, or president/officer of the hosting school. */
+export async function resolveIsTournamentOrganizer(
+  tournament: Pick<TournamentForPermissions, "organizerId" | "hostSchoolId">,
+  user: UserForPermissions
+): Promise<boolean> {
+  if (tournament.organizerId === user.id || isAdmin(user)) return true;
+  return resolveHostSchoolOfficer(tournament.hostSchoolId, user.id);
 }
 
 /** Pool standings, matches, and brackets are host-only until released. */
-export function canViewDivisionPoolPlay(
-  tournament: Pick<TournamentForPermissions, "organizerId">,
+export async function canViewDivisionPoolPlay(
+  tournament: Pick<TournamentForPermissions, "organizerId" | "hostSchoolId">,
   user: UserForPermissions,
   poolsReleasedAt: Date | string | null
-): boolean {
-  if (isTournamentOrganizer(tournament, user)) return true;
+): Promise<boolean> {
+  if (await resolveIsTournamentOrganizer(tournament, user)) return true;
   return poolsReleasedAt != null;
 }
 
@@ -80,11 +112,11 @@ export function canViewTournament(
   return isHostSchoolMember;
 }
 
-export function canManageTournament(
+export async function canManageTournament(
   tournament: TournamentForPermissions,
   user: UserForPermissions
-): boolean {
-  return isTournamentOrganizer(tournament, user);
+): Promise<boolean> {
+  return resolveIsTournamentOrganizer(tournament, user);
 }
 
 /** Non-draft tournaments are visible on public explore. */
@@ -114,11 +146,11 @@ export function registrationGenderMismatchMessage(
   return `Only ${TEAM_GENDER_LABELS[tournamentGender]} teams can register for this tournament.`;
 }
 
-export function canEditTournamentSetup(
+export async function canEditTournamentSetup(
   tournament: TournamentForPermissions,
   user: UserForPermissions
-): boolean {
-  if (!isTournamentOrganizer(tournament, user)) return false;
+): Promise<boolean> {
+  if (!(await resolveIsTournamentOrganizer(tournament, user))) return false;
   return !isTournamentArchived(tournament.date);
 }
 
@@ -132,18 +164,18 @@ export function tournamentPreparationLockedReason(
   return null;
 }
 
-export function canEditTournamentPreparation(
+export async function canEditTournamentPreparation(
   tournament: TournamentForPermissions,
   user: UserForPermissions
-): boolean {
+): Promise<boolean> {
   return canEditTournamentSetup(tournament, user);
 }
 
-export function canEditRegistrations(
+export async function canEditRegistrations(
   tournament: TournamentForPermissions,
   user: UserForPermissions
-): boolean {
-  if (!isTournamentOrganizer(tournament, user)) return false;
+): Promise<boolean> {
+  if (!(await resolveIsTournamentOrganizer(tournament, user))) return false;
   if (isTournamentArchived(tournament.date)) return false;
   return (
     tournament.status === "registration_open" ||
@@ -151,22 +183,22 @@ export function canEditRegistrations(
   );
 }
 
-export function canGeneratePoolsAndBrackets(
+export async function canGeneratePoolsAndBrackets(
   tournament: TournamentForPermissions,
   user: UserForPermissions
-): boolean {
-  if (!isTournamentOrganizer(tournament, user)) return false;
+): Promise<boolean> {
+  if (!(await resolveIsTournamentOrganizer(tournament, user))) return false;
   if (isTournamentArchived(tournament.date)) return false;
   return tournament.status === "registration_closed";
 }
 
 /** Manual pool placement and pool generation require confirmed registrations. */
-export function canAssignTeamsToPools(
+export async function canAssignTeamsToPools(
   tournament: TournamentForPermissions,
   user: UserForPermissions,
   pendingRegistrationCount: number
-): boolean {
-  if (!canGeneratePoolsAndBrackets(tournament, user)) return false;
+): Promise<boolean> {
+  if (!(await canGeneratePoolsAndBrackets(tournament, user))) return false;
   return pendingRegistrationCount === 0;
 }
 
@@ -179,18 +211,18 @@ export function poolAssignmentBlockedMessage(
   return null;
 }
 
-export function canScheduleMatches(
+export async function canScheduleMatches(
   tournament: TournamentForPermissions,
   user: UserForPermissions
-): boolean {
+): Promise<boolean> {
   return canGeneratePoolsAndBrackets(tournament, user);
 }
 
-export function canScoreMatches(
+export async function canScoreMatches(
   tournament: TournamentForPermissions,
   user: UserForPermissions
-): boolean {
-  if (!isTournamentOrganizer(tournament, user)) return false;
+): Promise<boolean> {
+  if (!(await resolveIsTournamentOrganizer(tournament, user))) return false;
   if (isTournamentArchived(tournament.date)) return false;
   return (
     tournament.status === "in_progress" || tournament.status === "completed"
@@ -202,17 +234,17 @@ export function canScoreMatches(
  * (full control / fallback). Otherwise any member of the assigned ref team can,
  * but only while the tournament is in progress.
  */
-export function canRefereeMatch(
+export async function canRefereeMatch(
   tournament: Pick<
     TournamentForPermissions,
-    "organizerId" | "status" | "date"
+    "organizerId" | "hostSchoolId" | "status" | "date"
   >,
   user: UserForPermissions,
   match: { refTeamId: string | null },
   userTeamIds: Iterable<string>
-): boolean {
+): Promise<boolean> {
   if (isTournamentArchived(tournament.date)) return false;
-  if (isTournamentOrganizer(tournament, user)) return true;
+  if (await resolveIsTournamentOrganizer(tournament, user)) return true;
   if (tournament.status !== "in_progress") return false;
   if (!match.refTeamId) return false;
   const ids =
@@ -220,11 +252,11 @@ export function canRefereeMatch(
   return ids.has(match.refTeamId);
 }
 
-export function canCheckInRegistrations(
+export async function canCheckInRegistrations(
   tournament: TournamentForPermissions,
   user: UserForPermissions
-): boolean {
-  if (!isTournamentOrganizer(tournament, user)) return false;
+): Promise<boolean> {
+  if (!(await resolveIsTournamentOrganizer(tournament, user))) return false;
   if (isTournamentArchived(tournament.date)) return false;
   return tournament.status === "in_progress";
 }

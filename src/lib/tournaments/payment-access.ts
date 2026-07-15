@@ -21,7 +21,7 @@ import { registrations } from "@/lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { isAdmin } from "@/lib/auth";
 import {
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
   type TournamentForPermissions,
   type UserForPermissions,
 } from "@/lib/tournaments/permissions";
@@ -46,7 +46,7 @@ export async function userCanAccessTournamentPayment(
   user: UserForPermissions,
   userTeamIds: Iterable<string>
 ): Promise<boolean> {
-  if (isTournamentOrganizer(tournament, user)) return true;
+  if (await resolveIsTournamentOrganizer(tournament, user)) return true;
   if (isAdmin(user)) return true;
 
   const teamIds =
