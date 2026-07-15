@@ -32,7 +32,7 @@ import { requireUser } from "@/lib/auth";
 import { updateScoreSchema } from "@/lib/validators";
 import {
   canRefereeMatch,
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
 import { getMatchTournamentId } from "@/lib/tournaments/match-query";
 import { tryFillBracketFromPoolPlay, assignBracketRefsForBracket } from "@/lib/tournaments/bracket-structure";
@@ -101,9 +101,9 @@ async function assertCanControlMatch(matchId: string): Promise<ControlGate> {
   if (!tournament) return fail("Tournament not found");
 
   const userTeamIds = await loadUserTeamIds(user.id);
-  const isOrganizer = isTournamentOrganizer(tournament, user);
+  const isOrganizer = await resolveIsTournamentOrganizer(tournament, user);
 
-  if (!canRefereeMatch(tournament, user, match, userTeamIds)) {
+  if (!await canRefereeMatch(tournament, user, match, userTeamIds)) {
     return fail(
       "Only the assigned ref team or the host can run this match while the tournament is in progress."
     );
@@ -340,7 +340,7 @@ export async function updateMatchScheduledTime(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the host can edit the start time." };
   }
   if (isTournamentArchived(tournament.date)) {

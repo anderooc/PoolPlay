@@ -24,7 +24,7 @@ import { divisions, tournaments, brackets, courts, teams, registrations } from "
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
   type UserForPermissions,
 } from "@/lib/tournaments/permissions";
 import {
@@ -49,7 +49,7 @@ export async function TournamentBracketPanel({
   tournament: InferSelectModel<typeof tournaments>;
   user: UserForPermissions;
 }) {
-  const isOrganizer = isTournamentOrganizer(tournament, user);
+  const isOrganizer = await resolveIsTournamentOrganizer(tournament, user);
 
   const [tournamentDivisions, bracketIdRows] = await Promise.all([
     db

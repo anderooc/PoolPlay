@@ -33,7 +33,7 @@ import {
 } from "@/lib/tournaments/email-recipients";
 import {
   canEditTournamentPreparation,
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
   tournamentPreparationLockedReason,
 } from "@/lib/tournaments/permissions";
 import {
@@ -64,11 +64,11 @@ async function loadOrganizerTournament(tournamentId: string) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can send tournament emails." as const };
   }
 
-  if (!canEditTournamentPreparation(tournament, user)) {
+  if (!await canEditTournamentPreparation(tournament, user)) {
     return {
       error:
         tournamentPreparationLockedReason(tournament) ??

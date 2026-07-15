@@ -36,7 +36,7 @@ import { setStartingScoreForMatch } from "@/lib/tournaments/match-format";
 import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import {
   canScoreMatches,
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
 import { getTournamentMatchIds } from "@/lib/tournaments/match-query";
 import {
@@ -69,8 +69,8 @@ export default async function ScoringPage({ params }: Props) {
   if (!tournament) notFound();
 
   const id = tournament.id;
-  const canScore = canScoreMatches(tournament, user);
-  const isOrganizer = isTournamentOrganizer(tournament, user);
+  const canScore = await canScoreMatches(tournament, user);
+  const isOrganizer = await resolveIsTournamentOrganizer(tournament, user);
 
   const matchIds = await getTournamentMatchIds(id);
 

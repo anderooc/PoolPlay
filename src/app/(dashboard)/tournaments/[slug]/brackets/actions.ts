@@ -35,7 +35,7 @@ import { requireUser } from "@/lib/auth";
 import type { UserForPermissions } from "@/lib/tournaments/permissions";
 import {
   canAssignTeamsToPools,
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
   poolAssignmentBlockedMessage,
 } from "@/lib/tournaments/permissions";
 import { regeneratePoolMatchesFromSeeds } from "@/lib/tournaments/pool-matches";
@@ -84,7 +84,7 @@ async function assertCanAssignTeamsToPools(
     return { error: blocked };
   }
 
-  if (!canAssignTeamsToPools(tournament, user, pending)) {
+  if (!await canAssignTeamsToPools(tournament, user, pending)) {
     return {
       error:
         "Pool seeding can only be updated after registration closes. Only the organizer can change seeds.",
@@ -190,7 +190,7 @@ export async function updateMatchRef(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can change the working team" };
   }
 
@@ -308,7 +308,7 @@ export async function updateBracketMatchCourt(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can assign courts" };
   }
 
@@ -375,7 +375,7 @@ export async function updateTournamentBracketSettings(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can change bracket settings" };
   }
 
@@ -501,7 +501,7 @@ export async function regenerateTournamentBrackets(tournamentId: string) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can regenerate brackets" };
   }
 

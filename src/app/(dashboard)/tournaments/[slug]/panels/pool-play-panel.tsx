@@ -25,7 +25,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   canAssignTeamsToPools,
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
   poolAssignmentBlockedMessage,
   type UserForPermissions,
 } from "@/lib/tournaments/permissions";
@@ -50,7 +50,7 @@ export async function TournamentPoolPlayPanel({
   /** Pool section to scroll into view when deep-linking from a match. */
   focusPoolId?: string | null;
 }) {
-  const isOrganizer = isTournamentOrganizer(tournament, user);
+  const isOrganizer = await resolveIsTournamentOrganizer(tournament, user);
 
   const [divisionPlayData, pendingCountRow, tournamentDivisions] =
     await Promise.all([
@@ -76,7 +76,7 @@ export async function TournamentPoolPlayPanel({
     ]);
 
   const pendingCount = pendingCountRow[0]?.value ?? 0;
-  const canAssignPools = canAssignTeamsToPools(
+  const canAssignPools = await canAssignTeamsToPools(
     tournament,
     user,
     pendingCount

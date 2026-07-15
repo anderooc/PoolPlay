@@ -31,7 +31,7 @@ import {
   canCheckInRegistrations,
   canEditRegistrations,
   canRegisterTeams,
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
   type UserForPermissions,
 } from "@/lib/tournaments/permissions";
 import { getTeamsWaiverSummary } from "@/lib/tournaments/waiver-compliance";
@@ -47,11 +47,11 @@ export async function TournamentRegistrationsPanel({
   user: UserForPermissions;
   listKind: "teams" | "pending";
 }) {
-  const isOrganizer = isTournamentOrganizer(tournament, user);
+  const isOrganizer = await resolveIsTournamentOrganizer(tournament, user);
   const canManageRegistrations =
-    isOrganizer && canEditRegistrations(tournament, user);
+    isOrganizer && await canEditRegistrations(tournament, user);
   const canCheckIn =
-    isOrganizer && canCheckInRegistrations(tournament, user);
+    isOrganizer && await canCheckInRegistrations(tournament, user);
 
   const [tournamentRegistrations, memberRows, divisionOptions] =
     await Promise.all([

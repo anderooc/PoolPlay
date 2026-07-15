@@ -46,7 +46,7 @@ async function assertCanScoreMatch(matchId: string) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !canScoreMatches(tournament, user)) {
+  if (!tournament || !await canScoreMatches(tournament, user)) {
     return {
       error: "Only the organizer can score matches while the event is in progress." as const,
       user: null,

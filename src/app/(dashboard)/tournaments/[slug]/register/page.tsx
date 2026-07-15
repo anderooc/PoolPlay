@@ -30,7 +30,7 @@ import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import { formatTeamGender } from "@/lib/labels/team";
 import {
   canRegisterTeams,
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import {
@@ -102,7 +102,7 @@ export default async function RegisterPage({ params }: Props) {
     );
   }
 
-  const isHost = isTournamentOrganizer(tournament, user);
+  const isHost = await resolveIsTournamentOrganizer(tournament, user);
   const tournamentGenderLabel = formatTeamGender(tournament.gender);
 
   const [existingRegs, hostSchool, allSchools] = await Promise.all([

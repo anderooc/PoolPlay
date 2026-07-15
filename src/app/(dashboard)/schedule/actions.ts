@@ -50,7 +50,7 @@ export async function autoScheduleTournament(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !canScheduleMatches(tournament, user)) {
+  if (!tournament || !await canScheduleMatches(tournament, user)) {
     return {
       error:
         "Matches can only be scheduled after registration closes. Only the organizer can schedule.",
@@ -177,7 +177,7 @@ export async function updateMatchSchedule(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !canScheduleMatches(tournament, user)) {
+  if (!tournament || !await canScheduleMatches(tournament, user)) {
     return { error: "Only the organizer can update match schedules during setup." };
   }
 

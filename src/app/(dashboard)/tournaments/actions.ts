@@ -48,7 +48,7 @@ import {
   canCheckInRegistrations,
   canEditRegistrations,
   canEditTournamentSetup,
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
   tournamentPreparationLockedReason,
 } from "@/lib/tournaments/permissions";
 import {
@@ -173,7 +173,7 @@ export async function renameTournament(tournamentId: string, name: string) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can rename this tournament" };
   }
 
@@ -247,7 +247,7 @@ export async function updateTournamentListingDetails(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can edit listing details" };
   }
 
@@ -306,11 +306,11 @@ export async function updateTournamentPacketNotes(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can edit the tournament packet." };
   }
 
-  if (!canEditTournamentSetup(tournament, user)) {
+  if (!await canEditTournamentSetup(tournament, user)) {
     return {
       error:
         tournamentPreparationLockedReason(tournament) ??
@@ -358,7 +358,7 @@ export async function updateTournamentMatchFormat(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can change the match format" };
   }
 
@@ -394,7 +394,7 @@ export async function deleteTournament(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can delete this tournament" };
   }
 
@@ -475,7 +475,7 @@ export async function updateTournamentStatus(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can update tournament status" };
   }
 
@@ -527,7 +527,7 @@ export async function updateTournamentDate(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can change the tournament date" };
   }
 
@@ -560,7 +560,7 @@ export async function addDivision(tournamentId: string, formData: FormData) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !canEditTournamentSetup(tournament, user)) {
+  if (!tournament || !await canEditTournamentSetup(tournament, user)) {
     return {
       error:
         "Pools cannot be edited in the current tournament stage. Complete setup before the event starts.",
@@ -625,7 +625,7 @@ export async function removeDivision(tournamentId: string, divisionId: string) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !canEditTournamentSetup(tournament, user)) {
+  if (!tournament || !await canEditTournamentSetup(tournament, user)) {
     return { error: "Pools cannot be removed in the current tournament stage." };
   }
 
@@ -648,7 +648,7 @@ export async function releaseDivisionPools(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the tournament host can release pools" };
   }
 
@@ -708,7 +708,7 @@ export async function addCourt(tournamentId: string, formData: FormData) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !canEditTournamentSetup(tournament, user)) {
+  if (!tournament || !await canEditTournamentSetup(tournament, user)) {
     return { error: "Courts cannot be edited in the current tournament stage." };
   }
 
@@ -755,7 +755,7 @@ export async function removeCourt(tournamentId: string, courtId: string) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !canEditTournamentSetup(tournament, user)) {
+  if (!tournament || !await canEditTournamentSetup(tournament, user)) {
     return { error: "Courts cannot be removed in the current tournament stage." };
   }
 
@@ -785,12 +785,12 @@ export async function updateRegistrationStatus(
     .where(eq(tournaments.id, reg.tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can update registrations" };
   }
 
   if (status === "checked_in") {
-    if (!canCheckInRegistrations(tournament, user)) {
+    if (!await canCheckInRegistrations(tournament, user)) {
       return {
         error: "Teams can only be checked in while the tournament is in progress.",
       };
@@ -803,7 +803,7 @@ export async function updateRegistrationStatus(
         error: `Waiver incomplete (${compliance.completedCount}/${compliance.totalCount}). Complete waivers or waive players before check-in.`,
       };
     }
-  } else if (!canEditRegistrations(tournament, user)) {
+  } else if (!await canEditRegistrations(tournament, user)) {
     return {
       error: "Registrations cannot be updated in the current tournament stage.",
     };
@@ -853,11 +853,11 @@ export async function confirmPendingRegistrations(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can update registrations" };
   }
 
-  if (!canEditRegistrations(tournament, user)) {
+  if (!await canEditRegistrations(tournament, user)) {
     return {
       error: "Registrations cannot be updated in the current tournament stage.",
     };
@@ -921,7 +921,7 @@ export async function updateDivision(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !canEditTournamentSetup(tournament, user)) {
+  if (!tournament || !await canEditTournamentSetup(tournament, user)) {
     return { error: "Pools cannot be edited in the current tournament stage." };
   }
 
@@ -991,7 +991,7 @@ export async function setCourtsForDivision(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !canEditTournamentSetup(tournament, user)) {
+  if (!tournament || !await canEditTournamentSetup(tournament, user)) {
     return { error: "Court assignments cannot be changed in the current tournament stage." };
   }
 
@@ -1064,7 +1064,7 @@ export async function setRegistrationDivision(
     .where(eq(tournaments.id, reg.tournamentId))
     .limit(1);
 
-  if (!tournament || !canEditRegistrations(tournament, user)) {
+  if (!tournament || !await canEditRegistrations(tournament, user)) {
     return {
       error: "Pool assignments cannot be changed in the current tournament stage.",
     };
@@ -1117,11 +1117,11 @@ export async function bulkAssignRegistrationsToDivision(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can update registrations" };
   }
 
-  if (!canEditRegistrations(tournament, user)) {
+  if (!await canEditRegistrations(tournament, user)) {
     return {
       error: "Pool assignments cannot be changed in the current tournament stage.",
     };
@@ -1188,11 +1188,11 @@ export async function bulkRemoveRegistrations(
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can remove teams" };
   }
 
-  if (!canEditRegistrations(tournament, user)) {
+  if (!await canEditRegistrations(tournament, user)) {
     return {
       error: "Teams cannot be removed in the current tournament stage.",
     };

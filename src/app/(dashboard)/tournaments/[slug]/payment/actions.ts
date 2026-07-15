@@ -36,7 +36,7 @@ import {
 import { paymentSettingsFromTournament } from "@/lib/tournaments/payment-access";
 import {
   canEditTournamentSetup,
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
   tournamentPreparationLockedReason,
 } from "@/lib/tournaments/permissions";
 
@@ -123,7 +123,7 @@ async function loadOrganizerTournament(tournamentId: string) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can manage tournament payments." as const };
   }
 
@@ -172,7 +172,7 @@ export async function updateTournamentPaymentSettings(
   if ("error" in loaded) return loaded;
   const { tournament, user } = loaded;
 
-  if (!canEditTournamentSetup(tournament, user)) {
+  if (!await canEditTournamentSetup(tournament, user)) {
     return {
       error:
         tournamentPreparationLockedReason(tournament) ??

@@ -19,7 +19,7 @@
 import type { InferSelectModel } from "drizzle-orm";
 import { tournaments } from "@/lib/db/schema";
 import {
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
   type UserForPermissions,
 } from "@/lib/tournaments/permissions";
 import { getDivisionPlayData } from "../brackets/data";
@@ -32,7 +32,7 @@ export async function TournamentMatchesPanel({
   tournament: InferSelectModel<typeof tournaments>;
   user: UserForPermissions;
 }) {
-  const isOrganizer = isTournamentOrganizer(tournament, user);
+  const isOrganizer = await resolveIsTournamentOrganizer(tournament, user);
   const divisionPlayData = await getDivisionPlayData(tournament.id, {
     forOrganizer: isOrganizer,
   });

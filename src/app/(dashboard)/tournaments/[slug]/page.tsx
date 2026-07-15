@@ -41,7 +41,7 @@ import {
   canEditTournamentSetup,
   canRegisterTeams,
   hostChecklistSteps,
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
   tournamentPreparationLockedReason,
 } from "@/lib/tournaments/permissions";
 import {
@@ -104,9 +104,9 @@ export default async function TournamentDetailPage({
   if (!tournament) notFound();
 
   const id = tournament.id;
-  const isOrganizer = isTournamentOrganizer(tournament, user);
+  const isOrganizer = await resolveIsTournamentOrganizer(tournament, user);
   const canEditSetup =
-    isOrganizer && canEditTournamentSetup(tournament, user);
+    isOrganizer && await canEditTournamentSetup(tournament, user);
   const preparationLockedReason = isOrganizer
     ? tournamentPreparationLockedReason(tournament)
     : null;

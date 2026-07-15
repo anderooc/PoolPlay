@@ -38,7 +38,7 @@ import {
   getUserEligibleSpeakingTeams,
   userCanViewTournamentChat,
 } from "@/lib/tournaments/chat-access";
-import { isTournamentOrganizer } from "@/lib/tournaments/permissions";
+import { resolveIsTournamentOrganizer } from "@/lib/tournaments/permissions";
 import { TOURNAMENT_CHAT_BODY_MAX } from "@/lib/tournaments/chat-constants";
 import type { EligibleSpeakingTeam } from "@/lib/tournaments/chat-access";
 import type { TournamentChatChannelKind } from "@/types";
@@ -110,7 +110,7 @@ async function loadChatContext(
     };
   }
 
-  const isOrganizer = isTournamentOrganizer(tournament, user);
+  const isOrganizer = await resolveIsTournamentOrganizer(tournament, user);
   const eligibleTeams = isOrganizer
     ? []
     : await getUserEligibleSpeakingTeams(tournamentId, user.id);

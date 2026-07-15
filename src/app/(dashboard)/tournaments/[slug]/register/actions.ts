@@ -37,7 +37,7 @@ import { requireUser } from "@/lib/auth";
 import {
   canRegisterTeams,
   canWithdrawRegistration,
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
   registrationGenderMismatchMessage,
   teamMatchesTournamentGender,
 } from "@/lib/tournaments/permissions";
@@ -146,7 +146,7 @@ export async function registerTeams(tournamentId: string, teamIds: string[]) {
     };
   }
 
-  const isHost = isTournamentOrganizer(tournament, user);
+  const isHost = await resolveIsTournamentOrganizer(tournament, user);
 
   for (const teamId of uniqueIds) {
     const validation = await validateTeamRegistration(
@@ -229,7 +229,7 @@ export async function withdrawRegistration(
     return { error: "Registration can no longer be withdrawn for this event." };
   }
 
-  const isHost = isTournamentOrganizer(tournament, user);
+  const isHost = await resolveIsTournamentOrganizer(tournament, user);
 
   if (!isHost) {
     const [membership] = await db
@@ -308,7 +308,7 @@ export async function getAddableTeamsForSchool(
     return { error: "Tournament not found" };
   }
 
-  if (!isTournamentOrganizer(tournament, user)) {
+  if (!await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the tournament host can add teams" };
   }
 

@@ -26,7 +26,7 @@ import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import {
   canRefereeMatch,
   canViewDivisionPoolPlay,
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
 import { resolveMatchInTournament } from "@/lib/tournaments/match-query";
 import { isUuid } from "@/lib/tournaments/match-slug";
@@ -103,7 +103,7 @@ export default async function MatchPage({ params }: Props) {
     redirect(`/tournaments/${slug}/matches/${match.slug}`);
   }
 
-  const isOrganizer = isTournamentOrganizer(tournament, user);
+  const isOrganizer = await resolveIsTournamentOrganizer(tournament, user);
 
   const divisionByMatch = await getMatchDivisionIdMap(tournament.id);
   const divisionId = divisionByMatch.get(match.id);
@@ -114,7 +114,7 @@ export default async function MatchPage({ params }: Props) {
       .where(eq(divisions.id, divisionId))
       .limit(1);
     if (
-      !canViewDivisionPoolPlay(
+      !await canViewDivisionPoolPlay(
         tournament,
         user,
         division?.poolsReleasedAt ?? null
@@ -152,7 +152,7 @@ export default async function MatchPage({ params }: Props) {
     ]);
 
   const userTeamIds = new Set(memberRows.map((r) => r.teamId));
-  const canControl = canRefereeMatch(tournament, user, match, userTeamIds);
+  const canControl = await canRefereeMatch(tournament, user, match, userTeamIds);
   const isRefMember =
     !isOrganizer &&
     match.refTeamId != null &&

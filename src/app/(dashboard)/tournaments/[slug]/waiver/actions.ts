@@ -44,7 +44,7 @@ import {
 import { isPdfBytes } from "@/lib/security/pdf";
 import {
   canEditTournamentSetup,
-  isTournamentOrganizer,
+  resolveIsTournamentOrganizer,
   tournamentPreparationLockedReason,
 } from "@/lib/tournaments/permissions";
 
@@ -101,7 +101,7 @@ async function loadOrganizerTournament(tournamentId: string) {
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
-  if (!tournament || !isTournamentOrganizer(tournament, user)) {
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
     return { error: "Only the organizer can manage tournament waivers." as const };
   }
 
@@ -149,7 +149,7 @@ export async function updateTournamentWaiverSettings(
   if ("error" in loaded) return loaded;
   const { tournament } = loaded;
 
-  if (!canEditTournamentSetup(tournament, loaded.user)) {
+  if (!await canEditTournamentSetup(tournament, loaded.user)) {
     return {
       error:
         tournamentPreparationLockedReason(tournament) ??
@@ -198,7 +198,7 @@ export async function uploadTournamentWaiver(
   if ("error" in loaded) return loaded;
   const { user, tournament } = loaded;
 
-  if (!canEditTournamentSetup(tournament, user)) {
+  if (!await canEditTournamentSetup(tournament, user)) {
     return {
       error:
         tournamentPreparationLockedReason(tournament) ??
@@ -474,7 +474,7 @@ export async function clearWaiverCompletion(
   const waiver = await getLatestTournamentWaiver(tournamentId);
   if (!waiver) return { success: true as const };
 
-  if (isTournamentOrganizer(tournament, user)) {
+  if (await resolveIsTournamentOrganizer(tournament, user)) {
     await db
       .delete(waiverCompletions)
       .where(
