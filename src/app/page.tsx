@@ -102,7 +102,7 @@ export default async function HomePage() {
       </header>
 
       <main className="flex-1">
-        <section className="relative overflow-hidden">
+        <section className="relative flex min-h-[calc(100svh-3.5rem)] overflow-hidden">
           {/* Decorative backdrop */}
           <div
             aria-hidden
@@ -117,7 +117,7 @@ export default async function HomePage() {
             className="pointer-events-none absolute -right-32 top-[10%] -z-10 h-96 w-96 rounded-full bg-secondary/20 blur-3xl"
           />
 
-          <div className="container mx-auto px-4 py-20 text-center sm:py-28">
+          <div className="container mx-auto flex flex-1 items-center justify-center px-4 py-16 text-center sm:py-20">
             <div className="mx-auto flex max-w-3xl flex-col items-center">
               <span className="inline-flex items-center gap-2 rounded-full border bg-card/70 px-4 py-1.5 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur-sm">
                 <Volleyball className="h-3.5 w-3.5 text-primary" />
