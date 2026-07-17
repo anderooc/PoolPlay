@@ -28,7 +28,7 @@ import {
   removeProfileAvatar,
   uploadProfileAvatar,
 } from "@/lib/profile/avatar-storage";
-import { updateProfileSchema } from "@/lib/validators";
+import { updateProfileSchema, changePasswordSchema } from "@/lib/validators";
 import { checkContentFilter } from "@/lib/utils/content-filter";
 import { flagBlockedContent } from "@/lib/admin/content-flags";
 
@@ -103,6 +103,46 @@ export async function updateProfile(formData: FormData) {
 
   revalidatePath("/profile");
   revalidatePath("/dashboard");
+
+  return { success: true as const };
+}
+
+export async function changePassword(formData: FormData) {
+  const user = await requireUser();
+
+  const parsed = changePasswordSchema.safeParse({
+    currentPassword: formData.get("currentPassword"),
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const supabase = await createClient();
+
+  try {
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: parsed.data.currentPassword,
+    });
+    if (verifyError) {
+      return { error: "Current password is incorrect." };
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: parsed.data.password,
+    });
+    if (error) {
+      return { error: error.message };
+    }
+  } catch {
+    return {
+      error:
+        "Authentication service is unavailable or blocked from this network. Try again in a few minutes or switch networks.",
+    };
+  }
 
   return { success: true as const };
 }

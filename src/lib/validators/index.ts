@@ -68,6 +68,21 @@ export const resetPasswordSchema = z
     path: ["confirmPassword"],
   });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(1, "Confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
+  .refine((data) => data.password !== data.currentPassword, {
+    message: "New password must be different from your current password",
+    path: ["password"],
+  });
+
 export const createTeamSchema = z.object({
   name: z.string().min(1, "Team name is required"),
   gender: z.enum(TEAM_GENDERS, { message: "Select men's or women's" }),
@@ -177,6 +192,7 @@ export const updateMatchFormatSchema = updateMatchFormatBaseSchema
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type CreateTeamInput = z.infer<typeof createTeamSchema>;
 export type CreateTournamentInput = z.infer<typeof createTournamentSchema>;
 export type CreateDivisionInput = z.infer<typeof createDivisionSchema>;
