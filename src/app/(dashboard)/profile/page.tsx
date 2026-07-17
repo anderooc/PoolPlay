@@ -21,6 +21,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { pageMetadata } from "@/lib/metadata";
 import { profileAvatarPublicUrl } from "@/lib/profile/avatar-storage";
 import { ProfileForm } from "./profile-form";
+import { ChangePasswordForm } from "./password-form";
 
 export const metadata = pageMetadata("Edit profile");
 
@@ -47,6 +48,8 @@ export default async function ProfilePage() {
           avatarUrl: profileAvatarPublicUrl(user.avatarStoragePath),
         }}
       />
+
+      <ChangePasswordForm />
     </div>
   );
 }
