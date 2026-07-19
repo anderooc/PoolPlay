@@ -421,31 +421,31 @@ export default async function TournamentDetailPage({
         slug={tournament.slug}
         activeTab={activeTab}
         groups={tabGroups}
-      />
-
-      <Suspense key={activeTab} fallback={<TournamentPanelSkeleton />}>
-        <TournamentActivePanel
-          activeTab={activeTab}
-          tournament={tournament}
-          user={user}
-          canEditSetup={canEditSetup}
-          preparationLockedReason={preparationLockedReason}
-          myTeamIds={myTeamIds}
-          captainTeamIds={captainTeamIds}
-          isOrganizer={isOrganizer}
-          showPacketTab={showPacketTab}
-          showWaiverTab={showWaiverTab}
-          showPaymentTab={showPaymentTab}
-          showChatTab={showChatTab}
-          showTeamsTab={showTeamsTab}
-          showPendingTab={showPendingTab}
-          showPoolPlayTab={showPoolPlayTab}
-          showBracketTab={showBracketTab}
-          showMatchesTab={showMatchesTab}
-          divisionId={sp.division ?? null}
-          focusPoolId={sp.pool ?? null}
-        />
-      </Suspense>
+      >
+        <Suspense key={activeTab} fallback={<TournamentPanelSkeleton />}>
+          <TournamentActivePanel
+            activeTab={activeTab}
+            tournament={tournament}
+            user={user}
+            canEditSetup={canEditSetup}
+            preparationLockedReason={preparationLockedReason}
+            myTeamIds={myTeamIds}
+            captainTeamIds={captainTeamIds}
+            isOrganizer={isOrganizer}
+            showPacketTab={showPacketTab}
+            showWaiverTab={showWaiverTab}
+            showPaymentTab={showPaymentTab}
+            showChatTab={showChatTab}
+            showTeamsTab={showTeamsTab}
+            showPendingTab={showPendingTab}
+            showPoolPlayTab={showPoolPlayTab}
+            showBracketTab={showBracketTab}
+            showMatchesTab={showMatchesTab}
+            divisionId={sp.division ?? null}
+            focusPoolId={sp.pool ?? null}
+          />
+        </Suspense>
+      </TournamentTabs>
     </div>
   );
 }

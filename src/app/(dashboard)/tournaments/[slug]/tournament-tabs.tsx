@@ -3,41 +3,95 @@
 /*
  * PoolPlay - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
+import {
+  CalendarClock,
+  ChevronDown,
+  ClipboardSignature,
+  CreditCard,
+  FileText,
+  GitBranch,
+  Inbox,
+  LayoutGrid,
+  Mail,
+  MessageCircle,
+  Settings2,
+  Users,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import {
   tournamentTabUrl,
   type TournamentTabGroup,
   type TournamentTabId,
+  type TournamentTabItem,
 } from "./constants";
 
 export type { TournamentTabItem } from "./constants";
 
-function TournamentTabLink({
+const TAB_ICONS: Record<TournamentTabId, LucideIcon> = {
+  setup: Settings2,
+  packet: FileText,
+  waiver: ClipboardSignature,
+  payment: CreditCard,
+  messages: Mail,
+  chat: MessageCircle,
+  teams: Users,
+  pending: Inbox,
+  "pool-play": LayoutGrid,
+  bracket: GitBranch,
+  matches: CalendarClock,
+};
+
+function findActiveTab(
+  groups: TournamentTabGroup[],
+  activeTab: TournamentTabId
+): TournamentTabItem | undefined {
+  for (const group of groups) {
+    const match = group.tabs.find((tab) => tab.id === activeTab);
+    if (match) return match;
+  }
+  return groups[0]?.tabs[0];
+}
+
+function TabNavLink({
   slug,
   tab,
   active,
+  onNavigate,
 }: {
   slug: string;
-  tab: TournamentTabGroup["tabs"][number];
+  tab: TournamentTabItem;
   active: boolean;
+  onNavigate?: () => void;
 }) {
+  const Icon = TAB_ICONS[tab.id];
   const label =
     tab.count !== undefined ? `${tab.label} (${tab.count})` : tab.label;
 
@@ -45,14 +99,25 @@ function TournamentTabLink({
     <Link
       href={tournamentTabUrl(slug, tab.id)}
       aria-current={active ? "page" : undefined}
+      onClick={onNavigate}
       className={cn(
-        "relative inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-transparent px-3 text-sm font-medium whitespace-nowrap transition-all",
+        "group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors duration-150 ease-out",
+        "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
         active
-          ? "bg-background text-foreground shadow-sm dark:border-input dark:bg-input/30"
-          : "text-foreground/60 hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground"
+          ? "bg-muted text-foreground"
+          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
       )}
     >
-      {label}
+      <Icon
+        className={cn(
+          "size-4 shrink-0 transition-colors duration-150 ease-out",
+          active
+            ? "text-foreground"
+            : "text-muted-foreground group-hover:text-foreground"
+        )}
+        aria-hidden
+      />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
       {tab.badge !== undefined && tab.badge > 0 && (
         <Badge
           variant="default"
@@ -65,48 +130,134 @@ function TournamentTabLink({
   );
 }
 
-export function TournamentTabs({
+function SectionNav({
   slug,
-  activeTab,
   groups,
+  activeTab,
+  onNavigate,
 }: {
   slug: string;
-  activeTab: TournamentTabId;
   groups: TournamentTabGroup[];
+  activeTab: TournamentTabId;
+  onNavigate?: () => void;
 }) {
-  if (groups.length === 0) return null;
-
   return (
-    <div
-      className="flex flex-col gap-4 pb-5 lg:flex-row lg:items-end lg:gap-5"
-      aria-label="Tournament sections"
-    >
-      {groups.map((group, index) => (
-        <div
-          key={group.id}
-          className={cn(
-            "min-w-0 space-y-2",
-            index > 0 && "lg:border-l lg:border-border/70 lg:pl-5"
-          )}
-        >
-          <p className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+    <nav className="space-y-5" aria-label="Tournament sections">
+      {groups.map((group) => (
+        <div key={group.id} className="space-y-1">
+          <p className="px-2.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
             {group.label}
           </p>
-          <nav
-            className="inline-flex h-auto max-w-full flex-wrap justify-start gap-1 rounded-lg bg-muted/80 p-1 text-muted-foreground ring-1 ring-border/50"
-            aria-label={group.label}
-          >
+          <div className="space-y-0.5">
             {group.tabs.map((tab) => (
-              <TournamentTabLink
+              <TabNavLink
                 key={tab.id}
                 slug={slug}
                 tab={tab}
                 active={tab.id === activeTab}
+                onNavigate={onNavigate}
               />
             ))}
-          </nav>
+          </div>
         </div>
       ))}
+    </nav>
+  );
+}
+
+function MobileJumpNav({
+  slug,
+  groups,
+  activeTab,
+}: {
+  slug: string;
+  groups: TournamentTabGroup[];
+  activeTab: TournamentTabId;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = findActiveTab(groups, activeTab);
+  const Icon = current ? TAB_ICONS[current.id] : Settings2;
+  const label = current
+    ? current.count !== undefined
+      ? `${current.label} (${current.count})`
+      : current.label
+    : "Section";
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger
+        render={
+          <Button
+            variant="outline"
+            className="h-11 w-full justify-between gap-3 px-3 font-medium"
+          />
+        }
+      >
+        <span className="flex min-w-0 items-center gap-2.5">
+          <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="truncate">{label}</span>
+          {current?.badge !== undefined && current.badge > 0 && (
+            <Badge
+              variant="default"
+              className="h-5 min-w-5 justify-center rounded-full px-1.5 text-xs tabular-nums"
+            >
+              {current.badge}
+            </Badge>
+          )}
+        </span>
+        <span className="flex shrink-0 items-center gap-1 text-muted-foreground">
+          <span className="text-xs font-medium">Jump to</span>
+          <ChevronDown className="size-4" aria-hidden />
+        </span>
+      </SheetTrigger>
+      <SheetContent side="bottom" className="gap-0 p-0">
+        <SheetHeader className="border-b px-4 py-3 pr-12">
+          <SheetTitle>Jump to section</SheetTitle>
+          <SheetDescription className="sr-only">
+            Choose a tournament section to open
+          </SheetDescription>
+        </SheetHeader>
+        <div className="max-h-[min(70vh,28rem)] overflow-y-auto p-3">
+          <SectionNav
+            slug={slug}
+            groups={groups}
+            activeTab={activeTab}
+            onNavigate={() => setOpen(false)}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+export function TournamentTabs({
+  slug,
+  activeTab,
+  groups,
+  children,
+}: {
+  slug: string;
+  activeTab: TournamentTabId;
+  groups: TournamentTabGroup[];
+  children: ReactNode;
+}) {
+  if (groups.length === 0) {
+    return <>{children}</>;
+  }
+
+  return (
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-8">
+      <div className="lg:hidden">
+        <MobileJumpNav slug={slug} groups={groups} activeTab={activeTab} />
+      </div>
+
+      <aside className="hidden w-52 shrink-0 lg:block">
+        <div className="sticky top-0 max-h-[calc(100vh-5.5rem)] overflow-y-auto py-0.5 [scrollbar-width:thin]">
+          <SectionNav slug={slug} groups={groups} activeTab={activeTab} />
+        </div>
+      </aside>
+
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }
