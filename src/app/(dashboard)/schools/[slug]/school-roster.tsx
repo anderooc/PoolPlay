@@ -3,17 +3,17 @@
 /*
  * PoolPlay - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -32,9 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import {
-  SCHOOL_MEMBER_ROLE_LABELS,
-} from "@/lib/constants/school";
+import { SCHOOL_MEMBER_ROLE_LABELS } from "@/lib/constants/school";
 import {
   addSchoolMember,
   removeSchoolMember,
@@ -126,7 +124,7 @@ export function SchoolRoster({
   const others = members.filter((m) => m.role === "member");
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <Section
         title="President"
         helper="One per school."
@@ -154,10 +152,11 @@ export function SchoolRoster({
       >
         {officers.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No officers yet. Add at least one before submitting for verification.
+            No officers yet. Add at least one before submitting for
+            verification.
           </p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {officers.map((m) => (
               <RosterRow
                 key={m.membershipId}
@@ -181,7 +180,7 @@ export function SchoolRoster({
         {others.length === 0 ? (
           <p className="text-sm text-muted-foreground">No other members yet.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {others.map((m) => (
               <RosterRow
                 key={m.membershipId}
@@ -199,31 +198,25 @@ export function SchoolRoster({
       </Section>
 
       {canManage && (
-        <div className="rounded-lg border bg-muted/30 p-4">
-          <h3 className="mb-3 inline-flex items-center gap-2 text-sm font-semibold">
+        <div className="rounded-xl border bg-muted/30 p-4 sm:p-5">
+          <h3 className="mb-4 inline-flex items-center gap-2 text-sm font-semibold">
             <UserPlus className="h-4 w-4" />
             Add roster member
           </h3>
-          <form
-            action={handleAdd}
-            className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
-          >
-            <div className="w-full space-y-1 sm:w-52 sm:shrink-0">
-              <Label htmlFor="email" className="sr-only">
-                Email
-              </Label>
+          <form action={handleAdd} className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+              <Label htmlFor="email">School email</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
                 placeholder="member@school.edu"
                 required
+                autoComplete="email"
               />
             </div>
-            <div className="w-full space-y-1 sm:w-36 sm:shrink-0">
-              <Label htmlFor="role" className="sr-only">
-                Role
-              </Label>
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
               <select
                 id="role"
                 name="role"
@@ -231,30 +224,32 @@ export function SchoolRoster({
                 onChange={(e) =>
                   setAddRole(e.target.value as SchoolMemberRole)
                 }
-                className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none"
+                className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 <option value="member">Member</option>
                 <option value="officer">Officer</option>
               </select>
             </div>
-            {addRole === "officer" && (
-              <div className="w-full space-y-1 sm:w-40 sm:shrink-0">
-                <Label htmlFor="title" className="sr-only">
-                  Title
-                </Label>
+            {addRole === "officer" ? (
+              <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+                <Label htmlFor="title">Title (optional)</Label>
                 <Input
                   id="title"
                   name="title"
-                  placeholder="Title (e.g. VP)"
+                  placeholder="e.g. VP, Treasurer"
                   maxLength={60}
                 />
               </div>
-            )}
-            <Button type="submit" disabled={loading} className="sm:shrink-0">
-              {loading ? "Adding…" : "Add"}
-            </Button>
+            ) : null}
+            <div className="flex items-end sm:col-span-2">
+              <Button type="submit" disabled={loading} className="w-full sm:w-auto">
+                {loading ? "Adding…" : "Add member"}
+              </Button>
+            </div>
           </form>
-          {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+          {error ? (
+            <p className="mt-3 text-sm text-destructive">{error}</p>
+          ) : null}
         </div>
       )}
     </div>
@@ -273,15 +268,15 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-2">
-      <div className="flex items-baseline justify-between gap-3">
+    <section className="space-y-3">
+      <div className="space-y-1">
         <h3 className="inline-flex items-center gap-2 text-sm font-semibold">
           {icon}
           {title}
         </h3>
-        {helper && (
-          <p className="text-xs text-muted-foreground">{helper}</p>
-        )}
+        {helper ? (
+          <p className="max-w-prose text-sm text-muted-foreground">{helper}</p>
+        ) : null}
       </div>
       {children}
     </section>
@@ -305,67 +300,100 @@ function RosterRow({
   onRoleChange: (id: string, role: SchoolMemberRole) => void;
   onTransfer: (id: string) => void;
 }) {
+  const showRoleSelect = canManage && member.role !== "president";
+  const showActions =
+    showRoleSelect ||
+    (canTransferPresidencyAction && member.role !== "president");
+
   return (
     <div
       className={cn(
-        "flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between",
+        "rounded-xl border bg-card p-4",
         isBusy && "opacity-60"
       )}
     >
-      <div className="min-w-0">
-        <p className="font-medium">{member.fullName}</p>
-        <p className="text-sm text-muted-foreground">{member.email}</p>
-        {member.title && (
-          <p className="text-xs text-muted-foreground">{member.title}</p>
-        )}
-      </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <Badge variant="secondary" className="capitalize">
-          {SCHOOL_MEMBER_ROLE_LABELS[member.role]}
-        </Badge>
-        {canManage && member.role !== "president" && (
-          <Select
-            value={member.role}
-            onValueChange={(v) => {
-              if (v === "officer" || v === "member") {
-                onRoleChange(member.membershipId, v);
-              }
-            }}
-            disabled={isBusy}
-          >
-            <SelectTrigger size="sm" className="h-7 min-w-[7.5rem] text-xs">
-              <SelectValue placeholder="Change role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="member">Member</SelectItem>
-              <SelectItem value="officer">Officer</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
-        {canTransferPresidencyAction && member.role !== "president" && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={isBusy}
-            onClick={() => onTransfer(member.membershipId)}
-          >
-            <Crown className="mr-1 h-3 w-3" />
-            Make president
-          </Button>
-        )}
-        {canManage && member.role !== "president" && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={isBusy}
-            onClick={() => onRemove(member.membershipId)}
-          >
-            <X className="mr-1 h-3 w-3" />
-            Remove
-          </Button>
-        )}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-medium leading-tight">{member.fullName}</p>
+            {!showRoleSelect ? (
+              <Badge variant="secondary">
+                {SCHOOL_MEMBER_ROLE_LABELS[member.role]}
+              </Badge>
+            ) : null}
+          </div>
+          <p className="truncate text-sm text-muted-foreground">
+            {member.email}
+          </p>
+          {member.title ? (
+            <p className="text-sm text-muted-foreground">{member.title}</p>
+          ) : null}
+        </div>
+
+        {showActions ? (
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[12rem] sm:items-stretch">
+            {showRoleSelect ? (
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor={`role-${member.membershipId}`}
+                  className="text-xs text-muted-foreground"
+                >
+                  Role
+                </Label>
+                <Select
+                  value={member.role}
+                  onValueChange={(v) => {
+                    if (v === "officer" || v === "member") {
+                      onRoleChange(member.membershipId, v);
+                    }
+                  }}
+                  disabled={isBusy}
+                >
+                  <SelectTrigger
+                    id={`role-${member.membershipId}`}
+                    size="sm"
+                    className="h-9 w-full"
+                  >
+                    <SelectValue placeholder="Change role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="officer">Officer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
+            <div className="flex flex-col gap-2">
+              {canTransferPresidencyAction && member.role !== "president" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 justify-center"
+                  disabled={isBusy}
+                  onClick={() => onTransfer(member.membershipId)}
+                >
+                  <Crown className="mr-1.5 h-3.5 w-3.5" />
+                  Make president
+                </Button>
+              ) : null}
+              {showRoleSelect ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 justify-center text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  disabled={isBusy}
+                  onClick={() => onRemove(member.membershipId)}
+                >
+                  <X className="mr-1.5 h-3.5 w-3.5" />
+                  Remove
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
