@@ -162,7 +162,7 @@ function TournamentRow({
   return (
     <div className="min-w-0 max-w-full px-1 py-3.5 transition-colors duration-150 hover:bg-muted/40">
       <Link href={`${linkPrefix}/${t.slug}`} className="block min-w-0">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
           <span className="min-w-0 truncate font-medium leading-tight">
             {t.name}
           </span>
@@ -170,17 +170,17 @@ function TournamentRow({
             kind="tournament"
             status={t.status}
             date={t.date}
-            className="shrink-0"
+            className="self-start shrink-0"
           />
         </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1">
+        <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <span className="flex min-w-0 items-center gap-1">
             <MapPin className="h-3 w-3 shrink-0" />
-            {t.location}
+            <span className="truncate">{t.location}</span>
           </span>
         </div>
       </Link>
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+      <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
         <TeamAttributesBadges gender={t.gender} region={t.region} />
         <TournamentHostSchoolLink school={t.hostSchool} />
       </div>

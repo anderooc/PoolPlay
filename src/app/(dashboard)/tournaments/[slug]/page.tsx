@@ -368,7 +368,7 @@ export default async function TournamentDetailPage({
                 {organizer?.fullName ?? "Unknown organizer"}
               </span>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <TeamAttributesBadges
                 gender={tournament.gender}
                 region={tournament.region}

@@ -34,17 +34,20 @@ export function TournamentHostSchoolLink({
   if (!school) return null;
 
   const classNames = cn(
-    "inline-flex items-center gap-1.5 rounded-full border bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground",
+    "inline-flex h-5 max-w-full min-w-0 items-center gap-1.5 rounded-4xl border bg-muted/30 px-2 text-xs font-medium text-muted-foreground",
     asLink && "hover:bg-muted/60 hover:text-foreground",
     className
   );
 
   const content = (
     <>
-      <Building2 className="h-3 w-3 shrink-0" />
-      <span>Hosted by {school.name}</span>
+      <Building2 className="size-3 shrink-0" aria-hidden />
+      <span className="min-w-0 truncate">Hosted by {school.name}</span>
       {school.verificationStatus === "verified" && (
-        <CheckCircle2 className="h-3 w-3 shrink-0 text-success" />
+        <CheckCircle2
+          className="size-3 shrink-0 text-success"
+          aria-hidden
+        />
       )}
     </>
   );

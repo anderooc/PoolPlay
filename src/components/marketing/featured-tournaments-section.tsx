@@ -103,7 +103,7 @@ function TournamentTile({
           </div>
 
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
               <h3
                 className={cn(
                   "min-w-0 text-pretty font-heading font-semibold leading-snug transition-colors group-hover:text-primary",
@@ -116,7 +116,7 @@ function TournamentTile({
                 kind="tournament"
                 status={tournament.status}
                 date={tournament.date}
-                className="shrink-0"
+                className="self-start shrink-0"
               />
             </div>
             {!isHero && (
@@ -150,7 +150,7 @@ function TournamentTile({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           <TeamAttributesBadges
             gender={tournament.gender}
             region={tournament.region}

@@ -31,7 +31,12 @@ export function TeamAttributesBadges({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-wrap gap-1.5", className)}>
+    <div
+      className={cn(
+        "inline-flex max-w-full min-w-0 flex-wrap items-center gap-1.5",
+        className
+      )}
+    >
       <Badge variant="secondary">{formatTeamGender(gender)}</Badge>
       <Badge variant="outline">{formatTeamRegion(region)}</Badge>
     </div>

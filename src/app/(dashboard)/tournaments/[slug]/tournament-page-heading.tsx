@@ -430,7 +430,7 @@ export function TournamentPageHeading({
         </div>
         <div
           className={cn(
-            "flex flex-wrap items-center gap-1.5",
+            "flex min-w-0 flex-wrap items-center gap-1.5",
             compact ? "mt-1" : "mt-2"
           )}
         >
