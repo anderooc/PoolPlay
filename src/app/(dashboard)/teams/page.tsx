@@ -1,17 +1,17 @@
 /*
  * PoolPlay - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -59,7 +59,7 @@ export default async function TeamsPage() {
     .where(eq(teamMembers.userId, user.id));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title="Teams"
         description="Manage your club volleyball teams."
@@ -87,17 +87,19 @@ export default async function TeamsPage() {
           }
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {userTeams.map((team) => (
-            <Link key={team.id} href={`/teams/${team.slug}`}>
-              <Card className="h-full cursor-pointer transition-colors duration-150 hover:bg-muted/30">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-lg leading-tight">
+            <Link key={team.id} href={`/teams/${team.slug}`} className="min-w-0">
+              <Card className="h-full cursor-pointer transition-[background-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:bg-muted/30 hover:shadow-sm">
+                <CardHeader className="space-y-3 pb-4">
+                  <div className="flex flex-col gap-2.5">
+                    <CardTitle className="text-balance text-lg leading-snug">
                       {team.name}
                     </CardTitle>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      <Badge variant="secondary">{team.role}</Badge>
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                      <Badge variant="secondary" className="capitalize">
+                        {team.role}
+                      </Badge>
                       {isStandaloneTeam(team.schoolId) &&
                         team.verificationStatus !== "verified" && (
                           <StatusBadge
@@ -108,20 +110,21 @@ export default async function TeamsPage() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    {team.university}
-                  </p>
-                  {team.schoolName && (
-                    <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <Building2 className="h-3 w-3" />
-                      {team.schoolName}
+                <CardContent className="space-y-3 pt-0">
+                  <div className="space-y-1.5">
+                    <p className="text-sm text-muted-foreground">
+                      {team.university}
                     </p>
-                  )}
+                    {team.schoolName ? (
+                      <p className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-sm text-muted-foreground">
+                        <Building2 className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{team.schoolName}</span>
+                      </p>
+                    ) : null}
+                  </div>
                   <TeamAttributesBadges
                     gender={team.gender}
                     region={team.region}
-                    className="mt-2"
                   />
                 </CardContent>
               </Card>

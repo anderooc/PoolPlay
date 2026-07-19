@@ -3,17 +3,17 @@
 /*
  * PoolPlay - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -43,42 +43,45 @@ export function AddMemberForm({ teamId }: { teamId: string }) {
   }
 
   return (
-    <div>
-      <h3 className="font-semibold mb-3">Add Player</h3>
-      <form action={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1 space-y-1">
-          <Label htmlFor="email" className="sr-only">
-            Email
-          </Label>
+    <div className="rounded-xl border bg-muted/30 p-4 sm:p-5">
+      <h3 className="mb-4 text-sm font-semibold">Add player</h3>
+      <form action={handleSubmit} className="grid gap-4 sm:grid-cols-[1fr_6.5rem_auto]">
+        <div className="space-y-2">
+          <Label htmlFor="email">School email</Label>
           <Input
             id="email"
             name="email"
             type="email"
             placeholder="player@university.edu"
             required
+            autoComplete="email"
           />
         </div>
-        <div className="w-24 space-y-1">
-          <Label htmlFor="jerseyNumber" className="sr-only">
-            Jersey #
-          </Label>
+        <div className="space-y-2">
+          <Label htmlFor="jerseyNumber">Jersey #</Label>
           <Input
             id="jerseyNumber"
             name="jerseyNumber"
             type="number"
-            placeholder="#"
+            placeholder="—"
             min={0}
             max={99}
           />
         </div>
-        <Button type="submit" disabled={loading}>
-          {loading ? "Adding..." : "Add"}
-        </Button>
+        <div className="flex items-end">
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full sm:w-auto"
+          >
+            {loading ? "Adding…" : "Add player"}
+          </Button>
+        </div>
       </form>
-      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-      {success && (
-        <p className="mt-2 text-sm text-success">Player added!</p>
-      )}
+      {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+      {success ? (
+        <p className="mt-3 text-sm text-success">Player added!</p>
+      ) : null}
     </div>
   );
 }

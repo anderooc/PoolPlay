@@ -166,17 +166,17 @@ export default async function TeamDetailPage({ params }: Props) {
           ) : undefined
         }
       >
-        <div className="mt-1 flex flex-col gap-2">
+        <div className="mt-2 flex flex-col gap-2.5">
           <TeamAttributesBadges gender={team.gender} region={team.region} />
           {schoolRow && (
             <Link
               href={`/schools/${schoolRow.slug}`}
-              className="inline-flex w-fit items-center gap-1.5 rounded-full border bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              className="inline-flex h-5 max-w-full min-w-0 w-fit items-center gap-1.5 rounded-4xl border bg-muted/30 px-2 text-xs font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground"
             >
-              <Building2 className="h-3 w-3" />
-              <span>Part of {schoolRow.name}</span>
+              <Building2 className="size-3 shrink-0" />
+              <span className="truncate">Part of {schoolRow.name}</span>
               {schoolRow.verificationStatus === "verified" && (
-                <CheckCircle2 className="h-3 w-3 text-success" />
+                <CheckCircle2 className="size-3 shrink-0 text-success" />
               )}
             </Link>
           )}
@@ -184,12 +184,13 @@ export default async function TeamDetailPage({ params }: Props) {
       </PageHeader>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-4">
           <CardTitle>
-            Roster ({members.length} {members.length === 1 ? "player" : "players"})
+            Roster ({members.length}{" "}
+            {members.length === 1 ? "player" : "players"})
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="space-y-3">
             {members.map((member) => (
               <RosterRow
@@ -203,9 +204,9 @@ export default async function TeamDetailPage({ params }: Props) {
 
           {isCaptain && (
             <>
-              <Separator className="my-6" />
+              <Separator className="my-2" />
               {schoolRow && (
-                <p className="mb-2 text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Teams under a school can only add players from the
                   school&apos;s roster. Add new members at{" "}
                   <Link
