@@ -25,6 +25,7 @@ type PoolPlayMarkProps = {
   className?: string;
   /** Classes on the inner wordmark (Pool + Play) */
   wordmarkClassName?: string;
+  onClick?: () => void;
 };
 
 /**
@@ -34,6 +35,7 @@ export function PoolPlayMark({
   href,
   className,
   wordmarkClassName,
+  onClick,
 }: PoolPlayMarkProps) {
   const wordmark = (
     <span
@@ -49,7 +51,7 @@ export function PoolPlayMark({
 
   if (href) {
     return (
-      <Link href={href} className={cn("shrink-0", className)}>
+      <Link href={href} className={cn("shrink-0", className)} onClick={onClick}>
         {wordmark}
       </Link>
     );

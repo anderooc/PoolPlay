@@ -18,10 +18,7 @@
 
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { HeaderNav } from "@/components/layout/header-nav";
-import { PoolPlayMark } from "@/components/layout/poolplay-mark";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { UserMenu } from "@/components/layout/user-menu";
+import { SiteHeader } from "@/components/layout/site-header";
 import { Trophy, Users, Calendar, Zap, ArrowRight, Volleyball } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCurrentAuthProfile } from "@/lib/auth";
@@ -74,32 +71,7 @@ export default async function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur-sm transition-[background-color,backdrop-filter] duration-300 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1">
-        <div className="container mx-auto flex h-14 items-center justify-between gap-4 px-4 transition-[padding,gap] duration-300 ease-out">
-          <div className="flex min-w-0 items-center gap-4 sm:gap-6">
-            <PoolPlayMark href="/" wordmarkClassName="text-lg" />
-            <HeaderNav />
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <ThemeToggle />
-            {user ? (
-              <UserMenu fullName={user.fullName} email={user.email} />
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className={buttonVariants({ variant: "ghost" })}
-                >
-                  Sign In
-                </Link>
-                <Link href="/signup" className={buttonVariants()}>
-                  Get Started
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      <SiteHeader user={user} />
 
       <main className="flex-1">
         <section className="relative flex min-h-[calc(100svh-3.5rem)] overflow-hidden">

@@ -24,10 +24,7 @@ import { eq } from "drizzle-orm";
 import { buttonVariants } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { HeaderNav } from "@/components/layout/header-nav";
-import { PoolPlayMark } from "@/components/layout/poolplay-mark";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { UserMenu } from "@/components/layout/user-menu";
+import { SiteHeader } from "@/components/layout/site-header";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { TournamentHostSchoolLink } from "@/components/tournament-host-school-link";
 import { getCurrentAuthProfile } from "@/lib/auth";
@@ -78,35 +75,7 @@ export default async function ExploreTournamentPage({ params }: Props) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur-sm">
-        <div className="container mx-auto flex h-14 items-center justify-between gap-4 px-4">
-          <div className="flex min-w-0 items-center gap-4 sm:gap-6">
-            <PoolPlayMark href="/" wordmarkClassName="text-lg" />
-            <HeaderNav />
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <ThemeToggle />
-            {authProfile ? (
-              <UserMenu
-                fullName={authProfile.fullName}
-                email={authProfile.email}
-              />
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className={buttonVariants({ variant: "ghost", size: "sm" })}
-                >
-                  Sign In
-                </Link>
-                <Link href="/signup" className={buttonVariants({ size: "sm" })}>
-                  Get Started
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      <SiteHeader user={authProfile} />
 
       <main className="relative flex-1">
         <div
@@ -146,7 +115,7 @@ export default async function ExploreTournamentPage({ params }: Props) {
                 {organizer?.fullName ?? "Unknown organizer"}
               </span>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <TeamAttributesBadges
                 gender={tournament.gender}
                 region={tournament.region}

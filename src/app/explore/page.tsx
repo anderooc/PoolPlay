@@ -16,15 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import Link from "next/link";
 import { db } from "@/lib/db";
 import { tournaments } from "@/lib/db/schema";
 import { desc, ne } from "drizzle-orm";
-import { buttonVariants } from "@/components/ui/button";
-import { HeaderNav } from "@/components/layout/header-nav";
-import { PoolPlayMark } from "@/components/layout/poolplay-mark";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { UserMenu } from "@/components/layout/user-menu";
+import { SiteHeader } from "@/components/layout/site-header";
 import { getCurrentAuthProfile } from "@/lib/auth";
 import { TournamentGrid } from "@/components/tournament-grid";
 import { enrichTournamentsWithHostSchools } from "@/lib/tournaments/host-school";
@@ -49,35 +44,7 @@ export default async function ExplorePage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur-sm transition-[background-color,backdrop-filter] duration-300 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1">
-        <div className="container mx-auto flex h-14 items-center justify-between gap-4 px-4 transition-[padding,gap] duration-300 ease-out">
-          <div className="flex min-w-0 items-center gap-4 sm:gap-6">
-            <PoolPlayMark href="/" wordmarkClassName="text-lg" />
-            <HeaderNav />
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <ThemeToggle />
-            {user ? (
-              <UserMenu fullName={user.fullName} email={user.email} />
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className={buttonVariants({ variant: "ghost", size: "sm" })}
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/signup"
-                  className={buttonVariants({ size: "sm" })}
-                >
-                  Get Started
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      <SiteHeader user={user} />
 
       <main className="relative flex-1">
         <div
