@@ -3,17 +3,17 @@
 /*
  * PoolPlay - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -65,15 +65,18 @@ export function ScheduleControls({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Auto-Schedule</CardTitle>
+      <CardHeader className="pb-4">
+        <CardTitle className="text-base">Auto-schedule</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="space-y-1">
-            <Label>Tournament</Label>
-            <Select value={tournamentId} onValueChange={(v) => setTournamentId(v ?? "")}>
-              <SelectTrigger className="w-52">
+      <CardContent className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+            <Label htmlFor="tournament">Tournament</Label>
+            <Select
+              value={tournamentId}
+              onValueChange={(v) => setTournamentId(v ?? "")}
+            >
+              <SelectTrigger id="tournament" className="w-full">
                 <SelectValue placeholder="Select tournament" />
               </SelectTrigger>
               <SelectContent>
@@ -85,17 +88,18 @@ export function ScheduleControls({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="startTime">Start Time</Label>
+          <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+            <Label htmlFor="startTime">Start time</Label>
             <Input
               id="startTime"
               type="datetime-local"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
+              className="w-full"
             />
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="duration">Match Length (min)</Label>
+          <div className="space-y-2">
+            <Label htmlFor="duration">Match length (min)</Label>
             <Input
               id="duration"
               type="number"
@@ -103,19 +107,25 @@ export function ScheduleControls({
               max={120}
               value={duration}
               onChange={(e) => setDuration(parseInt(e.target.value, 10))}
-              className="w-24"
+              className="w-full"
             />
           </div>
-          <Button onClick={handleSchedule} disabled={loading}>
-            {loading ? "Scheduling..." : "Schedule Matches"}
-          </Button>
+          <div className="flex items-end">
+            <Button
+              onClick={handleSchedule}
+              disabled={loading}
+              className="w-full"
+            >
+              {loading ? "Scheduling…" : "Schedule matches"}
+            </Button>
+          </div>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Warmup time is reserved automatically based on the tournament&apos;s
           match format.
         </p>
-        {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-        {result && <p className="mt-2 text-sm text-success">{result}</p>}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {result ? <p className="text-sm text-success">{result}</p> : null}
       </CardContent>
     </Card>
   );
