@@ -101,7 +101,19 @@ export const createSchoolSchema = z.object({
     .max(200)
     .optional()
     .nullable()
-    .transform((v) => (v && v.trim().length > 0 ? v.trim() : null)),
+    .transform((v) => (v && v.trim().length > 0 ? v.trim() : null))
+    .refine(
+      (value) => {
+        if (value === null) return true;
+        try {
+          const url = new URL(value);
+          return url.protocol === "https:" && url.hostname.length > 0;
+        } catch {
+          return false;
+        }
+      },
+      { message: "Enter a valid HTTPS website URL" }
+    ),
   domainHint: z
     .string()
     .max(120)

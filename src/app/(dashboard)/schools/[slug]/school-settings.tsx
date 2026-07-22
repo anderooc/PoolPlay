@@ -184,6 +184,7 @@ export function SchoolSettingsDialog({
             <Input
               id="school-settings-websiteUrl"
               name="websiteUrl"
+              type="url"
               defaultValue={defaults.websiteUrl ?? ""}
               placeholder="https://stateu-volleyball.org"
               maxLength={200}
