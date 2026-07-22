@@ -34,7 +34,6 @@ import { formatTournamentDateDisplay } from "@/lib/date-iso";
 import { ArrowRight, Calendar, User } from "lucide-react";
 import { TournamentLocationLink } from "@/components/tournament-location-link";
 import type { Metadata } from "next";
-import { getTournamentNameBySlug } from "@/lib/tournaments/metadata";
 import { pageMetadata } from "@/lib/metadata";
 
 interface Props {
@@ -45,8 +44,29 @@ export async function generateMetadata({
   params,
 }: Pick<Props, "params">): Promise<Metadata> {
   const { slug } = await params;
-  const name = await getTournamentNameBySlug(slug);
-  return pageMetadata(name ?? "Tournament");
+  const [tournament] = await db
+    .select({
+      name: tournaments.name,
+      description: tournaments.description,
+      date: tournaments.date,
+      location: tournaments.location,
+      status: tournaments.status,
+    })
+    .from(tournaments)
+    .where(eq(tournaments.slug, slug))
+    .limit(1);
+
+  if (!tournament || !isTournamentPublishedForPublic(tournament)) {
+    return pageMetadata("Tournament not found", undefined, { noIndex: true });
+  }
+
+  const description =
+    tournament.description?.trim() ||
+    `${tournament.name} is a collegiate club volleyball tournament in ${tournament.location} on ${formatTournamentDateDisplay(tournament.date)}.`;
+
+  return pageMetadata(tournament.name, description, {
+    canonical: `/explore/tournaments/${slug}`,
+  });
 }
 
 export default async function ExploreTournamentPage({ params }: Props) {
@@ -77,7 +97,7 @@ export default async function ExploreTournamentPage({ params }: Props) {
     <div className="flex min-h-screen flex-col">
       <SiteHeader user={authProfile} />
 
-      <main className="relative flex-1">
+      <main id="main-content" tabIndex={-1} className="relative flex-1">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-56 text-foreground/[0.05] bg-dot-grid [mask-image:linear-gradient(to_bottom,black,transparent)]"

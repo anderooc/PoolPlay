@@ -482,7 +482,7 @@ export function TournamentChatPanel({
                       placeholder={composePlaceholder(activeChannel?.kind)}
                       disabled={sending}
                       aria-label="Message"
-                      className="block w-full resize-none border-0 bg-transparent px-3.5 pt-3 pb-2 text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none focus-visible:ring-0 disabled:opacity-60"
+                      className="block w-full resize-none rounded-t-xl border-0 bg-transparent px-3.5 pt-3 pb-2 text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60"
                     />
                     <div className="flex items-center justify-between gap-2 border-t border-border/60 px-2.5 py-2">
                       <p className="px-1 text-[11px] text-muted-foreground">

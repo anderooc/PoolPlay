@@ -296,6 +296,7 @@ export function DateScrollWheel({
               key={iso}
               type="button"
               data-date={iso}
+              disabled={!isShown}
               style={{ height: LINE_HEIGHT_PX }}
               className={cn(
                 "flex w-full min-w-0 items-center justify-center overflow-hidden border-0 bg-transparent px-1 text-center leading-tight transition-[color,opacity] duration-300 ease-out select-none",

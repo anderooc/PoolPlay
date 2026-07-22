@@ -27,7 +27,11 @@ import { tournamentListColumns } from "@/lib/tournaments/list-columns";
 import { pageMetadata } from "@/lib/metadata";
 import { PublicSiteFooter } from "@/components/layout/public-site-footer";
 
-export const metadata = pageMetadata("Explore tournaments");
+export const metadata = pageMetadata(
+  "Explore collegiate club volleyball tournaments",
+  "Find upcoming collegiate club volleyball tournaments, dates, locations, divisions, and registration details.",
+  { canonical: "/explore" }
+);
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +50,7 @@ export default async function ExplorePage() {
     <div className="flex min-h-screen flex-col">
       <SiteHeader user={user} />
 
-      <main className="relative flex-1">
+      <main id="main-content" tabIndex={-1} className="relative flex-1">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-foreground/[0.05] bg-dot-grid [mask-image:linear-gradient(to_bottom,black,transparent)]"

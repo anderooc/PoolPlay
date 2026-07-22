@@ -66,7 +66,9 @@ export default function ResetPasswordPage() {
         </div>
         <Card className="shadow-xl shadow-primary/5">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold">Choose a new password</CardTitle>
+            <CardTitle as="h1" className="text-2xl font-bold">
+              Choose a new password
+            </CardTitle>
             <CardDescription>
               Enter a new password for your PoolPlay account.
             </CardDescription>
@@ -99,7 +101,11 @@ export default function ResetPasswordPage() {
                   autoComplete="new-password"
                 />
               </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
+              )}
               <Button type="submit" className="w-full" disabled={isPending}>
                 {isPending ? (
                   <>

@@ -24,6 +24,7 @@ import { PoolPlayMark } from "./poolplay-mark";
 import { SiteMobileNav } from "./site-mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "./user-menu";
+import { SkipLink } from "./skip-link";
 
 export type SiteHeaderUser = {
   fullName: string;
@@ -33,44 +34,47 @@ export type SiteHeaderUser = {
 
 export function SiteHeader({ user }: { user?: SiteHeaderUser | null }) {
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur-sm transition-[background-color,backdrop-filter] duration-300 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1">
-      <div className="container mx-auto flex h-14 items-center gap-2 px-4 transition-[padding,gap] duration-300 ease-out sm:gap-4">
-        <SiteMobileNav signedIn={Boolean(user)} />
-        <PoolPlayMark href="/" wordmarkClassName="text-lg" />
-        <HeaderNav className="min-w-0" />
-        <div className="flex-1" />
-        <div className="flex shrink-0 items-center gap-1">
-          <ThemeToggle />
-          {user ? (
-            <UserMenu
-              fullName={user.fullName}
-              email={user.email}
-              avatarUrl={user.avatarUrl}
-            />
-          ) : (
-            <>
-              <Link
-                href="/login"
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "sm" }),
-                  "hidden sm:inline-flex"
-                )}
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/signup"
-                className={cn(
-                  buttonVariants({ size: "sm" }),
-                  "hidden sm:inline-flex"
-                )}
-              >
-                Get Started
-              </Link>
-            </>
-          )}
+    <>
+      <SkipLink />
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur-sm transition-[background-color,backdrop-filter] duration-300 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1">
+        <div className="container mx-auto flex h-14 items-center gap-2 px-4 transition-[padding,gap] duration-300 ease-out sm:gap-4">
+          <SiteMobileNav signedIn={Boolean(user)} />
+          <PoolPlayMark href="/" wordmarkClassName="text-lg" />
+          <HeaderNav className="min-w-0" />
+          <div className="flex-1" />
+          <div className="flex shrink-0 items-center gap-1">
+            <ThemeToggle />
+            {user ? (
+              <UserMenu
+                fullName={user.fullName}
+                email={user.email}
+                avatarUrl={user.avatarUrl}
+              />
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "sm" }),
+                    "hidden sm:inline-flex"
+                  )}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/signup"
+                  className={cn(
+                    buttonVariants({ size: "sm" }),
+                    "hidden sm:inline-flex"
+                  )}
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+    </>
   );
 }

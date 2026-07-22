@@ -29,7 +29,11 @@ import { AudienceSplitSection } from "@/components/marketing/audience-split-sect
 import { FeaturedTournamentsSection } from "@/components/marketing/featured-tournaments-section";
 import { OperationsFeaturesSection } from "@/components/marketing/operations-features-section";
 
-export const metadata = pageMetadata("Home");
+export const metadata = pageMetadata(
+  "Collegiate club volleyball tournaments",
+  "Run collegiate club volleyball tournaments from registration through pools, brackets, court schedules, and live scoring.",
+  { canonical: "/" }
+);
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +77,7 @@ export default async function HomePage() {
     <div className="flex min-h-screen flex-col">
       <SiteHeader user={user} />
 
-      <main className="flex-1">
+      <main id="main-content" tabIndex={-1} className="flex-1">
         <section className="relative flex min-h-[calc(100svh-3.5rem)] overflow-hidden">
           {/* Decorative backdrop */}
           <div

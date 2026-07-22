@@ -26,7 +26,8 @@ import { PublicSiteFooter } from "@/components/layout/public-site-footer";
 
 export const metadata = pageMetadata(
   "About",
-  "Why PoolPlay exists: built by Andrew Chang from running Emory club volleyball tournaments without the right tools."
+  "Why PoolPlay exists: built by Andrew Chang from running Emory club volleyball tournaments without the right tools.",
+  { canonical: "/about" }
 );
 
 export default async function AboutPage() {
@@ -36,7 +37,7 @@ export default async function AboutPage() {
     <div className="flex min-h-screen flex-col">
       <SiteHeader user={user} />
 
-      <main className="relative flex-1">
+      <main id="main-content" tabIndex={-1} className="relative flex-1">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 text-foreground/[0.05] bg-dot-grid [mask-image:linear-gradient(to_bottom,black,transparent)]"

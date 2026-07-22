@@ -106,7 +106,7 @@ export function NewTeamForm({
       <div className="mx-auto max-w-lg">
         <Card className="shadow-sm shadow-primary/5">
           <CardHeader>
-            <CardTitle className="text-xl font-semibold tracking-tight">
+            <CardTitle as="h1" className="text-xl font-semibold tracking-tight">
               Create team
             </CardTitle>
             <CardDescription className="text-pretty">

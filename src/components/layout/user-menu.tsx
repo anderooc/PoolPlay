@@ -54,6 +54,7 @@ export function UserMenu({ fullName, email, avatarUrl }: UserMenuProps) {
           <Button
             variant="ghost"
             className="relative h-9 w-9 rounded-full p-0 hover:bg-transparent"
+            aria-label={`Open account menu for ${fullName}`}
           />
         }
       >

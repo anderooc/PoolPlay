@@ -86,7 +86,10 @@ export function Sidebar({
         collapsed ? "md:w-[4.25rem]" : "md:w-60"
       )}
     >
-      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
+      <nav
+        aria-label="Primary"
+        className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2"
+      >
         {visibleLinks.map((link) => {
           const Icon = link.icon;
           const href = navHref(link, schoolsHref);
@@ -95,6 +98,7 @@ export function Sidebar({
             <Link
               key={link.label}
               href={href}
+              aria-current={active ? "page" : undefined}
               title={hydrated && collapsed ? link.label : undefined}
               className={cn(
                 "flex items-center gap-3 rounded-md py-2 text-sm font-medium transition-colors",
@@ -105,7 +109,9 @@ export function Sidebar({
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span className="truncate">{link.label}</span>}
+              <span className={collapsed ? "sr-only" : "truncate"}>
+                {link.label}
+              </span>
             </Link>
           );
         })}

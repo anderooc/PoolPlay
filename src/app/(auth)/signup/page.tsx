@@ -86,7 +86,9 @@ export default function SignupPage() {
         </div>
         <Card className="shadow-xl shadow-primary/5">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Create account</CardTitle>
+          <CardTitle as="h1" className="text-2xl font-bold">
+            Create account
+          </CardTitle>
           <CardDescription>
             Create your PoolPlay account with a school or institutional email.
           </CardDescription>
@@ -134,13 +136,16 @@ export default function SignupPage() {
                 name="password"
                 type="password"
                 placeholder="••••••••"
-                minLength={6}
+                minLength={8}
                 required
                 disabled={isPending}
+                autoComplete="new-password"
               />
             </div>
             {error && (
-              <p className="text-sm text-destructive">{error}</p>
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
             )}
             <Button type="submit" className="w-full" disabled={isPending}>
               {isPending ? (

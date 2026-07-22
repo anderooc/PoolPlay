@@ -25,6 +25,11 @@ import { Toaster } from "@/components/ui/sonner";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { getUserSchoolSummary } from "@/lib/schools/navigation";
 import { profileAvatarPublicUrl } from "@/lib/profile/avatar-storage";
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata("Dashboard", undefined, {
+  noIndex: true,
+});
 
 export default async function DashboardLayout({
   children,
@@ -54,7 +59,11 @@ export default async function DashboardLayout({
       <Suspense fallback={null}>
         <DashboardContentEnter>
           <Sidebar isAdmin={admin} schoolsHref={schoolsHref} />
-          <main className="flex-1 overflow-y-scroll overflow-x-hidden p-4 [scrollbar-gutter:stable] md:p-6">
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="flex-1 overflow-y-scroll overflow-x-hidden p-4 [scrollbar-gutter:stable] md:p-6"
+          >
             <RouteFade>{children}</RouteFade>
           </main>
         </DashboardContentEnter>

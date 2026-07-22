@@ -95,7 +95,7 @@ export function NewTournamentForm({
             className="pointer-events-none absolute inset-0 text-foreground/[0.05] bg-dot-grid [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black,transparent)]"
           />
           <CardHeader className="relative">
-            <CardTitle className="text-xl font-semibold tracking-tight">
+            <CardTitle as="h1" className="text-xl font-semibold tracking-tight">
               Join or create a school first
             </CardTitle>
             <CardDescription className="text-pretty">
@@ -121,7 +121,7 @@ export function NewTournamentForm({
       <div className="mx-auto max-w-lg">
         <Card className="shadow-sm shadow-primary/5">
           <CardHeader>
-            <CardTitle className="text-xl font-semibold tracking-tight">
+            <CardTitle as="h1" className="text-xl font-semibold tracking-tight">
               Create tournament
             </CardTitle>
             <CardDescription className="text-pretty">

@@ -70,7 +70,7 @@ export function NewSchoolForm() {
       <div className="mx-auto max-w-lg">
         <Card className="shadow-sm shadow-primary/5">
           <CardHeader>
-            <CardTitle className="text-xl font-semibold tracking-tight">
+            <CardTitle as="h1" className="text-xl font-semibold tracking-tight">
               Create school
             </CardTitle>
             <CardDescription className="text-pretty">
@@ -170,6 +170,7 @@ export function NewSchoolForm() {
                 <Input
                   id="websiteUrl"
                   name="websiteUrl"
+                  type="url"
                   placeholder="https://stateu-volleyball.org"
                   maxLength={200}
                 />

@@ -68,7 +68,9 @@ export default function ForgotPasswordPage() {
         </div>
         <Card className="shadow-xl shadow-primary/5">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold">Reset password</CardTitle>
+            <CardTitle as="h1" className="text-2xl font-bold">
+              Reset password
+            </CardTitle>
             <CardDescription>
               Enter your account email and we&apos;ll send a reset link.
             </CardDescription>
@@ -102,7 +104,11 @@ export default function ForgotPasswordPage() {
                     autoComplete="email"
                   />
                 </div>
-                {error && <p className="text-sm text-destructive">{error}</p>}
+                {error && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {error}
+                  </p>
+                )}
                 <Button type="submit" className="w-full" disabled={isPending}>
                   {isPending ? (
                     <>

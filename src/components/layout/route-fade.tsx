@@ -33,7 +33,8 @@ export function RouteFade({ children }: { children: ReactNode }) {
   return (
     <div
       key={isAdmin ? "admin" : pathname}
-      className="min-h-full"
+      className="min-h-full motion-reduce:!animate-none"
+      data-pp-animate
       style={
         isAdmin
           ? undefined

@@ -46,6 +46,7 @@ export default function LoginPage() {
 function LoginPageContent() {
   const searchParams = useSearchParams();
   const resetSuccess = searchParams.get("reset") === "success";
+  const accountDeleted = searchParams.get("account") === "deleted";
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -95,7 +96,9 @@ function LoginPageContent() {
         </div>
         <Card className="shadow-xl shadow-primary/5">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+          <CardTitle as="h1" className="text-2xl font-bold">
+            Welcome back
+          </CardTitle>
           <CardDescription>
             Sign in to your PoolPlay account
           </CardDescription>
@@ -139,8 +142,15 @@ function LoginPageContent() {
                 Password updated. Sign in with your new password.
               </p>
             )}
+            {accountDeleted && (
+              <p className="text-sm text-success">
+                Your account and personal profile details were deleted.
+              </p>
+            )}
             {error && (
-              <p className="text-sm text-destructive">{error}</p>
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
             )}
             <Button type="submit" className="w-full" disabled={isPending}>
               {isPending ? (
