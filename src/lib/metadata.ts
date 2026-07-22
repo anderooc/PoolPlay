@@ -26,6 +26,18 @@ export const COPYRIGHT_YEAR = 2026;
 export const APP_DEFAULT_DESCRIPTION =
   "Organize tournaments, manage teams, run pools and brackets, schedule courts, and track live scores for college club volleyball.";
 
+export function appBaseUrl(): URL {
+  const configured =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000");
+
+  return new URL(configured);
+}
+
 /** Join title segments; root layout appends the app name via the title template. */
 export function pageTitle(
   ...segments: (string | null | undefined | false)[]
@@ -40,10 +52,35 @@ export function pageTitle(
 
 export function pageMetadata(
   title: string,
-  description?: string
+  description?: string,
+  options?: {
+    canonical?: string;
+    noIndex?: boolean;
+  }
 ): Metadata {
   return {
     title,
     ...(description ? { description } : {}),
+    ...(options?.canonical
+      ? {
+          alternates: { canonical: options.canonical },
+          openGraph: {
+            title,
+            ...(description ? { description } : {}),
+            url: options.canonical,
+            siteName: APP_NAME,
+            images: [{ url: "/opengraph-image", width: 1200, height: 630 }],
+          },
+          twitter: {
+            card: "summary_large_image",
+            title,
+            ...(description ? { description } : {}),
+            images: ["/opengraph-image"],
+          },
+        }
+      : {}),
+    ...(options?.noIndex
+      ? { robots: { index: false, follow: false, noarchive: true } }
+      : {}),
   };
 }
