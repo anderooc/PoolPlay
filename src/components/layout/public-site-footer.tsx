@@ -1,5 +1,5 @@
 /*
- * PoolPlay - Collegiate club volleyball tournament hub
+ * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -17,13 +17,13 @@
  */
 
 import Link from "next/link";
-import { PoolPlayMark } from "@/components/layout/poolplay-mark";
+import { ShootSetMark } from "@/components/layout/shoot-set-mark";
 import { COPYRIGHT_HOLDER, COPYRIGHT_YEAR } from "@/lib/metadata";
 
 export function PublicSiteFooter({ showTagline = false }: { showTagline?: boolean }) {
   return (
     <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-      <PoolPlayMark wordmarkClassName="text-sm font-bold" />
+      <ShootSetMark wordmarkClassName="text-sm font-bold" />
       {showTagline ? (
         <p className="mt-2 text-xs">
           Tournament hub for collegiate club volleyball.

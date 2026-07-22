@@ -1,5 +1,5 @@
 /*
- * PoolPlay - Collegiate club volleyball tournament hub
+ * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -104,7 +104,10 @@ export default async function HomePage() {
                 Run the whole
                 <br />
                 tournament on{" "}
-                <span className="text-gradient-brand">PoolPlay</span>
+                <span className="inline-flex items-baseline whitespace-nowrap">
+                  <span className="text-primary">Shoot</span>
+                  <span className="text-secondary">Set</span>
+                </span>
               </h1>
 
               <p className="mx-auto mt-6 max-w-xl text-pretty text-base text-muted-foreground sm:text-lg">

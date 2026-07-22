@@ -1,5 +1,5 @@
 /*
- * PoolPlay - Collegiate club volleyball tournament hub
+ * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  *
  * This program is free software: you can redistribute it and/or modify
@@ -10,7 +10,7 @@
 
 import { ImageResponse } from "next/og";
 
-export const alt = "PoolPlay — collegiate club volleyball tournament hub";
+export const alt = "ShootSet — collegiate club volleyball tournament hub";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -32,13 +32,12 @@ export default function OpenGraphImage() {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "24px",
           fontSize: 76,
           fontWeight: 800,
         }}
       >
-        <span style={{ color: "#c92f45" }}>Pool</span>
-        <span style={{ color: "#315ca8", marginLeft: "-24px" }}>Play</span>
+        <span style={{ color: "#c92f45" }}>Shoot</span>
+        <span style={{ color: "#315ca8" }}>Set</span>
       </div>
       <div
         style={{

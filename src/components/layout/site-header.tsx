@@ -1,5 +1,5 @@
 /*
- * PoolPlay - Collegiate club volleyball tournament hub
+ * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { HeaderNav } from "./header-nav";
-import { PoolPlayMark } from "./poolplay-mark";
+import { ShootSetMark } from "./shoot-set-mark";
 import { SiteMobileNav } from "./site-mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "./user-menu";
@@ -39,7 +39,7 @@ export function SiteHeader({ user }: { user?: SiteHeaderUser | null }) {
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur-sm transition-[background-color,backdrop-filter] duration-300 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1">
         <div className="container mx-auto flex h-14 items-center gap-2 px-4 transition-[padding,gap] duration-300 ease-out sm:gap-4">
           <SiteMobileNav signedIn={Boolean(user)} />
-          <PoolPlayMark href="/" wordmarkClassName="text-lg" />
+          <ShootSetMark href="/" wordmarkClassName="text-lg" />
           <HeaderNav className="min-w-0" />
           <div className="flex-1" />
           <div className="flex shrink-0 items-center gap-1">
