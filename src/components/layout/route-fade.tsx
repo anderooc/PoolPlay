@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * PoolPlay - Collegiate club volleyball tournament hub
+ * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -34,7 +34,7 @@ export function RouteFade({ children }: { children: ReactNode }) {
     <div
       key={isAdmin ? "admin" : pathname}
       className="min-h-full motion-reduce:!animate-none"
-      data-pp-animate
+      data-ss-animate
       style={
         isAdmin
           ? undefined

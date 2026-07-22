@@ -1,5 +1,5 @@
 /*
- * PoolPlay - Collegiate club volleyball tournament hub
+ * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  *
  * This program is free software: you can redistribute it and/or modify
@@ -80,7 +80,7 @@ export function AudienceSplitSection() {
             Built for hosts and teams
           </h2>
           <p className="mt-3 max-w-xl text-pretty text-muted-foreground">
-            Whether you are running a regional or registering your club, PoolPlay
+            Whether you are running a regional or registering your club, ShootSet
             meets you where you are.
           </p>
         </div>

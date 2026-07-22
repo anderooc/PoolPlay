@@ -1,7 +1,7 @@
 "use server";
 
 /*
- * PoolPlay - Collegiate club volleyball tournament hub
+ * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  *
  * This program is free software: you can redistribute it and/or modify
@@ -217,7 +217,7 @@ export async function deleteAccount(formData: FormData) {
       .update(users)
       .set({
         authId: `deleted:${request.id}`,
-        email: `${request.id}@deleted.poolplay.invalid`,
+        email: `${request.id}@deleted.shootset.invalid`,
         fullName: "Deleted user",
         university: null,
         avatarStoragePath: null,

@@ -1,5 +1,5 @@
 /*
- * PoolPlay - Collegiate club volleyball tournament hub
+ * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -37,7 +37,7 @@ export function getResendClient(): Resend {
 
 export function tournamentEmailFromAddress(): string {
   return (
-    process.env.RESEND_FROM_EMAIL ?? "PoolPlay <onboarding@resend.dev>"
+    process.env.RESEND_FROM_EMAIL ?? "ShootSet <onboarding@resend.dev>"
   );
 }
 
@@ -69,7 +69,7 @@ export function plainTextToHtml(text: string): string {
 }
 
 export function emailFooterHtml(tournamentName: string): string {
-  return `<p style="margin-top: 2em; font-size: 12px; color: #666;">You received this because you are listed as a team captain for ${escapeHtml(tournamentName)} on PoolPlay.</p>`;
+  return `<p style="margin-top: 2em; font-size: 12px; color: #666;">You received this because you are listed as a team captain for ${escapeHtml(tournamentName)} on ShootSet.</p>`;
 }
 
 function escapeHtml(value: string): string {
@@ -176,7 +176,7 @@ export function buildCaptainEmailText(input: {
       ? `\n\n${input.ctaLabel}: ${input.ctaUrl}`
       : "";
 
-  const footer = `\n\n---\nYou received this because you are listed as a team captain for ${input.tournamentName} on PoolPlay.`;
+  const footer = `\n\n---\nYou received this because you are listed as a team captain for ${input.tournamentName} on ShootSet.`;
 
   return `${header}\n\n${input.body}${cta}${footer}`;
 }

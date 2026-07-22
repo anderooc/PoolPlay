@@ -1,5 +1,5 @@
 /*
- * PoolPlay - Collegiate club volleyball tournament hub
+ * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -97,7 +97,7 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title={`Welcome back, ${firstName}`}
-        description="Here's what's happening on PoolPlay."
+        description="Here's what's happening on ShootSet."
       />
 
       {isNewUser ? (

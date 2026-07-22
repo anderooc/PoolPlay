@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * PoolPlay - Collegiate club volleyball tournament hub
+ * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -274,7 +274,7 @@ export function TournamentWaiverSettingsPanel({
                   }
                 />
                 <Label htmlFor="waiver-digital">
-                  Digital acknowledgment in PoolPlay (each player signs)
+                  Digital acknowledgment in ShootSet (each player signs)
                 </Label>
               </div>
             </div>

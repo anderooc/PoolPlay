@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * PoolPlay - Collegiate club volleyball tournament hub
+ * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -148,7 +148,7 @@ export function TournamentPaymentSettingsPanel({
         </CardTitle>
         <CardDescription>
           Track entry fees per team. Teams pay you directly (Venmo, Zelle, etc.)
-          — PoolPlay does not process payments. Captains mark when they&apos;ve
+          — ShootSet does not process payments. Captains mark when they&apos;ve
           sent payment; you confirm or waive.
         </CardDescription>
       </CardHeader>

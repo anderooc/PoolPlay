@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * PoolPlay - Collegiate club volleyball tournament hub
+ * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -183,7 +183,7 @@ export function CourtManager({
               return (
                 <div
                   key={court.id}
-                  data-pp-animate={isHighlighted ? "enter" : undefined}
+                  data-ss-animate={isHighlighted ? "enter" : undefined}
                   style={
                     isHighlighted
                       ? {

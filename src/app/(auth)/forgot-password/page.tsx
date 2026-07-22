@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * PoolPlay - Collegiate club volleyball tournament hub
+ * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  *
  * This program is free software: you can redistribute it and/or modify
@@ -31,7 +31,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { PoolPlayMark } from "@/components/layout/poolplay-mark";
+import { ShootSetMark } from "@/components/layout/shoot-set-mark";
 import { requestPasswordReset } from "../actions";
 
 export default function ForgotPasswordPage() {
@@ -64,7 +64,7 @@ export default function ForgotPasswordPage() {
       />
       <div className="relative z-[1] w-full max-w-md">
         <div className="mb-6 text-center">
-          <PoolPlayMark href="/" wordmarkClassName="text-2xl" />
+          <ShootSetMark href="/" wordmarkClassName="text-2xl" />
         </div>
         <Card className="shadow-xl shadow-primary/5">
           <CardHeader className="text-center">

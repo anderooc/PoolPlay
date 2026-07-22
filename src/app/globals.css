@@ -1,5 +1,5 @@
 /*
- * PoolPlay - Collegiate club volleyball tournament hub
+ * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -341,7 +341,7 @@
     transition-duration: 0.01ms !important;
   }
 
-  [data-pp-animate] {
+  [data-ss-animate] {
     animation-name: none !important;
   }
 }
