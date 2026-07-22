@@ -5,7 +5,7 @@ import { join, relative } from "node:path";
 const ROOT = new URL("..", import.meta.url).pathname;
 
 const COPYRIGHT_LINES = [
-  "PoolPlay - Collegiate club volleyball tournament hub",
+  "ShootSet - Collegiate club volleyball tournament hub",
   "Copyright (C) 2026 Andrew Chang",
   "",
   "This program is free software: you can redistribute it and/or modify",

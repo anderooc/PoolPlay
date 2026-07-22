@@ -1,6 +1,6 @@
-# PoolPlay
+# ShootSet
 
-PoolPlay is a tournament hub for collegiate club volleyball. Hosts run events end to end in one place; teams register, follow schedules, and check results without juggling spreadsheets and group chats.
+ShootSet is a tournament hub for collegiate club volleyball. Hosts run events end to end in one place; teams register, follow schedules, and check results without juggling spreadsheets and group chats.
 
 ## Who it's for
 
@@ -44,4 +44,4 @@ PoolPlay is a tournament hub for collegiate club volleyball. Hosts run events en
 
 ## About this repo
 
-This repository contains the PoolPlay web application. It is a private project and is not set up as a self-hosted template.
+This repository contains the ShootSet web application. It is a private project and is not set up as a self-hosted template.

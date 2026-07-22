@@ -16,17 +16,17 @@ The job to be done: replace the tangle of spreadsheets and group chats that coll
 
 ## Product Purpose
 
-PoolPlay is a tournament hub for collegiate club volleyball. It exists to let a host run a real event from draft to finals without leaving the app, while giving teams and fans a clear public window into registration and live results. Success looks like an organizer confidently running game day on PoolPlay, and a fan trusting the live score on screen.
+ShootSet is a tournament hub for collegiate club volleyball. It exists to let a host run a real event from draft to finals without leaving the app, while giving teams and fans a clear public window into registration and live results. Success looks like an organizer confidently running game day on ShootSet, and a fan trusting the live score on screen.
 
 ## Brand Personality
 
-Sporty but refined and trustworthy. Voice is confident and plain-spoken, never hype. Think a premium SaaS dashboard (Linear/Stripe-grade craft) wearing team colors — energy from the volleyball-red / court-blue brand, discipline from the layout. The wordmark "PoolPlay" carries the energy (Pool in primary red, Play in secondary blue); dense data screens stay calm.
+Sporty but refined and trustworthy. Voice is confident and plain-spoken, never hype. Think a premium SaaS dashboard (Linear/Stripe-grade craft) wearing team colors — energy from the volleyball-red / court-blue brand, discipline from the layout. The wordmark "ShootSet" carries the energy (Shoot in primary red, Set in secondary blue); dense data screens stay calm.
 
 ## Anti-references
 
 - Flashy gaming / esports sites: neon, aggressive gradients, heavy glassmorphism, motion for its own sake.
 - Generic AI-SaaS slop: hero-metric template, identical icon-card grids, tiny tracked uppercase eyebrows on every section, gradient text used as decoration.
-- Spreadsheet-grade utilitarian tools with no hierarchy or state design — the thing PoolPlay replaces.
+- Spreadsheet-grade utilitarian tools with no hierarchy or state design — the thing ShootSet replaces.
 
 ## Design Principles
 

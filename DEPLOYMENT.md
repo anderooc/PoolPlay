@@ -1,5 +1,12 @@
 # Production deployment checklist
 
+## Domain
+
+Production origin for this rebrand is `https://shoot-set.com`. Set
+`NEXT_PUBLIC_APP_URL` to that value in Vercel (and local `.env` when testing
+auth/email redirects). Update Supabase Auth redirect URLs and Resend domain
+DNS for `shoot-set.com` before cutover.
+
 ## Required before deploying this change
 
 - Apply Supabase migrations `00036` through `00038` before starting the new
@@ -10,7 +17,7 @@
   storage operations require it.
 - Ensure the deployment proxy overwrites `x-forwarded-for`, `x-real-ip`, or
   `cf-connecting-ip`; auth rate limiting trusts those proxy headers.
-- Set the GitHub Actions repository variable `POOLPLAY_STAGING_URL` to enable
+- Set the GitHub Actions repository variable `SHOOTSET_STAGING_URL` to enable
   the staged Playwright and Lighthouse job.
 
 ## Supabase checks

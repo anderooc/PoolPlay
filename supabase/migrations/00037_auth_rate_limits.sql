@@ -1,4 +1,4 @@
--- PoolPlay - Collegiate club volleyball tournament hub
+-- ShootSet - Collegiate club volleyball tournament hub
 -- Copyright (C) 2026 Andrew Chang
 --
 -- Server-side, shared rate-limit counters for authentication actions. Browser
