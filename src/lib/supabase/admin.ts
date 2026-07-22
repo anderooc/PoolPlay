@@ -25,7 +25,7 @@ export function createAdminClient() {
 
   if (!url || !serviceKey) {
     throw new Error(
-      "SUPABASE_SERVICE_ROLE_KEY is required for tournament waiver file storage."
+      "SUPABASE_SERVICE_ROLE_KEY is required for server-side storage and admin operations."
     );
   }
 

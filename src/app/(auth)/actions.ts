@@ -25,6 +25,7 @@ import { users } from "@/lib/db/schema";
 import { signUpSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "@/lib/validators";
 import { checkContentFilter } from "@/lib/utils/content-filter";
 import { appBaseUrl } from "@/lib/email/resend";
+import { checkAuthRateLimit } from "@/lib/rate-limit/auth";
 
 export async function login(formData: FormData) {
   const raw = {
@@ -36,6 +37,9 @@ export async function login(formData: FormData) {
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
+
+  const rateLimit = await checkAuthRateLimit("login", parsed.data.email);
+  if (!rateLimit.allowed) return { error: rateLimit.message };
 
   const supabase = await createClient();
   let error: { message: string } | null = null;
@@ -65,6 +69,12 @@ export async function requestPasswordReset(formData: FormData) {
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
+
+  const rateLimit = await checkAuthRateLimit(
+    "password-reset",
+    parsed.data.email
+  );
+  if (!rateLimit.allowed) return { error: rateLimit.message };
 
   const supabase = await createClient();
   const redirectTo = `${appBaseUrl()}/auth/callback?next=/reset-password`;
@@ -145,6 +155,9 @@ export async function signup(formData: FormData) {
     parsed.data.university
   );
   if (signupContentError) return { error: signupContentError };
+
+  const rateLimit = await checkAuthRateLimit("signup", parsed.data.email);
+  if (!rateLimit.allowed) return { error: rateLimit.message };
 
   const supabase = await createClient();
   let data: { user: { id: string } | null } | null = null;

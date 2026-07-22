@@ -20,9 +20,20 @@
 
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import {
+  accountDeletionRequests,
+  contentFlags,
+  schoolMembers,
+  teamMembers,
+  tournamentChatMessages,
+  tournamentChatReadCursors,
+  users,
+  waiverCompletions,
+} from "@/lib/db/schema";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   removeProfileAvatar,
@@ -145,4 +156,93 @@ export async function changePassword(formData: FormData) {
   }
 
   return { success: true as const };
+}
+
+export async function deleteAccount(formData: FormData) {
+  const user = await requireUser();
+  const password = formData.get("password");
+  const confirmation = formData.get("confirmation");
+
+  if (typeof password !== "string" || password.length === 0) {
+    return { error: "Enter your password to continue." };
+  }
+  if (confirmation !== "DELETE") {
+    return { error: "Type DELETE exactly to confirm." };
+  }
+
+  const supabase = await createClient();
+  try {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password,
+    });
+    if (error) return { error: "Your password is incorrect." };
+  } catch {
+    return { error: "Could not verify your password. Try again later." };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+    await removeProfileAvatar(user.avatarStoragePath);
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Account deletion is temporarily unavailable.",
+    };
+  }
+
+  const requestId = await db.transaction(async (tx) => {
+    const [request] = await tx
+      .insert(accountDeletionRequests)
+      .values({ authId: user.authId })
+      .returning({ id: accountDeletionRequests.id });
+
+    await tx
+      .delete(tournamentChatReadCursors)
+      .where(eq(tournamentChatReadCursors.userId, user.id));
+    await tx
+      .delete(tournamentChatMessages)
+      .where(eq(tournamentChatMessages.authorUserId, user.id));
+    await tx.delete(contentFlags).where(eq(contentFlags.userId, user.id));
+    await tx.delete(teamMembers).where(eq(teamMembers.userId, user.id));
+    await tx.delete(schoolMembers).where(eq(schoolMembers.userId, user.id));
+    await tx
+      .update(waiverCompletions)
+      .set({ signedName: null })
+      .where(eq(waiverCompletions.userId, user.id));
+    await tx
+      .update(users)
+      .set({
+        authId: `deleted:${request.id}`,
+        email: `${request.id}@deleted.poolplay.invalid`,
+        fullName: "Deleted user",
+        university: null,
+        avatarStoragePath: null,
+        playerGender: null,
+        volleyballPosition: null,
+        displayEmail: null,
+        displaySchool: null,
+        role: "player",
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id));
+
+    return request.id;
+  });
+
+  const { error: deletionError } = await admin.auth.admin.deleteUser(user.authId);
+  await db
+    .update(accountDeletionRequests)
+    .set(
+      deletionError
+        ? { lastError: deletionError.message }
+        : { completedAt: new Date(), lastError: null }
+    )
+    .where(eq(accountDeletionRequests.id, requestId));
+
+  await supabase.auth.signOut();
+  redirect("/login?account=deleted");
 }

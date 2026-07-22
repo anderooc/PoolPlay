@@ -22,6 +22,7 @@ import { pageMetadata } from "@/lib/metadata";
 import { profileAvatarPublicUrl } from "@/lib/profile/avatar-storage";
 import { ProfileForm } from "./profile-form";
 import { ChangePasswordForm } from "./password-form";
+import { AccountDeletionForm } from "./account-deletion-form";
 
 export const metadata = pageMetadata("Edit profile");
 
@@ -50,6 +51,7 @@ export default async function ProfilePage() {
       />
 
       <ChangePasswordForm />
+      <AccountDeletionForm />
     </div>
   );
 }

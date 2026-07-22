@@ -181,6 +181,42 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const authRateLimits = pgTable(
+  "auth_rate_limits",
+  {
+    keyHash: text("key_hash").notNull(),
+    scope: text("scope").notNull(),
+    attempts: integer("attempts").default(1).notNull(),
+    windowExpiresAt: timestamp("window_expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.keyHash, t.scope] })]
+);
+
+export const accountDeletionRequests = pgTable("account_deletion_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  authId: text("auth_id").notNull(),
+  requestedAt: timestamp("requested_at", {
+    withTimezone: true,
+    mode: "date",
+  })
+    .defaultNow()
+    .notNull(),
+  completedAt: timestamp("completed_at", {
+    withTimezone: true,
+    mode: "date",
+  }),
+  lastError: text("last_error"),
+});
+
 export const schools = pgTable("schools", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
