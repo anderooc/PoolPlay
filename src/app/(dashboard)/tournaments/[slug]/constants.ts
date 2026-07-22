@@ -21,7 +21,7 @@ export const TOURNAMENT_TABS = [
   "packet",
   "waiver",
   "payment",
-  "messages",
+  "email",
   "chat",
   "teams",
   "pending",
@@ -37,7 +37,7 @@ export const TOURNAMENT_TAB_LABELS: Record<TournamentTabId, string> = {
   packet: "Packet",
   waiver: "Waiver",
   payment: "Payment",
-  messages: "Messages",
+  email: "Email",
   chat: "Chat",
   teams: "Teams",
   pending: "Pending",
@@ -66,7 +66,7 @@ const TAB_GROUP_BY_ID: Record<TournamentTabId, TournamentTabGroupId> = {
   packet: "preparation",
   waiver: "preparation",
   payment: "preparation",
-  messages: "preparation",
+  email: "preparation",
   chat: "preparation",
   teams: "preparation",
   pending: "preparation",
@@ -128,7 +128,8 @@ export function parseTournamentTab(
   allowed: ReadonlySet<TournamentTabId>,
   fallback: TournamentTabId = DEFAULT_TOURNAMENT_TAB
 ): TournamentTabId {
-  if (isTournamentTabId(tab) && allowed.has(tab)) return tab;
+  const normalized = tab === "messages" ? "email" : tab;
+  if (isTournamentTabId(normalized) && allowed.has(normalized)) return normalized;
   if (allowed.has(fallback)) return fallback;
   return DEFAULT_TOURNAMENT_TAB;
 }

@@ -60,7 +60,7 @@ const TAB_ICONS: Record<TournamentTabId, LucideIcon> = {
   packet: FileText,
   waiver: ClipboardSignature,
   payment: CreditCard,
-  messages: Mail,
+  email: Mail,
   chat: MessageCircle,
   teams: Users,
   pending: Inbox,
@@ -104,8 +104,8 @@ function TabNavLink({
         "group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors duration-150 ease-out",
         "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
         active
-          ? "bg-muted text-foreground"
-          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+          ? "bg-background text-foreground shadow-sm ring-1 ring-border/60"
+          : "text-muted-foreground hover:bg-background/70 hover:text-foreground"
       )}
     >
       <Icon
@@ -246,18 +246,18 @@ export function TournamentTabs({
   }
 
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-8">
+    <div className="mt-2 flex flex-col gap-4 border-t border-border/80 pt-5 lg:mt-3 lg:flex-row lg:items-start lg:gap-0 lg:pt-6">
       <div className="lg:hidden">
         <MobileJumpNav slug={slug} groups={groups} activeTab={activeTab} />
       </div>
 
-      <aside className="hidden w-52 shrink-0 lg:block">
-        <div className="sticky top-0 max-h-[calc(100vh-5.5rem)] overflow-y-auto py-0.5 [scrollbar-width:thin]">
+      <aside className="hidden w-56 shrink-0 lg:block lg:border-r lg:border-border/80 lg:pr-6">
+        <div className="sticky top-0 max-h-[calc(100vh-5.5rem)] overflow-y-auto rounded-xl bg-muted/45 p-2 ring-1 ring-border/50 [scrollbar-width:thin] dark:bg-muted/30">
           <SectionNav slug={slug} groups={groups} activeTab={activeTab} />
         </div>
       </aside>
 
-      <div className="min-w-0 flex-1">{children}</div>
+      <div className="min-w-0 flex-1 lg:pl-8">{children}</div>
     </div>
   );
 }

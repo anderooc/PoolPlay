@@ -59,6 +59,7 @@ import {
   buildTournamentTabGroups,
   DEFAULT_TOURNAMENT_TAB,
   parseTournamentTab,
+  tournamentTabUrl,
   type TournamentTabId,
   type TournamentTabItem,
 } from "./constants";
@@ -99,6 +100,16 @@ export default async function TournamentDetailPage({
 
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  // Legacy tab id — keep old bookmarks working.
+  if (sp.tab === "messages") {
+    redirect(
+      tournamentTabUrl(slug, "email", {
+        division: sp.division,
+        pool: sp.pool,
+      })
+    );
+  }
 
   const tournament = await getTournamentBySlugIfVisible(slug, user);
   if (!tournament) notFound();
@@ -238,7 +249,7 @@ export default async function TournamentDetailPage({
   if (showPacketTab) allowedTabs.add("packet");
   if (showWaiverTab) allowedTabs.add("waiver");
   if (showPaymentTab) allowedTabs.add("payment");
-  if (isOrganizer) allowedTabs.add("messages");
+  if (isOrganizer) allowedTabs.add("email");
   if (showChatTab) allowedTabs.add("chat");
   if (showTeamsTab) allowedTabs.add("teams");
   if (showPendingTab) allowedTabs.add("pending");
@@ -266,7 +277,7 @@ export default async function TournamentDetailPage({
     tabItems.push({ id: "payment", label: "Payment" });
   }
   if (isOrganizer) {
-    tabItems.push({ id: "messages", label: "Messages" });
+    tabItems.push({ id: "email", label: "Email" });
   }
   if (showChatTab) {
     tabItems.push({ id: "chat", label: "Chat" });

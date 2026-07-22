@@ -154,7 +154,7 @@ export async function canEditTournamentSetup(
   return !isTournamentArchived(tournament.date);
 }
 
-/** User-facing reason when preparation tabs (packet, waiver, messages) are read-only. */
+/** User-facing reason when preparation tabs (packet, waiver, email) are read-only. */
 export function tournamentPreparationLockedReason(
   tournament: Pick<TournamentForPermissions, "date" | "status">
 ): string | null {

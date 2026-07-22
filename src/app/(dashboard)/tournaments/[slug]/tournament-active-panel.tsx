@@ -128,7 +128,7 @@ export async function TournamentActivePanel({
           />
         );
       }
-    case "messages":
+    case "email":
       if (!isOrganizer) return null;
       {
         const { TournamentMessagesTabPanel } = await import(

@@ -43,7 +43,7 @@ export function tournamentDetailTitle(
   tournamentName: string,
   tab?: string | null
 ): string {
-  const normalizedTab = tab ?? undefined;
+  const normalizedTab = tab === "messages" ? "email" : (tab ?? undefined);
   let tabId: TournamentTabId = DEFAULT_TOURNAMENT_TAB;
   if (isTournamentTabId(normalizedTab)) {
     tabId = normalizedTab;
