@@ -22,13 +22,27 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface RealtimePayload {
-  eventType: string;
-  new: Record<string, unknown>;
-  old: Record<string, unknown>;
+interface SetRealtimeRow {
+  match_id?: string;
+  set_number?: number;
+  team_a_score?: number;
+  team_b_score?: number;
 }
 
-export function LiveScoreViewer({ tournamentId }: { tournamentId: string }) {
+interface MatchRealtimeRow {
+  tournament_id?: string;
+  status?: "upcoming" | "in_progress" | "completed";
+}
+
+const REALTIME_FILTER_CHUNK_SIZE = 50;
+
+export function LiveScoreViewer({
+  tournamentId,
+  matchIds,
+}: {
+  tournamentId: string;
+  matchIds: string[];
+}) {
   const [updates, setUpdates] = useState<
     { id: string; message: string; time: Date }[]
   >([]);
@@ -36,28 +50,18 @@ export function LiveScoreViewer({ tournamentId }: { tournamentId: string }) {
   useEffect(() => {
     const supabase = createClient();
 
-    const channel = supabase
+    let channel = supabase
       .channel(`tournament-${tournamentId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "sets" },
-        (payload: RealtimePayload) => {
-          const newData = payload.new as Record<string, unknown>;
-          setUpdates((prev) => [
-            {
-              id: crypto.randomUUID(),
-              message: `Set ${newData.set_number}: ${newData.team_a_score} - ${newData.team_b_score}`,
-              time: new Date(),
-            },
-            ...prev.slice(0, 19),
-          ]);
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "matches" },
-        (payload: RealtimePayload) => {
-          const newData = payload.new as Record<string, unknown>;
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "matches",
+          filter: `tournament_id=eq.${tournamentId}`,
+        },
+        (payload) => {
+          const newData = payload.new as MatchRealtimeRow;
           if (newData.status === "completed") {
             setUpdates((prev) => [
               {
@@ -78,13 +82,48 @@ export function LiveScoreViewer({ tournamentId }: { tournamentId: string }) {
             ]);
           }
         }
-      )
-      .subscribe();
+      );
+
+    for (let index = 0; index < matchIds.length; index += REALTIME_FILTER_CHUNK_SIZE) {
+      const matchIdChunk = matchIds.slice(
+        index,
+        index + REALTIME_FILTER_CHUNK_SIZE
+      );
+      channel = channel.on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "sets",
+          filter: `match_id=in.(${matchIdChunk.join(",")})`,
+        },
+        (payload) => {
+          const newData = payload.new as SetRealtimeRow;
+          if (
+            newData.set_number === undefined ||
+            newData.team_a_score === undefined ||
+            newData.team_b_score === undefined
+          ) {
+            return;
+          }
+          setUpdates((prev) => [
+            {
+              id: crypto.randomUUID(),
+              message: `Set ${newData.set_number}: ${newData.team_a_score} - ${newData.team_b_score}`,
+              time: new Date(),
+            },
+            ...prev.slice(0, 19),
+          ]);
+        }
+      );
+    }
+
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [tournamentId]);
+  }, [matchIds, tournamentId]);
 
   if (updates.length === 0) return null;
 

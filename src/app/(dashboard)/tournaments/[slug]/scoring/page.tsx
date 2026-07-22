@@ -25,7 +25,7 @@ import {
   teams,
   courts,
 } from "@/lib/db/schema";
-import { eq, asc, inArray } from "drizzle-orm";
+import { asc, inArray } from "drizzle-orm";
 import { BackLink } from "@/components/layout/back-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Radio, Clock, CheckCircle2 } from "lucide-react";
@@ -97,64 +97,67 @@ export default async function ScoringPage({ params }: Props) {
     }
   }
 
-  const enrichedMatches = await Promise.all(
-    allMatches.map(async (match) => {
-      const teamA = match.teamAId
-        ? (
-            await db
-              .select({ id: teams.id, name: teams.name })
-              .from(teams)
-              .where(eq(teams.id, match.teamAId))
-              .limit(1)
-          )[0]
-        : null;
+  const visibleMatchIds = allMatches.map((match) => match.id);
+  const teamIds = [
+    ...new Set(
+      allMatches.flatMap((match) =>
+        [match.teamAId, match.teamBId, match.refTeamId].filter(
+          (teamId): teamId is string => teamId !== null
+        )
+      )
+    ),
+  ];
+  const courtIds = [
+    ...new Set(
+      allMatches
+        .map((match) => match.courtId)
+        .filter((courtId): courtId is string => courtId !== null)
+    ),
+  ];
 
-      const teamB = match.teamBId
-        ? (
-            await db
-              .select({ id: teams.id, name: teams.name })
-              .from(teams)
-              .where(eq(teams.id, match.teamBId))
-              .limit(1)
-          )[0]
-        : null;
+  const [teamRows, courtRows, setRows] = await Promise.all([
+    teamIds.length === 0
+      ? []
+      : db
+          .select({ id: teams.id, name: teams.name })
+          .from(teams)
+          .where(inArray(teams.id, teamIds)),
+    courtIds.length === 0
+      ? []
+      : db
+          .select({ id: courts.id, name: courts.name })
+          .from(courts)
+          .where(inArray(courts.id, courtIds)),
+    visibleMatchIds.length === 0
+      ? []
+      : db
+          .select()
+          .from(sets)
+          .where(inArray(sets.matchId, visibleMatchIds))
+          .orderBy(asc(sets.matchId), asc(sets.setNumber)),
+  ]);
 
-      const court = match.courtId
-        ? (
-            await db
-              .select({ name: courts.name })
-              .from(courts)
-              .where(eq(courts.id, match.courtId))
-              .limit(1)
-          )[0]
-        : null;
+  const teamById = new Map(teamRows.map((team) => [team.id, team]));
+  const courtById = new Map(courtRows.map((court) => [court.id, court]));
+  const setsByMatchId = new Map<string, typeof setRows>();
+  for (const set of setRows) {
+    const matchSets = setsByMatchId.get(set.matchId) ?? [];
+    matchSets.push(set);
+    setsByMatchId.set(set.matchId, matchSets);
+  }
 
-      const matchSets = await db
-        .select()
-        .from(sets)
-        .where(eq(sets.matchId, match.id))
-        .orderBy(asc(sets.setNumber));
-
-      const refTeam = match.refTeamId
-        ? (
-            await db
-              .select({ name: teams.name })
-              .from(teams)
-              .where(eq(teams.id, match.refTeamId))
-              .limit(1)
-          )[0]
-        : null;
-
-      return {
-        ...match,
-        teamA,
-        teamB,
-        courtName: court?.name ?? null,
-        refTeamName: refTeam?.name ?? null,
-        sets: matchSets,
-      };
-    })
-  );
+  const enrichedMatches = allMatches.map((match) => ({
+    ...match,
+    teamA: match.teamAId ? (teamById.get(match.teamAId) ?? null) : null,
+    teamB: match.teamBId ? (teamById.get(match.teamBId) ?? null) : null,
+    courtName: match.courtId
+      ? (courtById.get(match.courtId)?.name ?? null)
+      : null,
+    refTeamName: match.refTeamId
+      ? (teamById.get(match.refTeamId)?.name ?? null)
+      : null,
+    sets: setsByMatchId.get(match.id) ?? [],
+  }));
 
   const inProgress = enrichedMatches.filter((m) => m.status === "in_progress");
   const upcoming = enrichedMatches.filter((m) => m.status === "upcoming");
@@ -262,7 +265,7 @@ export default async function ScoringPage({ params }: Props) {
         </TabsContent>
       </Tabs>
 
-      <LiveScoreViewer tournamentId={id} />
+      <LiveScoreViewer tournamentId={id} matchIds={visibleMatchIds} />
     </div>
   );
 }
