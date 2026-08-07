@@ -25,6 +25,10 @@ import {
 } from "@/lib/tournament-status";
 import { formatRegistrationStatusLabel } from "@/lib/labels/registration";
 import { formatMatchStatusLabel } from "@/lib/labels/match";
+import {
+  dashboardRelationLabel,
+  type DashboardTournamentRelation,
+} from "@/lib/labels/dashboard-relation";
 
 /** School and team verification share the same enum + labels. */
 const VERIFICATION_LABELS: Record<string, string> = {
@@ -116,6 +120,20 @@ function verificationTone(status: string): Tone {
   }
 }
 
+function dashboardRelationTone(status: string): Tone {
+  switch (status as DashboardTournamentRelation) {
+    case "pending":
+      return "warning";
+    case "signed_up":
+      return "success";
+    case "hosting":
+      return "info";
+    case "past":
+    default:
+      return "archived";
+  }
+}
+
 /** Pulsing dot that inherits the badge's text color, gated on reduced motion. */
 function LiveDot() {
   return (
@@ -128,7 +146,12 @@ function LiveDot() {
 
 interface StatusBadgeProps {
   /** Which lifecycle the status belongs to. */
-  kind: "tournament" | "registration" | "match" | "verification";
+  kind:
+    | "tournament"
+    | "registration"
+    | "match"
+    | "verification"
+    | "dashboard_relation";
   status: string;
   /** Tournament date (YYYY-MM-DD) — required for `tournament` to derive "archived". */
   date?: string;
@@ -157,6 +180,10 @@ export function StatusBadge({ kind, status, date, className }: StatusBadgeProps)
     case "verification":
       tone = verificationTone(status);
       label = VERIFICATION_LABELS[status] ?? status;
+      break;
+    case "dashboard_relation":
+      tone = dashboardRelationTone(status);
+      label = dashboardRelationLabel(status as DashboardTournamentRelation);
       break;
   }
 
