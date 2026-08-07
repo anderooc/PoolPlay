@@ -1,36 +1,35 @@
 /*
  * ShootSet - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { tournaments, teams, teamMembers } from "@/lib/db/schema";
-import { eq, desc, count, gte, or } from "drizzle-orm";
-import { todayISO } from "@/lib/tournament-status";
-import {
-  filterVisibleTournaments,
-  getUserSchoolIds,
-} from "@/lib/tournaments/access";
+import { teams, teamMembers } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { formatTournamentDateDisplay } from "@/lib/date-iso";
+import { getUserSchoolSummary } from "@/lib/schools/navigation";
+import { getDashboardTournaments } from "@/lib/tournaments/dashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import {
   Trophy,
   Users,
@@ -38,10 +37,13 @@ import {
   Plus,
   Compass,
   ArrowRight,
+  Clock,
+  GraduationCap,
 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { pageMetadata } from "@/lib/metadata";
+import { cn } from "@/lib/utils";
 
 export const metadata = pageMetadata("Dashboard");
 
@@ -51,53 +53,45 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const today = todayISO();
+  const [userTeams, allMyTournaments, school] = await Promise.all([
+    db
+      .select({
+        id: teams.id,
+        slug: teams.slug,
+        name: teams.name,
+        university: teams.university,
+        gender: teams.gender,
+        region: teams.region,
+        role: teamMembers.role,
+        jerseyNumber: teamMembers.jerseyNumber,
+      })
+      .from(teamMembers)
+      .innerJoin(teams, eq(teamMembers.teamId, teams.id))
+      .where(eq(teamMembers.userId, user.id)),
+    // No limit — players rarely have enough connected events to need one,
+    // and stats should reflect the full set.
+    getDashboardTournaments(user.id),
+    getUserSchoolSummary(user.id),
+  ]);
 
-  const [userTeams, recentTournamentRows, activeTournamentCount, userSchoolIds] =
-    await Promise.all([
-      db
-        .select({
-          id: teams.id,
-          slug: teams.slug,
-          name: teams.name,
-          university: teams.university,
-          role: teamMembers.role,
-        })
-        .from(teamMembers)
-        .innerJoin(teams, eq(teamMembers.teamId, teams.id))
-        .where(eq(teamMembers.userId, user.id)),
-      db
-        .select()
-        .from(tournaments)
-        .orderBy(desc(tournaments.createdAt))
-        .limit(5),
-      db
-        .select({ value: count() })
-        .from(tournaments)
-        .where(
-          or(
-            eq(tournaments.status, "in_progress"),
-            eq(tournaments.status, "registration_open"),
-            gte(tournaments.date, today)
-          )
-        ),
-      getUserSchoolIds(user.id),
-    ]);
-
-  const recentTournaments = filterVisibleTournaments(
-    recentTournamentRows,
-    user,
-    userSchoolIds
-  );
+  const upcomingCount = allMyTournaments.filter((t) => t.relation !== "past").length;
+  const pendingCount = allMyTournaments.filter((t) => t.relation === "pending").length;
+  const pastCount = allMyTournaments.filter((t) => t.relation === "past").length;
+  const myTournaments = allMyTournaments.slice(0, 12);
 
   const firstName = user.fullName.split(" ")[0];
-  const isNewUser = userTeams.length === 0 && recentTournaments.length === 0;
+  const isNewUser =
+    userTeams.length === 0 && allMyTournaments.length === 0 && !school;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={`Welcome back, ${firstName}`}
-        description="Here's what's happening on ShootSet."
+        description={
+          school
+            ? `Your hub for ${school.name} — teams, signups, and tournaments.`
+            : "Your teams, signups, and tournaments."
+        }
       />
 
       {isNewUser ? (
@@ -171,15 +165,20 @@ export default async function DashboardPage() {
             accent="primary"
           />
           <StatCard
-            label="Active Tournaments"
-            value={activeTournamentCount[0].value}
-            icon={Trophy}
+            label="Upcoming"
+            value={upcomingCount}
+            icon={Calendar}
             accent="secondary"
+            hint={
+              pendingCount > 0
+                ? `${pendingCount} pending acceptance`
+                : undefined
+            }
           />
           <StatCard
-            label="Recent Tournaments"
-            value={recentTournaments.length}
-            icon={Calendar}
+            label="Past events"
+            value={pastCount}
+            icon={Clock}
             accent="primary"
           />
         </div>
@@ -198,6 +197,19 @@ export default async function DashboardPage() {
             </Link>
           </CardHeader>
           <CardContent className="pt-0">
+            {school ? (
+              <Link
+                href={`/schools/${school.slug}`}
+                className="mb-3 flex items-center gap-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm transition-colors hover:bg-muted/50"
+              >
+                <GraduationCap className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 truncate">
+                  <span className="text-muted-foreground">School · </span>
+                  <span className="font-medium">{school.name}</span>
+                </span>
+                <ArrowRight className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </Link>
+            ) : null}
             {userTeams.length === 0 ? (
               <EmptyState
                 variant="inline"
@@ -217,9 +229,20 @@ export default async function DashboardPage() {
                       <p className="truncate font-medium">{team.name}</p>
                       <p className="truncate text-sm text-muted-foreground">
                         {team.university}
+                        {team.jerseyNumber != null ? (
+                          <>
+                            <span className="mx-1.5">&middot;</span>
+                            #{team.jerseyNumber}
+                          </>
+                        ) : null}
                       </p>
+                      <TeamAttributesBadges
+                        gender={team.gender}
+                        region={team.region}
+                        className="mt-1.5"
+                      />
                     </div>
-                    <Badge variant="secondary" className="ml-3 shrink-0">
+                    <Badge variant="secondary" className="ml-3 shrink-0 capitalize">
                       {team.role}
                     </Badge>
                   </Link>
@@ -230,48 +253,78 @@ export default async function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Recent Tournaments</CardTitle>
-            <Link
-              href="/tournaments/new"
-              className={buttonVariants({ size: "sm" })}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              New Tournament
-            </Link>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle>My Tournaments</CardTitle>
+            <div className="flex shrink-0 items-center gap-2">
+              <Link
+                href="/explore"
+                className={buttonVariants({ size: "sm", variant: "outline" })}
+              >
+                <Compass className="mr-2 h-4 w-4" />
+                Browse
+              </Link>
+              <Link
+                href="/tournaments/new"
+                className={buttonVariants({ size: "sm" })}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                New
+              </Link>
+            </div>
           </CardHeader>
           <CardContent className="pt-0">
-            {recentTournaments.length === 0 ? (
+            {myTournaments.length === 0 ? (
               <EmptyState
                 variant="inline"
                 icon={Trophy}
                 title="No tournaments yet"
-                description="Once tournaments are created, they&apos;ll show up here."
+                description="Tournaments your teams sign up for, or that you host, will show up here."
               />
             ) : (
               <div className="list-stack">
-                {recentTournaments.map((t) => (
-                  <Link
-                    key={t.id}
-                    href={`/tournaments/${t.slug}`}
-                    className="list-row"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{t.name}</p>
-                      <p className="truncate text-sm text-muted-foreground">
-                        {t.location}
-                        <span className="mx-1.5">&middot;</span>
-                        {t.date}
-                      </p>
-                    </div>
-                    <StatusBadge
-                      kind="tournament"
-                      status={t.status}
-                      date={t.date}
-                      className="ml-3 shrink-0"
-                    />
-                  </Link>
-                ))}
+                {myTournaments.map((t) => {
+                  const meta = [
+                    formatTournamentDateDisplay(t.date),
+                    t.location,
+                    t.teamName,
+                    t.divisionName,
+                  ].filter(Boolean);
+
+                  return (
+                    <Link
+                      key={t.id}
+                      href={`/tournaments/${t.slug}`}
+                      className="list-row items-start"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{t.name}</p>
+                        <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                          {meta.map((part, i) => (
+                            <span key={`${part}-${i}`}>
+                              {i > 0 ? (
+                                <span className="mx-1.5">&middot;</span>
+                              ) : null}
+                              {part}
+                            </span>
+                          ))}
+                        </p>
+                        {t.status === "in_progress" && t.relation !== "past" ? (
+                          <StatusBadge
+                            kind="tournament"
+                            status={t.status}
+                            date={t.date}
+                            className="mt-1.5"
+                          />
+                        ) : null}
+                      </div>
+                      <StatusBadge
+                        kind="dashboard_relation"
+                        status={t.relation}
+                        className="ml-3 mt-0.5 shrink-0"
+                      />
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -286,11 +339,13 @@ function StatCard({
   value,
   icon: Icon,
   accent = "primary",
+  hint,
 }: {
   label: string;
   value: number;
   icon: React.ComponentType<{ className?: string }>;
   accent?: "primary" | "secondary";
+  hint?: string;
 }) {
   const accentClasses =
     accent === "primary"
@@ -303,7 +358,10 @@ function StatCard({
           {label}
         </CardTitle>
         <span
-          className={`flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br ${accentClasses} ring-1 ring-inset ring-border/60`}
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br ring-1 ring-inset ring-border/60",
+            accentClasses
+          )}
         >
           <Icon className="h-4 w-4" />
         </span>
@@ -312,6 +370,9 @@ function StatCard({
         <div className="font-heading text-3xl font-bold tracking-tight">
           {value}
         </div>
+        {hint ? (
+          <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+        ) : null}
       </CardContent>
     </Card>
   );
