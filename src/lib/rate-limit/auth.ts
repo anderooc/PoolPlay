@@ -71,6 +71,9 @@ async function consumeCounter(
 ): Promise<{ allowed: boolean; retryAfterMs: number }> {
   const now = new Date();
   const proposedExpiry = new Date(now.getTime() + windowMs);
+  // Drizzle's sql`` interpolates JS Date via String(), which Postgres rejects
+  // as timestamptz. Keep dates in .values()/.set() or pass ISO strings only.
+  const proposedExpiryIso = proposedExpiry.toISOString();
   const [counter] = await db
     .insert(authRateLimits)
     .values({
@@ -88,7 +91,7 @@ async function consumeCounter(
           ELSE ${authRateLimits.attempts} + 1
         END`,
         windowExpiresAt: sql`CASE
-          WHEN ${authRateLimits.windowExpiresAt} <= now() THEN ${proposedExpiry}
+          WHEN ${authRateLimits.windowExpiresAt} <= now() THEN ${proposedExpiryIso}::timestamptz
           ELSE ${authRateLimits.windowExpiresAt}
         END`,
         updatedAt: now,
@@ -99,9 +102,18 @@ async function consumeCounter(
       windowExpiresAt: authRateLimits.windowExpiresAt,
     });
 
+  if (!counter) {
+    throw new Error("auth rate limit upsert returned no row");
+  }
+
+  const expiresAt =
+    counter.windowExpiresAt instanceof Date
+      ? counter.windowExpiresAt
+      : new Date(counter.windowExpiresAt);
+
   return {
     allowed: counter.attempts <= limit,
-    retryAfterMs: Math.max(0, counter.windowExpiresAt.getTime() - now.getTime()),
+    retryAfterMs: Math.max(0, expiresAt.getTime() - now.getTime()),
   };
 }
 
