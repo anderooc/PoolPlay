@@ -43,7 +43,7 @@ export function AdminTabs() {
 
   return (
     <nav
-      className="flex flex-wrap gap-2 border-b border-border/60 pb-2 text-sm"
+      className="flex flex-wrap gap-1 border-b border-border/70 text-sm"
       aria-label="Admin sections"
     >
       {adminNav.map((item) => {
@@ -55,18 +55,14 @@ export function AdminTabs() {
             href={adminTabUrl(item.tab)}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 font-medium",
+              "relative -mb-px inline-flex items-center gap-1.5 border-b-2 px-2.5 py-2 font-medium transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
               active
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
-            <Icon
-              className={cn(
-                "h-4 w-4 shrink-0",
-                active ? "text-primary-foreground" : "text-current"
-              )}
-            />
+            <Icon className="size-3.5 shrink-0" aria-hidden />
             {item.label}
           </Link>
         );
