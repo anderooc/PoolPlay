@@ -12,12 +12,14 @@ REVOKE ALL ON SCHEMA app_private FROM PUBLIC, anon, authenticated;
 
 -- Registration and waitlist mutations re-check the live account state while
 -- holding database locks instead of trusting an earlier request snapshot.
+-- Fail fast on lock waits; IF NOT EXISTS makes partial retries safe.
+SET lock_timeout = '5s';
 ALTER TABLE public.users
-  ADD COLUMN disabled_at timestamptz;
+  ADD COLUMN IF NOT EXISTS disabled_at timestamptz;
 
 -- Preserve the actor and reason for registration creation or removal even
 -- after the registration itself is deleted.
-CREATE TABLE public.registration_status_events (
+CREATE TABLE IF NOT EXISTS public.registration_status_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   registration_id uuid
     REFERENCES public.registrations (id) ON DELETE SET NULL,
@@ -35,15 +37,15 @@ CREATE TABLE public.registration_status_events (
     UNIQUE (tournament_id, team_id, operation_id)
 );
 
-CREATE INDEX registration_status_events_tournament_id_idx
+CREATE INDEX IF NOT EXISTS registration_status_events_tournament_id_idx
   ON public.registration_status_events (tournament_id);
-CREATE INDEX registration_status_events_registration_id_idx
+CREATE INDEX IF NOT EXISTS registration_status_events_registration_id_idx
   ON public.registration_status_events (registration_id);
-CREATE INDEX registration_status_events_team_id_idx
+CREATE INDEX IF NOT EXISTS registration_status_events_team_id_idx
   ON public.registration_status_events (team_id);
-CREATE INDEX registration_status_events_actor_user_id_idx
+CREATE INDEX IF NOT EXISTS registration_status_events_actor_user_id_idx
   ON public.registration_status_events (actor_user_id);
-CREATE INDEX registration_status_events_operation_id_idx
+CREATE INDEX IF NOT EXISTS registration_status_events_operation_id_idx
   ON public.registration_status_events (operation_id);
 
 ALTER TABLE public.registration_status_events ENABLE ROW LEVEL SECURITY;
