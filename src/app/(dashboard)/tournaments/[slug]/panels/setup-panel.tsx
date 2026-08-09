@@ -26,6 +26,7 @@ import {
 import { asc, eq } from "drizzle-orm";
 import { CourtManager } from "../court-manager";
 import { PoolManager } from "../pool-manager";
+import { RegistrationAvailabilityForm } from "../waitlist-controls";
 
 export async function TournamentSetupPanel({
   tournamentId,
@@ -36,7 +37,11 @@ export async function TournamentSetupPanel({
 }) {
   const [tournamentRow, tournamentDivisions, courtJoinRows] = await Promise.all([
     db
-      .select({ playFormat: tournaments.playFormat })
+      .select({
+        playFormat: tournaments.playFormat,
+        registrationCapacity: tournaments.registrationCapacity,
+        registrationDeadline: tournaments.registrationDeadline,
+      })
       .from(tournaments)
       .where(eq(tournaments.id, tournamentId))
       .limit(1)
@@ -96,6 +101,14 @@ export async function TournamentSetupPanel({
 
   return (
     <div className={emptySetup ? "space-y-4" : "space-y-10"}>
+      <RegistrationAvailabilityForm
+        tournamentId={tournamentId}
+        initialCapacity={tournamentRow?.registrationCapacity ?? null}
+        initialDeadline={
+          tournamentRow?.registrationDeadline?.toISOString() ?? null
+        }
+        canEdit={canEditSetup}
+      />
       <section className={emptySetup ? "space-y-1.5" : "space-y-3"}>
         <h2
           className={

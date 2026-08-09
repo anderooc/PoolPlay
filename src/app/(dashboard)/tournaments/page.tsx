@@ -16,9 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { db } from "@/lib/db";
-import { tournaments } from "@/lib/db/schema";
-import { asc } from "drizzle-orm";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { Plus } from "lucide-react";
@@ -26,12 +23,11 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { TournamentGrid } from "@/components/tournament-grid";
-import { enrichTournamentsWithHostSchools } from "@/lib/tournaments/host-school";
 import {
   filterVisibleTournaments,
   getUserSchoolIds,
 } from "@/lib/tournaments/access";
-import { tournamentListColumns } from "@/lib/tournaments/list-columns";
+import { loadTournamentGridList } from "@/lib/tournaments/public-list-loader";
 import { pageMetadata } from "@/lib/metadata";
 
 export const metadata = pageMetadata("Tournaments");
@@ -43,12 +39,14 @@ export default async function TournamentsPage() {
   if (!user) redirect("/login");
 
   const [allTournaments, userSchoolIds] = await Promise.all([
-    db.select(tournamentListColumns).from(tournaments).orderBy(asc(tournaments.date)),
+    loadTournamentGridList(),
     getUserSchoolIds(user.id),
   ]);
 
-  const visibleTournaments = await enrichTournamentsWithHostSchools(
-    filterVisibleTournaments(allTournaments, user, userSchoolIds)
+  const visibleTournaments = filterVisibleTournaments(
+    allTournaments,
+    user,
+    userSchoolIds
   );
 
   return (

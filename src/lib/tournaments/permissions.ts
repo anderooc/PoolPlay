@@ -32,7 +32,7 @@ import {
   poolSettingsChecklistComplete,
   poolSettingsChecklistHint,
 } from "@/lib/tournaments/tournament-settings-checklist";
-import type { TeamGender } from "@/types";
+import type { TeamGender, UserRole } from "@/types";
 
 /** Fields required for permission checks across server and client. */
 export type TournamentForPermissions = {
@@ -47,6 +47,19 @@ export type UserForPermissions = {
   id: string;
   role: string;
 };
+
+/**
+ * Tournament ownership is resource-scoped. Preserve global roles that already
+ * carry equal or greater authority, and promote participant roles only.
+ */
+export const tournamentCreatorPromotableRoles: readonly UserRole[] = [
+  "player",
+  "captain",
+];
+
+export function tournamentCreatorRoleUpdate(role: UserRole): UserRole | null {
+  return tournamentCreatorPromotableRoles.includes(role) ? "organizer" : null;
+}
 
 /** True when the user is president/officer of the given host school. */
 export const resolveHostSchoolOfficer = cache(

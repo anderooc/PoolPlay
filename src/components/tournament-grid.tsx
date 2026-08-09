@@ -55,6 +55,8 @@ import { cn } from "@/lib/utils";
 import { isTournamentArchived, todayISO } from "@/lib/tournament-status";
 import type { TeamGender, TeamRegion } from "@/types";
 import type { TournamentHostSchool } from "@/lib/tournaments/host-school";
+import type { PublicRegistrationAvailability } from "@/lib/tournaments/public-projection";
+import { registrationAvailabilityOpen } from "@/lib/tournaments/public-refresh-policy";
 
 const DateScrollWheel = dynamic(
   () =>
@@ -105,7 +107,7 @@ const WHEEL_DELTA_PER_DATE = 120;
 const SWIPE_THRESHOLD_PX = 56;
 
 interface Tournament {
-  id: string;
+  id?: string;
   slug: string;
   name: string;
   description: string | null;
@@ -115,6 +117,17 @@ interface Tournament {
   gender: TeamGender;
   region: TeamRegion;
   hostSchool?: TournamentHostSchool | null;
+  registrationAvailability: PublicRegistrationAvailability;
+}
+
+interface TournamentFilters {
+  query: string;
+  genderFilter: Set<TeamGender>;
+  regionFilter: Set<TeamRegion>;
+  hideArchived: boolean;
+  registrationOpenOnly: boolean;
+  today: string;
+  now: string;
 }
 
 function toggleSetValue<T extends string>(
@@ -129,6 +142,58 @@ function toggleSetValue<T extends string>(
 
 function formatDate(dateStr: string) {
   return formatTournamentDateDisplay(dateStr, { weekday: true });
+}
+
+function registrationAvailabilityLabel(
+  availability: PublicRegistrationAvailability
+): string {
+  const registered = availability.capacity == null
+    ? `${availability.registeredCount} registered`
+    : `${availability.registeredCount} / ${availability.capacity} registered`;
+  return `${registered} · ${availability.waitlistCount} waiting`;
+}
+
+export function filterTournamentList(
+  tournaments: Tournament[],
+  filters: TournamentFilters
+): Tournament[] {
+  let list = tournaments;
+  const query = filters.query.trim().toLowerCase();
+  if (query) {
+    list = list.filter(
+      (tournament) =>
+        tournament.name.toLowerCase().includes(query) ||
+        tournament.location.toLowerCase().includes(query) ||
+        tournament.description?.toLowerCase().includes(query)
+    );
+  }
+  if (filters.hideArchived) {
+    list = list.filter(
+      (tournament) => !isTournamentArchived(tournament.date, filters.today)
+    );
+  }
+  if (filters.registrationOpenOnly) {
+    list = list.filter(
+      (tournament) =>
+        !isTournamentArchived(tournament.date, filters.today) &&
+        registrationAvailabilityOpen(
+          tournament.status,
+          tournament.registrationAvailability,
+          filters.now
+        )
+    );
+  }
+  if (filters.genderFilter.size > 0) {
+    list = list.filter((tournament) =>
+      filters.genderFilter.has(tournament.gender)
+    );
+  }
+  if (filters.regionFilter.size > 0) {
+    list = list.filter((tournament) =>
+      filters.regionFilter.has(tournament.region)
+    );
+  }
+  return list;
 }
 
 interface DateGroup {
@@ -178,6 +243,7 @@ function TournamentRow({
             <MapPin className="h-3 w-3 shrink-0" />
             <span className="truncate">{t.location}</span>
           </span>
+          <span>{registrationAvailabilityLabel(t.registrationAvailability)}</span>
         </div>
       </Link>
       <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
@@ -457,7 +523,7 @@ function ChronologicalSchedule({
                       <div className={cn("list-stack w-full border-t border-border/70", SELECTED_PANEL_MIN_H)}>
                         {group.tournaments.map((t) => (
                           <TournamentRow
-                            key={t.id}
+                            key={t.id ?? t.slug}
                             tournament={t}
                             linkPrefix={linkPrefix}
                           />
@@ -509,11 +575,32 @@ export function TournamentGrid({
   const [selectedDate, setSelectedDate] = useState(todayISO);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [now, setNow] = useState(() => new Date().toISOString());
   const today = todayISO();
 
   useEffect(() => {
     setSelectedDate(today);
   }, [today]);
+
+  useEffect(() => {
+    if (!registrationOpenOnly) return;
+    let timer: number | undefined;
+    const refreshNow = () => {
+      const currentMs = Date.now();
+      setNow(new Date(currentMs).toISOString());
+      const remaining = tournaments
+        .map((tournament) =>
+          Date.parse(tournament.registrationAvailability.deadline ?? "") - currentMs
+        )
+        .filter((value) => Number.isFinite(value) && value > 0);
+      const delay = remaining.length === 0 ? 60_000 : Math.min(...remaining);
+      timer = window.setTimeout(refreshNow, Math.max(1, Math.min(60_000, delay)));
+    };
+    refreshNow();
+    return () => {
+      if (timer != null) window.clearTimeout(timer);
+    };
+  }, [registrationOpenOnly, tournaments]);
 
   const hasActiveFilters =
     countActiveTournamentFilters({
@@ -524,39 +611,15 @@ export function TournamentGrid({
     }) > 0;
 
   const filtered = useMemo(() => {
-    let list = tournaments;
-
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      list = list.filter(
-        (t) =>
-          t.name.toLowerCase().includes(q) ||
-          t.location.toLowerCase().includes(q) ||
-          t.description?.toLowerCase().includes(q)
-      );
-    }
-
-    if (hideArchived) {
-      list = list.filter((t) => !isTournamentArchived(t.date, today));
-    }
-
-    if (registrationOpenOnly) {
-      list = list.filter(
-        (t) =>
-          t.status === "registration_open" &&
-          !isTournamentArchived(t.date, today)
-      );
-    }
-
-    if (genderFilter.size > 0) {
-      list = list.filter((t) => genderFilter.has(t.gender));
-    }
-
-    if (regionFilter.size > 0) {
-      list = list.filter((t) => regionFilter.has(t.region));
-    }
-
-    return list;
+    return filterTournamentList(tournaments, {
+      query,
+      genderFilter,
+      regionFilter,
+      hideArchived,
+      registrationOpenOnly,
+      today,
+      now,
+    });
   }, [
     tournaments,
     query,
@@ -565,6 +628,7 @@ export function TournamentGrid({
     genderFilter,
     regionFilter,
     today,
+    now,
   ]);
 
   /** Dates (YYYY-MM-DD) that actually have tournaments — used to dot the calendar. */

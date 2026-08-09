@@ -47,6 +47,16 @@ type TeamGroup = {
   teams: RegisterTeam[];
 };
 
+type RegistrationOperation = {
+  selectionKey: string;
+  operationId: string;
+};
+
+type RegistrationOutcome = {
+  acceptedCount: number;
+  waitlistedCount: number;
+};
+
 interface Props {
   tournamentId: string;
   tournamentSlug: string;
@@ -92,6 +102,56 @@ function groupTeamsBySchool(teams: RegisterTeam[]): TeamGroup[] {
     });
   }
   return groups;
+}
+
+function registrationOperationForSelection(
+  current: RegistrationOperation | null,
+  teamIds: Iterable<string>
+): RegistrationOperation {
+  const selectionKey = [...teamIds].sort().join(",");
+  if (current?.selectionKey === selectionKey) return current;
+  return { selectionKey, operationId: crypto.randomUUID() };
+}
+
+function pluralTeams(count: number): string {
+  return `${count} ${count === 1 ? "team" : "teams"}`;
+}
+
+function RegistrationOutcomeNotice({
+  outcome,
+  asHost,
+  onContinue,
+}: {
+  outcome: RegistrationOutcome;
+  asHost: boolean;
+  onContinue: () => void;
+}) {
+  return (
+    <div className="space-y-4" role="status">
+      <div className="space-y-2 rounded-md border border-border/80 bg-muted/20 p-3">
+        {outcome.acceptedCount > 0 && (
+          <p className="text-sm font-medium">
+            Registered: {pluralTeams(outcome.acceptedCount)}
+          </p>
+        )}
+        {outcome.waitlistedCount > 0 && (
+          <p className="text-sm font-medium">
+            Waitlisted: {pluralTeams(outcome.waitlistedCount)}
+          </p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          {outcome.waitlistedCount > 0
+            ? "Do not pay for waitlisted teams unless the organizer promotes them."
+            : asHost
+              ? "Host-added teams are confirmed automatically."
+              : "If entry fees apply, payment is due only for these registered teams."}
+        </p>
+      </div>
+      <Button type="button" className="w-full" onClick={onContinue}>
+        Continue to tournament
+      </Button>
+    </div>
+  );
 }
 
 function useDismissOnOutsideClick(
@@ -148,7 +208,9 @@ function HostRegisterForm({
   const [teamsOpen, setTeamsOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<RegistrationOutcome | null>(null);
   const [loading, setLoading] = useState(false);
+  const registrationOperationRef = useRef<RegistrationOperation | null>(null);
 
   const selectedSchool = schools.find((s) => s.id === selectedSchoolId) ?? null;
 
@@ -261,12 +323,35 @@ function HostRegisterForm({
 
     setLoading(true);
     setSubmitError(null);
-    const result = await registerTeams(tournamentId, [...selectedIds]);
-    if (result?.error) {
-      setSubmitError(result.error);
+    setOutcome(null);
+    const operation = registrationOperationForSelection(
+      registrationOperationRef.current,
+      selectedIds
+    );
+    registrationOperationRef.current = operation;
+
+    try {
+      const result = await registerTeams(
+        tournamentId,
+        [...selectedIds],
+        operation.operationId
+      );
+      if (!result.success) {
+        setSubmitError(result.error ?? "Could not register teams. Try again.");
+        setLoading(false);
+      } else {
+        registrationOperationRef.current = null;
+        setOutcome({
+          acceptedCount: result.acceptedCount,
+          waitlistedCount: result.waitlistedCount,
+        });
+        setLoading(false);
+      }
+    } catch {
+      setSubmitError(
+        "Could not confirm whether registration completed. Try again to safely retry."
+      );
       setLoading(false);
-    } else {
-      router.push(`/tournaments/${tournamentSlug}`);
     }
   }
 
@@ -278,6 +363,16 @@ function HostRegisterForm({
         : selectedCount === 1
           ? "Add 1 team"
           : `Add ${selectedCount} teams`;
+
+  if (outcome) {
+    return (
+      <RegistrationOutcomeNotice
+        outcome={outcome}
+        asHost
+        onContinue={() => router.push(`/tournaments/${tournamentSlug}`)}
+      />
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -519,7 +614,9 @@ function CaptainRegisterForm({
   const [open, setOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<RegistrationOutcome | null>(null);
   const [loading, setLoading] = useState(false);
+  const registrationOperationRef = useRef<RegistrationOperation | null>(null);
 
   const allSelected =
     teams.length > 0 && teams.every((t) => selectedIds.has(t.id));
@@ -568,13 +665,46 @@ function CaptainRegisterForm({
 
     setLoading(true);
     setError(null);
-    const result = await registerTeams(tournamentId, [...selectedIds]);
-    if (result?.error) {
-      setError(result.error);
+    setOutcome(null);
+    const operation = registrationOperationForSelection(
+      registrationOperationRef.current,
+      selectedIds
+    );
+    registrationOperationRef.current = operation;
+
+    try {
+      const result = await registerTeams(
+        tournamentId,
+        [...selectedIds],
+        operation.operationId
+      );
+      if (!result.success) {
+        setError(result.error ?? "Could not register teams. Try again.");
+        setLoading(false);
+      } else {
+        registrationOperationRef.current = null;
+        setOutcome({
+          acceptedCount: result.acceptedCount,
+          waitlistedCount: result.waitlistedCount,
+        });
+        setLoading(false);
+      }
+    } catch {
+      setError(
+        "Could not confirm whether registration completed. Try again to safely retry."
+      );
       setLoading(false);
-    } else {
-      router.push(`/tournaments/${tournamentSlug}`);
     }
+  }
+
+  if (outcome) {
+    return (
+      <RegistrationOutcomeNotice
+        outcome={outcome}
+        asHost={false}
+        onContinue={() => router.push(`/tournaments/${tournamentSlug}`)}
+      />
+    );
   }
 
   return (

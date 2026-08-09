@@ -22,14 +22,17 @@ import {
   text,
   timestamp,
   integer,
+  bigserial,
   pgEnum,
   date,
   primaryKey,
   boolean,
   uniqueIndex,
+  index,
+  check,
   jsonb,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 export const userRoleEnum = pgEnum("user_role", [
   "player",
@@ -50,6 +53,13 @@ export const registrationStatusEnum = pgEnum("registration_status", [
   "pending",
   "confirmed",
   "checked_in",
+]);
+
+export const waitlistEntryStatusEnum = pgEnum("waitlist_entry_status", [
+  "waiting",
+  "promoted",
+  "withdrawn",
+  "removed",
 ]);
 
 export const waiverCompletionMethodEnum = pgEnum("waiver_completion_method", [
@@ -177,6 +187,7 @@ export const users = pgTable("users", {
   displayEmail: text("display_email"),
   displaySchool: text("display_school"),
   role: userRoleEnum("role").default("player").notNull(),
+  disabledAt: timestamp("disabled_at", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -290,18 +301,24 @@ export const teams = pgTable("teams", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const teamMembers = pgTable("team_members", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  teamId: uuid("team_id")
-    .references(() => teams.id, { onDelete: "cascade" })
-    .notNull(),
-  userId: uuid("user_id")
-    .references(() => users.id, { onDelete: "cascade" })
-    .notNull(),
-  role: teamMemberRoleEnum("role").default("player").notNull(),
-  jerseyNumber: integer("jersey_number"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const teamMembers = pgTable(
+  "team_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id")
+      .references(() => teams.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    role: teamMemberRoleEnum("role").default("player").notNull(),
+    jerseyNumber: integer("jersey_number"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("team_members_team_user_unique").on(t.teamId, t.userId),
+  ]
+);
 
 export const tournaments = pgTable("tournaments", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -322,6 +339,10 @@ export const tournaments = pgTable("tournaments", {
   location: text("location").notNull(),
   address: text("address"),
   status: tournamentStatusEnum("status").default("draft").notNull(),
+  registrationCapacity: integer("registration_capacity"),
+  registrationDeadline: timestamp("registration_deadline", {
+    withTimezone: true,
+  }),
   /** Set / scoring rules used for every match in this tournament. */
   matchFormat: matchFormatEnum("match_format")
     .default("two_with_tiebreak")
@@ -402,7 +423,12 @@ export const tournaments = pgTable("tournaments", {
   paymentOtherInstructions: text("payment_other_instructions"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (t) => [
+  check(
+    "tournaments_registration_capacity_positive",
+    sql`${t.registrationCapacity} IS NULL OR ${t.registrationCapacity} > 0`
+  ),
+]);
 
 export const divisions = pgTable("divisions", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -447,6 +473,128 @@ export const registrations = pgTable(
       t.teamId,
       t.tournamentId
     ),
+  ]
+);
+
+export const tournamentWaitlistEntries = pgTable(
+  "tournament_waitlist_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tournamentId: uuid("tournament_id")
+      .references(() => tournaments.id, { onDelete: "cascade" })
+      .notNull(),
+    teamId: uuid("team_id")
+      .references(() => teams.id, { onDelete: "cascade" })
+      .notNull(),
+    queuePosition: bigserial("queue_position", { mode: "number" }).notNull(),
+    requestedByUserId: uuid("requested_by_user_id").references(
+      () => users.id,
+      { onDelete: "set null" }
+    ),
+    requestOperationId: uuid("request_operation_id").notNull(),
+    status: waitlistEntryStatusEnum("status").default("waiting").notNull(),
+    requestedAt: timestamp("requested_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedByUserId: uuid("resolved_by_user_id").references(
+      () => users.id,
+      { onDelete: "set null" }
+    ),
+    resolutionOperationId: uuid("resolution_operation_id"),
+    registrationId: uuid("registration_id").references(() => registrations.id, {
+      onDelete: "set null",
+    }),
+  },
+  (t) => [
+    uniqueIndex("tournament_waitlist_entries_waiting_team_unique")
+      .on(t.tournamentId, t.teamId)
+      .where(sql`${t.status} = 'waiting'`),
+    index("tournament_waitlist_entries_fifo_idx")
+      .on(t.tournamentId, t.queuePosition)
+      .where(sql`${t.status} = 'waiting'`),
+    index("tournament_waitlist_entries_team_id_idx").on(t.teamId),
+    index("tournament_waitlist_entries_requested_by_user_id_idx").on(
+      t.requestedByUserId
+    ),
+    index("tournament_waitlist_entries_resolved_by_user_id_idx").on(
+      t.resolvedByUserId
+    ),
+    uniqueIndex("tournament_waitlist_entries_request_operation_unique").on(
+      t.tournamentId,
+      t.teamId,
+      t.requestOperationId
+    ),
+    uniqueIndex("tournament_waitlist_entries_resolution_operation_unique")
+      .on(t.tournamentId, t.resolutionOperationId)
+      .where(sql`${t.resolutionOperationId} IS NOT NULL`),
+    uniqueIndex("tournament_waitlist_entries_registration_unique")
+      .on(t.registrationId)
+      .where(sql`${t.registrationId} IS NOT NULL`),
+    check(
+      "tournament_waitlist_entries_resolution_consistent",
+      sql`
+        (
+          ${t.status} = 'waiting'
+          AND ${t.resolvedAt} IS NULL
+          AND ${t.resolvedByUserId} IS NULL
+          AND ${t.resolutionOperationId} IS NULL
+          AND ${t.registrationId} IS NULL
+        )
+        OR (
+          ${t.status} = 'promoted'
+          AND ${t.resolvedAt} IS NOT NULL
+          AND ${t.resolutionOperationId} IS NOT NULL
+        )
+        OR (
+          ${t.status} IN ('withdrawn', 'removed')
+          AND ${t.resolvedAt} IS NOT NULL
+          AND ${t.resolutionOperationId} IS NOT NULL
+          AND ${t.registrationId} IS NULL
+        )
+      `
+    ),
+  ]
+);
+
+export const registrationStatusEvents = pgTable(
+  "registration_status_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    registrationId: uuid("registration_id").references(
+      () => registrations.id,
+      { onDelete: "set null" }
+    ),
+    tournamentId: uuid("tournament_id")
+      .references(() => tournaments.id, { onDelete: "cascade" })
+      .notNull(),
+    teamId: uuid("team_id")
+      .references(() => teams.id, { onDelete: "cascade" })
+      .notNull(),
+    fromStatus: registrationStatusEnum("from_status"),
+    toStatus: registrationStatusEnum("to_status").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    operationId: uuid("operation_id").notNull(),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("registration_status_events_team_operation_unique").on(
+      t.tournamentId,
+      t.teamId,
+      t.operationId
+    ),
+    index("registration_status_events_tournament_id_idx").on(t.tournamentId),
+    index("registration_status_events_registration_id_idx").on(
+      t.registrationId
+    ),
+    index("registration_status_events_team_id_idx").on(t.teamId),
+    index("registration_status_events_actor_user_id_idx").on(t.actorUserId),
+    index("registration_status_events_operation_id_idx").on(t.operationId),
   ]
 );
 
