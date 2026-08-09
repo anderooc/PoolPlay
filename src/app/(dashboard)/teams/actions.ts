@@ -34,6 +34,11 @@ import { createTeamSchema } from "@/lib/validators";
 import { flagBlockedContent } from "@/lib/admin/content-flags";
 import { slugify, uniqueSlug } from "@/lib/utils/slug";
 import { isSchoolOfficerOrAbove } from "@/lib/schools/permissions";
+import { invalidatePublicTournamentCachesByIds } from "@/lib/tournaments/public-cache-invalidation";
+import {
+  deleteTeamWithTournamentLocks,
+  type TeamDeletionTeam,
+} from "@/lib/teams/team-deletion";
 import type { SchoolMemberRole } from "@/types";
 
 /**
@@ -309,51 +314,53 @@ export async function removeTeamMember(teamId: string, memberId: string) {
   return { success: true };
 }
 
+async function currentActorCanDeleteTeam(
+  tx: typeof db,
+  team: TeamDeletionTeam,
+  actorId: string
+): Promise<boolean> {
+  const [actor] = await tx.select({ role: users.role, disabledAt: users.disabledAt })
+    .from(users).where(eq(users.id, actorId)).for("share").limit(1);
+  if (!actor || actor.disabledAt) return false;
+  if (actor.role === "admin") return true;
+  const [membership] = await tx.select({ role: teamMembers.role })
+    .from(teamMembers)
+    .where(and(eq(teamMembers.teamId, team.id), eq(teamMembers.userId, actorId)))
+    .for("share").limit(1);
+  if (membership?.role === "captain") return true;
+  if (!team.schoolId) return false;
+  const [schoolRole] = await tx.select({ role: schoolMembers.role })
+    .from(schoolMembers)
+    .where(and(
+      eq(schoolMembers.schoolId, team.schoolId),
+      eq(schoolMembers.userId, actorId)
+    )).for("share").limit(1);
+  return schoolRole?.role === "president" || schoolRole?.role === "officer";
+}
+
 export async function deleteTeam(teamId: string, confirmationName: string) {
   const user = await requireUser();
-
-  const [team] = await db
-    .select()
-    .from(teams)
-    .where(eq(teams.id, teamId))
-    .limit(1);
-  if (!team) return { error: "Team not found" };
-
-  if (team.name.trim() !== confirmationName.trim()) {
-    return {
-      error:
-        "Team name does not match — type it exactly as shown (including spaces).",
-    };
-  }
-
-  const [membership] = await db
-    .select()
-    .from(teamMembers)
-    .where(
-      and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, user.id))
-    )
-    .limit(1);
-
-  let canManage: boolean =
-    isAdmin(user) || membership?.role === "captain";
-
-  if (!canManage && team.schoolId) {
-    const role = await getSchoolRole(team.schoolId, user.id);
-    canManage = isSchoolOfficerOrAbove(
-      role ? { schoolId: team.schoolId, userId: user.id, role } : null
-    );
-  }
-
-  if (!canManage) {
-    return { error: "Only team captains or school officers can delete this team" };
-  }
-
+  let result: Awaited<ReturnType<typeof deleteTeamWithTournamentLocks>>;
   try {
-    await db.delete(teams).where(eq(teams.id, teamId));
+    result = await deleteTeamWithTournamentLocks({
+      teamId,
+      confirmationName,
+      authorize: async (tx, team) => await currentActorCanDeleteTeam(
+        tx,
+        team,
+        user.id
+      ) ? null : "Only team captains or school officers can delete this team",
+      afterCommit: async (parents) => {
+        await invalidatePublicTournamentCachesByIds(
+          parents.map((parent) => parent.id),
+          { listing: true }
+        );
+      },
+    });
   } catch {
     return { error: "Could not delete team. Try again." };
   }
-
+  if (!result.ok) return { error: result.error };
   revalidatePath("/teams");
   revalidatePath("/admin");
   return { success: true as const };

@@ -53,6 +53,11 @@ import {
   searchSchools,
   type SchoolSearchItem,
 } from "@/lib/schools/search";
+import { invalidatePublicTournamentCachesByIds } from "@/lib/tournaments/public-cache-invalidation";
+import {
+  currentActorCanDeleteSchool,
+  deleteSchoolWithEligibilityLocks,
+} from "@/lib/schools/school-deletion";
 
 const schoolSearchSchema = z.object({
   query: z.string().max(200).optional().default(""),
@@ -318,11 +323,26 @@ export async function deleteSchool(schoolId: string) {
     return { error: "Only the school president can delete this school." };
   }
 
+  let result: Awaited<ReturnType<typeof deleteSchoolWithEligibilityLocks>>;
   try {
-    await db.delete(schools).where(eq(schools.id, schoolId));
+    result = await deleteSchoolWithEligibilityLocks({
+      schoolId,
+      authorize: async (tx) => await currentActorCanDeleteSchool(
+        tx,
+        schoolId,
+        user.id
+      ) ? null : "Only the school president can delete this school.",
+      afterCommit: async (parents) => {
+        await invalidatePublicTournamentCachesByIds(
+          parents.map((parent) => parent.id),
+          { listing: true }
+        );
+      },
+    });
   } catch {
     return { error: "Could not delete school. Try again." };
   }
+  if (!result.ok) return { error: result.error };
 
   revalidatePath("/schools");
   revalidatePath("/teams");

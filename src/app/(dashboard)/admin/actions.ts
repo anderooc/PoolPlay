@@ -36,6 +36,12 @@ import {
 import { requireAdmin } from "@/lib/auth";
 import { slugify, uniqueSlug } from "@/lib/utils/slug";
 import { flagBlockedContent } from "@/lib/admin/content-flags";
+import { invalidatePublicTournamentCachesByIds } from "@/lib/tournaments/public-cache-invalidation";
+import {
+  currentActorIsAdmin,
+  deleteSchoolWithEligibilityLocks,
+} from "@/lib/schools/school-deletion";
+import { deleteTeamWithTournamentLocks } from "@/lib/teams/team-deletion";
 import type { UserRole, TournamentStatus } from "@/types";
 
 const VALID_ROLES: UserRole[] = ["player", "captain", "organizer", "admin"];
@@ -256,32 +262,33 @@ export async function adminRenameTeam(teamId: string, rawName: string) {
   return { success: true as const, slug: newSlug };
 }
 
-export async function adminDeleteTeam(
-  teamId: string,
-  confirmationName: string
-) {
-  await requireAdmin();
-
-  const [team] = await db
-    .select({ name: teams.name })
-    .from(teams)
-    .where(eq(teams.id, teamId))
-    .limit(1);
-  if (!team) return { error: "Team not found" };
-
-  if (team.name.trim() !== confirmationName.trim()) {
-    return {
-      error:
-        "Team name does not match — type it exactly as shown (including spaces).",
-    };
-  }
-
+export async function adminDeleteTeam(teamId: string, confirmationName: string) {
+  const admin = await requireAdmin();
+  let result: Awaited<ReturnType<typeof deleteTeamWithTournamentLocks>>;
   try {
-    await db.delete(teams).where(eq(teams.id, teamId));
+    result = await deleteTeamWithTournamentLocks({
+      teamId,
+      confirmationName,
+      authorize: async (tx) => {
+        const [actor] = await tx.select({
+          role: users.role,
+          disabledAt: users.disabledAt,
+        }).from(users).where(eq(users.id, admin.id)).for("share").limit(1);
+        return actor && !actor.disabledAt && actor.role === "admin"
+          ? null
+          : "Administrator access is required";
+      },
+      afterCommit: async (parents) => {
+        await invalidatePublicTournamentCachesByIds(
+          parents.map((parent) => parent.id),
+          { listing: true }
+        );
+      },
+    });
   } catch {
     return { error: "Could not delete team. Try again." };
   }
-  revalidatePath("/admin");
+  if (!result.ok) return { error: result.error };
   revalidatePath("/admin");
   revalidatePath("/teams");
   return { success: true as const };
@@ -466,12 +473,25 @@ export async function adminResetStandaloneTeamToPending(teamId: string) {
 }
 
 export async function adminDeleteSchool(schoolId: string) {
-  await requireAdmin();
+  const admin = await requireAdmin();
+  let result: Awaited<ReturnType<typeof deleteSchoolWithEligibilityLocks>>;
   try {
-    await db.delete(schools).where(eq(schools.id, schoolId));
+    result = await deleteSchoolWithEligibilityLocks({
+      schoolId,
+      authorize: async (tx) => await currentActorIsAdmin(tx, admin.id)
+        ? null
+        : "Administrator access is required",
+      afterCommit: async (parents) => {
+        await invalidatePublicTournamentCachesByIds(
+          parents.map((parent) => parent.id),
+          { listing: true }
+        );
+      },
+    });
   } catch {
     return { error: "Could not delete school. Try again." };
   }
+  if (!result.ok) return { error: result.error };
   revalidatePath("/admin");
   revalidatePath("/admin");
   revalidatePath("/schools");
