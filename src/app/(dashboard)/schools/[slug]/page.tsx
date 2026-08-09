@@ -28,7 +28,7 @@ import {
   teams,
   users,
 } from "@/lib/db/schema";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Suspense } from "react";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,12 +50,15 @@ import {
 } from "@/lib/schools/permissions";
 import { SchoolHeaderActions } from "./school-header-actions";
 import { SchoolRoster } from "./school-roster";
+import { parseSchoolTab } from "./school-tab";
+import { SchoolTabs } from "./school-tabs";
 import { VerificationControls } from "./verification-controls";
 import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/metadata";
 
 interface Props {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }
 
 export async function generateMetadata({
@@ -73,8 +76,10 @@ export async function generateMetadata({
 
 export const dynamic = "force-dynamic";
 
-export default async function SchoolDetailPage({ params }: Props) {
+export default async function SchoolDetailPage({ params, searchParams }: Props) {
   const { slug } = await params;
+  const { tab: tabParam } = await searchParams;
+  const activeTab = parseSchoolTab(tabParam);
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -245,17 +250,20 @@ export default async function SchoolDetailPage({ params }: Props) {
         )}
       </div>
 
-      <Tabs defaultValue="roster">
-        <TabsList>
-          <TabsTrigger value="roster">
-            Roster ({memberCount})
-          </TabsTrigger>
-          <TabsTrigger value="teams">
-            Teams ({teamRows.length})
-          </TabsTrigger>
-        </TabsList>
+      <div className="space-y-4">
+        <Suspense
+          fallback={
+            <div className="h-9 border-b border-border/70" aria-hidden />
+          }
+        >
+          <SchoolTabs
+            slug={slug}
+            rosterCount={memberCount}
+            teamCount={teamRows.length}
+          />
+        </Suspense>
 
-        <TabsContent value="roster" className="mt-4">
+        {activeTab === "roster" ? (
           <SchoolRoster
             schoolId={school.id}
             members={memberRows.map((m) => ({
@@ -269,71 +277,71 @@ export default async function SchoolDetailPage({ params }: Props) {
             canManage={canRosterManage}
             canTransferPresidencyAction={canTransfer}
           />
-        </TabsContent>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-muted-foreground">
+                Teams listed here pull their roster from the school&apos;s
+                master roster.
+              </p>
+              {canRosterManage && (
+                <Link
+                  href={`/teams/new?schoolId=${school.id}`}
+                  className={buttonVariants({ size: "sm" })}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  New team
+                </Link>
+              )}
+            </div>
 
-        <TabsContent value="teams" className="mt-4 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-muted-foreground">
-              Teams listed here pull their roster from the school&apos;s
-              master roster.
-            </p>
-            {canRosterManage && (
-              <Link
-                href={`/teams/new?schoolId=${school.id}`}
-                className={buttonVariants({ size: "sm" })}
-              >
-                <Plus className="mr-1 h-4 w-4" />
-                New team in this school
-              </Link>
+            {teamRows.length === 0 ? (
+              <EmptyState
+                icon={Building2}
+                title="No teams under this school yet"
+                description={
+                  canRosterManage
+                    ? "Create a team to pull players from the school's master roster."
+                    : "Teams created under this school will appear here."
+                }
+                action={
+                  canRosterManage ? (
+                    <Link
+                      href={`/teams/new?schoolId=${school.id}`}
+                      className={buttonVariants({ size: "sm" })}
+                    >
+                      <Plus className="mr-1 h-4 w-4" />
+                      New team
+                    </Link>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {teamRows.map((team) => (
+                  <Link key={team.id} href={`/teams/${team.slug}`}>
+                    <Card className="h-full cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">{team.name}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <TeamAttributesBadges
+                          gender={team.gender}
+                          region={team.region}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {team.memberCount} player
+                          {team.memberCount === 1 ? "" : "s"}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
             )}
           </div>
-
-          {teamRows.length === 0 ? (
-            <EmptyState
-              icon={Building2}
-              title="No teams under this school yet"
-              description={
-                canRosterManage
-                  ? "Create a team to pull players from the school's master roster."
-                  : "Teams created under this school will appear here."
-              }
-              action={
-                canRosterManage ? (
-                  <Link
-                    href={`/teams/new?schoolId=${school.id}`}
-                    className={buttonVariants({ size: "sm" })}
-                  >
-                    <Plus className="mr-1 h-4 w-4" />
-                    New team in this school
-                  </Link>
-                ) : undefined
-              }
-            />
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {teamRows.map((team) => (
-                <Link key={team.id} href={`/teams/${team.slug}`}>
-                  <Card className="h-full cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">{team.name}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <TeamAttributesBadges
-                        gender={team.gender}
-                        region={team.region}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        {team.memberCount} player
-                        {team.memberCount === 1 ? "" : "s"}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
     </div>
   );
 }
