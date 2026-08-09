@@ -147,9 +147,12 @@ export async function TournamentPoolPlayPanel({
           }
         />
       ) : (
-        <Tabs defaultValue={defaultDivisionId}>
+        <Tabs defaultValue={defaultDivisionId} className="w-full gap-4">
           {eligibleDivisions.length > 1 && (
-            <TabsList>
+            <TabsList
+              variant="line"
+              className="max-w-full shrink-0 overflow-x-auto [scrollbar-width:thin]"
+            >
               {eligibleDivisions.map((div) => (
                 <TabsTrigger key={div.id} value={div.id}>
                   {div.name}
@@ -161,7 +164,7 @@ export async function TournamentPoolPlayPanel({
             <TabsContent
               key={div.id}
               value={div.id}
-              className="mt-4 space-y-4"
+              className="mt-0 space-y-4"
             >
               {isOrganizer && (
                 <DivisionPoolRelease
