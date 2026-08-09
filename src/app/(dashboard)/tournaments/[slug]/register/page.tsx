@@ -19,7 +19,11 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { teams, teamMembers, registrations, schools } from "@/lib/db/schema";
+import {
+  teams,
+  teamMembers,
+  schools,
+} from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
 import {
   isSchoolVerifiedForTournament,
@@ -32,20 +36,24 @@ import {
   canRegisterTeams,
   resolveIsTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
-import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import {
   paymentInstructionsText,
   paymentSettingsFromTournament,
 } from "@/lib/tournaments/payment-settings";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BackLink } from "@/components/layout/back-link";
-import { RegisterForm } from "./register-form";
 import type { Metadata } from "next";
 import { getTournamentNameBySlug } from "@/lib/tournaments/metadata";
 import { pageMetadata, pageTitle } from "@/lib/metadata";
+import { registrationAvailabilityOpen } from "@/lib/tournaments/public-refresh-policy";
+import { loadApplicantWaitlistState } from "@/lib/tournaments/applicant-waitlist";
+import { waitingTeamIdsForTournament } from "@/lib/tournaments/registrations";
+import {
+  RegistrationClosedView,
+  RegistrationOpenView,
+} from "./registration-availability-panel";
 
 interface Props {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ withdrawn?: string; withdrawError?: string }>;
 }
 
 export async function generateMetadata({
@@ -65,51 +73,15 @@ const teamSelectFields = {
   schoolName: schools.name,
 } as const;
 
-export default async function RegisterPage({ params }: Props) {
-  const { slug } = await params;
+type VisibleTournament = NonNullable<
+  Awaited<ReturnType<typeof getTournamentBySlugIfVisible>>
+>;
 
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-
-  const tournament = await getTournamentBySlugIfVisible(slug, user);
-  if (!tournament) notFound();
-
-  const id = tournament.id;
-
-  if (!canRegisterTeams(tournament)) {
-    return (
-      <div className="space-y-3">
-        <BackLink href={`/tournaments/${tournament.slug}`}>
-          Back to tournament
-        </BackLink>
-        <div className="mx-auto max-w-lg">
-          <Card className="relative overflow-hidden">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 text-foreground/[0.05] bg-dot-grid [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,black,transparent)]"
-            />
-            <CardContent className="relative py-12 text-center">
-              <p className="font-heading text-base font-semibold tracking-tight">
-                Registration closed
-              </p>
-              <p className="mt-1.5 text-pretty text-sm text-muted-foreground">
-                Registration is not currently open for this tournament.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  const isHost = await resolveIsTournamentOrganizer(tournament, user);
-  const tournamentGenderLabel = formatTeamGender(tournament.gender);
-
-  const [existingRegs, hostSchool, allSchools] = await Promise.all([
-    db
-      .select({ teamId: registrations.teamId })
-      .from(registrations)
-      .where(eq(registrations.tournamentId, id)),
+async function loadHostOptions(
+  tournament: VisibleTournament,
+  isHost: boolean
+) {
+  const [hostSchool, allSchools] = await Promise.all([
     isHost && tournament.hostSchoolId
       ? getHostSchoolById(tournament.hostSchoolId)
       : Promise.resolve(null),
@@ -125,133 +97,168 @@ export default async function RegisterPage({ params }: Props) {
           .orderBy(asc(schools.name))
       : Promise.resolve([]),
   ]);
-
   const hostSchoolVerified =
     hostSchool != null &&
     isSchoolVerifiedForTournament(hostSchool.verificationStatus);
+  return { hostSchool, allSchools, hostSchoolVerified };
+}
 
-  const candidateTeams = isHost
-    ? tournament.hostSchoolId && hostSchoolVerified
-      ? await db
-          .select(teamSelectFields)
-          .from(teams)
-          .leftJoin(schools, eq(teams.schoolId, schools.id))
-          .where(
-            and(
-              eq(teams.gender, tournament.gender),
-              eq(teams.schoolId, tournament.hostSchoolId)
-            )
-          )
-          .orderBy(asc(teams.name))
-      : []
-    : await db
-        .select(teamSelectFields)
-        .from(teamMembers)
-        .innerJoin(teams, eq(teamMembers.teamId, teams.id))
-        .leftJoin(schools, eq(teams.schoolId, schools.id))
-        .where(
-          and(
-            eq(teamMembers.userId, user.id),
-            eq(teamMembers.role, "captain"),
-            eq(teams.gender, tournament.gender),
-            teamEligibleForTournamentRegistrationFilter
-          )
+async function loadCandidateTeams(
+  tournament: VisibleTournament,
+  userId: string,
+  isHost: boolean,
+  hostSchoolVerified: boolean
+) {
+  if (isHost) {
+    if (!tournament.hostSchoolId || !hostSchoolVerified) return [];
+    return db
+      .select(teamSelectFields)
+      .from(teams)
+      .leftJoin(schools, eq(teams.schoolId, schools.id))
+      .where(
+        and(
+          eq(teams.gender, tournament.gender),
+          eq(teams.schoolId, tournament.hostSchoolId)
         )
-        .orderBy(asc(schools.name), asc(teams.name));
+      )
+      .orderBy(asc(teams.name));
+  }
+  return db
+    .select(teamSelectFields)
+    .from(teamMembers)
+    .innerJoin(teams, eq(teamMembers.teamId, teams.id))
+    .leftJoin(schools, eq(teams.schoolId, schools.id))
+    .where(
+      and(
+        eq(teamMembers.userId, userId),
+        eq(teamMembers.role, "captain"),
+        eq(teams.gender, tournament.gender),
+        teamEligibleForTournamentRegistrationFilter
+      )
+    )
+    .orderBy(asc(schools.name), asc(teams.name));
+}
 
-  const alreadyRegisteredIds = new Set(existingRegs.map((r) => r.teamId));
-  const availableTeams = candidateTeams.filter(
-    (t) => !alreadyRegisteredIds.has(t.id)
+async function loadRegistrationFormState(
+  tournament: VisibleTournament,
+  user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>,
+  registrationState: Awaited<ReturnType<typeof loadApplicantWaitlistState>>
+) {
+  const isHost = await resolveIsTournamentOrganizer(tournament, user);
+  const [options, waitingTeamIds] = await Promise.all([
+    loadHostOptions(tournament, isHost),
+    waitingTeamIdsForTournament(tournament.id),
+  ]);
+  const candidateTeams = await loadCandidateTeams(
+    tournament,
+    user.id,
+    isHost,
+    options.hostSchoolVerified
   );
-
-  const hostSchoolForForm =
-    isHost && tournament.hostSchoolId && hostSchool && hostSchoolVerified
-      ? { id: tournament.hostSchoolId, name: hostSchool.name }
+  const unavailableTeamIds = new Set([
+    ...registrationState.registeredRows.map((row) => row.teamId),
+    ...waitingTeamIds,
+  ]);
+  const teams = candidateTeams.filter(
+    (team) => !unavailableTeamIds.has(team.id)
+  );
+  const hostSchool =
+    isHost && tournament.hostSchoolId && options.hostSchoolVerified
+      ? { id: tournament.hostSchoolId, name: options.hostSchool!.name }
       : null;
+  const genderLabel = formatTeamGender(tournament.gender);
+  return {
+    isHost,
+    teams,
+    schools: options.allSchools,
+    hostSchool,
+    genderLabel,
+    showForm: isHost ? options.allSchools.length > 0 : teams.length > 0,
+    emptyMessage: isHost
+      ? "No verified schools are available yet."
+      : `You don't have any ${genderLabel} teams eligible to register. Teams must be admin-approved (standalone) or under a verified school.`,
+  };
+}
 
-  const showForm = isHost
-    ? allSchools.length > 0
-    : availableTeams.length > 0;
+type ApplicantState = Awaited<ReturnType<typeof loadApplicantWaitlistState>>;
+type ApplicantAvailability = NonNullable<
+  ApplicantState["registrationAvailability"]
+>;
 
-  const emptyMessage = isHost
-    ? "No verified schools are available yet."
-    : `You don't have any ${tournamentGenderLabel} teams eligible to register. Teams must be admin-approved (standalone) or under a verified school.`;
+function registrationPresentationIsOpen(
+  tournament: VisibleTournament,
+  availability: ApplicantAvailability
+): boolean {
+  return (
+    canRegisterTeams({ ...tournament, status: availability.status }) &&
+    registrationAvailabilityOpen(
+      availability.status,
+      availability,
+      new Date().toISOString()
+    )
+  );
+}
 
-  const paymentInstructions = paymentInstructionsText(
-    paymentSettingsFromTournament(tournament)
+function closedRegistrationView(
+  tournament: VisibleTournament,
+  registrationState: ApplicantState,
+  availability: ApplicantAvailability
+) {
+  return (
+    <RegistrationClosedView
+      tournamentSlug={tournament.slug}
+      availability={availability}
+      applicantRows={registrationState.applicantWaitlistRows}
+      tournamentId={
+        availability.status === "registration_open" ? tournament.id : undefined
+      }
+    />
+  );
+}
+
+export default async function RegisterPage({ params, searchParams }: Props) {
+  const { slug } = await params;
+  const feedback = await searchParams;
+
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const tournament = await getTournamentBySlugIfVisible(slug, user);
+  if (!tournament) notFound();
+
+  const registrationState = await loadApplicantWaitlistState({
+    tournamentId: tournament.id,
+    userId: user.id,
+  });
+  const registrationAvailability = registrationState.registrationAvailability;
+  if (!registrationAvailability) notFound();
+  const presentationOpen = registrationPresentationIsOpen(
+    tournament,
+    registrationAvailability
   );
 
+  if (!presentationOpen) {
+    return closedRegistrationView(
+      tournament,
+      registrationState,
+      registrationAvailability
+    );
+  }
+  const form = await loadRegistrationFormState(
+    tournament,
+    user,
+    registrationState
+  );
   return (
-    <div className="space-y-3">
-      <BackLink href={`/tournaments/${tournament.slug}`}>
-        Back to tournament
-      </BackLink>
-      <div className="mx-auto max-w-lg">
-        <Card className="overflow-visible">
-          <CardHeader>
-            <CardTitle>
-              {isHost ? "Add teams to" : "Register for"} {tournament.name}
-            </CardTitle>
-            <TeamAttributesBadges
-              gender={tournament.gender}
-              region={tournament.region}
-              className="mt-2"
-            />
-            {isHost ? (
-              <p className="mt-2 text-sm text-muted-foreground">
-                {hostSchoolForForm ? (
-                  <>
-                    Choose a school, then select {tournamentGenderLabel} teams
-                    to add. Starts with{" "}
-                    <span className="font-medium text-foreground">
-                      {hostSchoolForForm.name}
-                    </span>
-                    . Pool and group placement can be set later, and host-added
-                    teams are confirmed automatically.
-                  </>
-                ) : (
-                  <>
-                    Choose a school, then select {tournamentGenderLabel} teams
-                    to add. Pool and group placement can be set later, and
-                    host-added teams are confirmed automatically.
-                  </>
-                )}
-              </p>
-            ) : (
-              <p className="mt-2 text-sm text-muted-foreground">
-                Select one or more {tournamentGenderLabel} teams to register for
-                this event.
-              </p>
-            )}
-          </CardHeader>
-          <CardContent className="overflow-visible">
-            {paymentInstructions && !isHost ? (
-              <div className="mb-4 rounded-md border border-border/80 bg-muted/20 p-3">
-                <p className="text-sm font-medium">Entry fee</p>
-                <pre className="mt-1 whitespace-pre-wrap font-sans text-sm text-muted-foreground">
-                  {paymentInstructions}
-                </pre>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  After registering, mark payment as sent on the tournament
-                  Payment tab.
-                </p>
-              </div>
-            ) : null}
-            {showForm ? (
-              <RegisterForm
-                tournamentId={id}
-                tournamentSlug={tournament.slug}
-                teams={availableTeams}
-                asHost={isHost}
-                hostSchool={hostSchoolForForm}
-                schools={isHost ? allSchools : undefined}
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <RegistrationOpenView
+      tournament={tournament}
+      availability={registrationAvailability}
+      applicantRows={registrationState.applicantWaitlistRows}
+      paymentInstructions={paymentInstructionsText(
+        paymentSettingsFromTournament(tournament)
+      )}
+      feedback={feedback}
+      {...form}
+    />
   );
 }

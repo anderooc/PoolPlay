@@ -26,22 +26,21 @@ import {
   divisions,
   courts,
   courtDivisions,
-  users,
   registrations,
   matches,
   pools,
   brackets,
 } from "@/lib/db/schema";
 import { eq, and, ne, inArray, or, count } from "drizzle-orm";
-import { requireUser, isAdmin } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import {
   createTournamentSchema,
   createDivisionSchema,
+  registrationAvailabilitySchema,
   updateMatchFormatSchema,
 } from "@/lib/validators";
 import { flagBlockedContent } from "@/lib/admin/content-flags";
-import { getHostingSchoolForUser } from "@/lib/schools/hosting";
-import { registerHostSchoolTeamsOnCreate } from "@/lib/tournaments/registrations";
+import { createTournamentWithHostLocks } from "@/lib/tournaments/tournament-creation";
 import { slugify, uniqueSlug } from "@/lib/utils/slug";
 import { isTournamentArchived } from "@/lib/tournament-status";
 import {
@@ -67,12 +66,60 @@ import {
   syncManyDivisionPools,
 } from "@/lib/tournaments/division-pools";
 import { ensureDivisionBracketSkeleton } from "@/lib/tournaments/bracket-structure";
+import { loadLockedTournamentForOrganizer } from "@/lib/tournaments/locked-tournament-authorization";
+import { removeRegistrationsAtomically } from "@/lib/tournaments/registration-roster-mutations";
+import { registrationAvailabilityLockedStateError } from "@/lib/tournaments/registrations";
+import {
+  OperationConflictError,
+  OperationValidationError,
+} from "@/lib/tournaments/competition-operation-rules";
+import {
+  promoteNextWaitlistedTeamAtomically,
+  removeWaitlistEntryAtomically,
+} from "@/lib/tournaments/waitlist-operations";
+import { isCreatablePlayFormat } from "@/lib/labels/play-format";
+import { invalidatePublicTournamentCachesByIds } from "@/lib/tournaments/public-cache-invalidation";
 import type { TournamentStatus } from "@/types";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+function waitlistDomainError(error: unknown): string | null {
+  if (
+    error instanceof OperationConflictError ||
+    error instanceof OperationValidationError
+  ) {
+    return error.message;
+  }
+  return null;
+}
+
+function competitionOperationError(error: unknown): string {
+  const message = waitlistDomainError(error);
+  if (message) return message;
+  console.error("Competition operation failed", error);
+  return "Could not update tournament data. Try again.";
+}
+
+async function invalidateTournamentRegistrationAvailability(
+  tournamentId: string
+): Promise<void> {
+  revalidatePath("/tournaments");
+  revalidatePath("/explore");
+  revalidatePath("/dashboard");
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/tournaments/[slug]/register", "page");
+  await invalidatePublicTournamentCachesByIds([tournamentId], {
+    listing: true,
+  });
+}
+
 export async function createTournament(formData: FormData) {
   const user = await requireUser();
+  const requestedPlayFormat =
+    formData.get("playFormat") || "pool_to_bracket";
+  if (!isCreatablePlayFormat(requestedPlayFormat)) {
+    return { error: "Choose a supported tournament format" };
+  }
 
   const parsed = createTournamentSchema.safeParse({
     hostSchoolId: formData.get("hostSchoolId"),
@@ -81,7 +128,7 @@ export async function createTournament(formData: FormData) {
     date: formData.get("date"),
     location: formData.get("location"),
     address: formData.get("address") || undefined,
-    playFormat: formData.get("playFormat") || "pool_to_bracket",
+    playFormat: requestedPlayFormat,
   });
 
   if (!parsed.success) {
@@ -96,17 +143,6 @@ export async function createTournament(formData: FormData) {
   ]);
   if (contentError) return { error: contentError };
 
-  const hostSchool = await getHostingSchoolForUser(
-    parsed.data.hostSchoolId,
-    user.id,
-    isAdmin(user)
-  );
-  if (!hostSchool) {
-    return {
-      error: "Select a school you represent as president or officer",
-    };
-  }
-
   const base = slugify(parsed.data.name, "tournament");
   const existingSlugs = await db
     .select({ slug: tournaments.slug })
@@ -116,13 +152,11 @@ export async function createTournament(formData: FormData) {
     existingSlugs.map((t) => t.slug)
   );
 
-  const [tournament] = await db
-    .insert(tournaments)
-    .values({
-      organizerId: user.id,
-      hostSchoolId: hostSchool.id,
-      gender: hostSchool.gender,
-      region: hostSchool.region,
+  let tournament: Awaited<ReturnType<typeof createTournamentWithHostLocks>>;
+  try {
+    tournament = await createTournamentWithHostLocks({
+      actorId: user.id,
+      hostSchoolId: parsed.data.hostSchoolId,
       name: parsed.data.name,
       slug,
       description: parsed.data.description || null,
@@ -130,18 +164,10 @@ export async function createTournament(formData: FormData) {
       location: parsed.data.location,
       address: parsed.data.address || null,
       playFormat: parsed.data.playFormat,
-      status: "draft",
-    })
-    .returning();
-
-  if (user.role !== "organizer") {
-    await db
-      .update(users)
-      .set({ role: "organizer" })
-      .where(eq(users.id, user.id));
+    });
+  } catch (error) {
+    return { error: competitionOperationError(error) };
   }
-
-  await registerHostSchoolTeamsOnCreate(tournament.id, hostSchool.id);
 
   redirect(`/tournaments/${tournament.slug}`);
 }
@@ -278,6 +304,98 @@ export async function updateTournamentListingDetails(
     location,
     address,
   };
+}
+
+export async function updateTournamentRegistrationAvailability(
+  tournamentId: string,
+  values: { capacity: number | null; deadline: string | null }
+) {
+  const user = await requireUser();
+  const parsed = registrationAvailabilitySchema.safeParse(values);
+  if (!parsed.success) {
+    const error = parsed.error.issues[0]?.message;
+    return { error: error ?? "Enter valid registration availability settings" };
+  }
+  const result = await db.transaction(async (tx) => {
+    const executor = tx as unknown as typeof db;
+    const tournament = await loadLockedTournamentForOrganizer(
+      tournamentId,
+      user.id,
+      executor
+    );
+    if (!tournament) {
+      return { error: "Only the organizer can edit registration availability" };
+    }
+    const lockedStateError = registrationAvailabilityLockedStateError(
+      tournament.date
+    );
+    if (lockedStateError) return { error: lockedStateError };
+    const [row] = await executor
+      .select({ value: count() })
+      .from(registrations)
+      .where(eq(registrations.tournamentId, tournamentId));
+    const activeCount = row?.value ?? 0;
+    if (parsed.data.capacity != null && parsed.data.capacity < activeCount) {
+      return { error: `Capacity cannot be below ${activeCount} active registrations` };
+    }
+    await executor
+      .update(tournaments)
+      .set({
+        registrationCapacity: parsed.data.capacity,
+        registrationDeadline: parsed.data.deadline
+          ? new Date(parsed.data.deadline)
+          : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(tournaments.id, tournamentId));
+    return { success: true as const };
+  });
+  if ("error" in result) return result;
+
+  await invalidateTournamentRegistrationAvailability(tournamentId);
+  return { success: true as const };
+}
+
+export async function promoteNextWaitlistedTeam(
+  tournamentId: string,
+  operationId: string
+) {
+  const user = await requireUser();
+  try {
+    const result = await promoteNextWaitlistedTeamAtomically({
+      tournamentId,
+      actorUserId: user.id,
+      operationId,
+    });
+    await invalidateTournamentRegistrationAvailability(tournamentId);
+    return { success: true as const, teamId: result.teamId };
+  } catch (error) {
+    const message = waitlistDomainError(error);
+    if (message) return { error: message };
+    console.error("Waitlist promotion failed", error);
+    throw new Error("Waitlist promotion failed");
+  }
+}
+
+export async function removeWaitlistedTeam(
+  tournamentId: string,
+  waitlistEntryId: string
+) {
+  const user = await requireUser();
+  try {
+    await removeWaitlistEntryAtomically({
+      tournamentId,
+      waitlistEntryId,
+      actorUserId: user.id,
+    });
+    await invalidateTournamentRegistrationAvailability(tournamentId);
+    return { success: true as const };
+  } catch (error) {
+    const message = waitlistDomainError(error);
+    if (message) return { error: message };
+    console.error("Waitlist removal failed", error);
+    throw new Error("Waitlist removal failed");
+  }
 }
 
 const PACKET_NOTES_MAX_LENGTH = 12000;
@@ -1198,33 +1316,23 @@ export async function bulkRemoveRegistrations(
     };
   }
 
-  const targetRows = await db
-    .select({ id: registrations.id, divisionId: registrations.divisionId })
-    .from(registrations)
-    .where(
-      and(
-        eq(registrations.tournamentId, tournamentId),
-        inArray(registrations.id, uniqueIds)
-      )
-    );
+  let count: number;
+  try {
+    const result = await removeRegistrationsAtomically({
+      tournamentId,
+      registrationIds: uniqueIds,
+      actorUserId: user.id,
+    });
+    count = result.count;
+  } catch (error) {
+    return { error: competitionOperationError(error) };
+  }
 
-  const result = await db
-    .delete(registrations)
-    .where(
-      and(
-        eq(registrations.tournamentId, tournamentId),
-        inArray(registrations.id, uniqueIds)
-      )
-    )
-    .returning({ id: registrations.id });
-
-  await syncManyDivisionPools(
-    tournamentId,
-    targetRows.map((r) => r.divisionId)
-  );
-
+  await invalidatePublicTournamentCachesByIds([tournamentId], {
+    listing: true,
+  });
   revalidatePath("/tournaments/[slug]", "page");
   revalidatePath("/tournaments/[slug]/register", "page");
   revalidatePath("/tournaments/[slug]/brackets", "page");
-  return { success: true as const, count: result.length };
+  return { success: true as const, count };
 }

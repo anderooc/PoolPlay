@@ -149,6 +149,35 @@ export const createTournamentSchema = z.object({
   }),
 });
 
+const nullableCapacity = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    return trimmed === "" ? null : Number(trimmed);
+  },
+  z
+    .number({ error: "Capacity must be a positive integer" })
+    .refine(Number.isInteger, "Capacity must be a positive integer")
+    .refine((value) => value > 0, "Capacity must be a positive integer")
+    .nullable()
+);
+
+const nullableDeadline = z.preprocess(
+  (value) =>
+    typeof value === "string" && value.trim() === "" ? null : value,
+  z
+    .iso.datetime({
+      offset: true,
+      error: "Enter a valid registration deadline with a timezone",
+    })
+    .nullable()
+);
+
+export const registrationAvailabilitySchema = z.object({
+  capacity: nullableCapacity,
+  deadline: nullableDeadline,
+});
+
 export const createDivisionSchema = z.object({
   name: z.string().min(1, "Pool name is required"),
 });
@@ -207,6 +236,9 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type CreateTeamInput = z.infer<typeof createTeamSchema>;
 export type CreateTournamentInput = z.infer<typeof createTournamentSchema>;
+export type RegistrationAvailabilityInput = z.infer<
+  typeof registrationAvailabilitySchema
+>;
 export type CreateDivisionInput = z.infer<typeof createDivisionSchema>;
 export type UpdateScoreInput = z.infer<typeof updateScoreSchema>;
 export type UpdateMatchFormatInput = z.infer<typeof updateMatchFormatSchema>;

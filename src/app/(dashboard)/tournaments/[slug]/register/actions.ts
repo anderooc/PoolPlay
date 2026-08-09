@@ -22,7 +22,6 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import {
   registrations,
-  teamMembers,
   tournaments,
   teams,
   schools,
@@ -31,182 +30,112 @@ import { eq, and, notInArray, asc } from "drizzle-orm";
 import {
   isSchoolVerifiedForTournament,
   SCHOOL_NOT_VERIFIED_FOR_TOURNAMENT_ERROR,
-  teamRegistrationBlockReason,
 } from "@/lib/tournaments/registration-eligibility";
 import { requireUser } from "@/lib/auth";
 import {
   canRegisterTeams,
-  canWithdrawRegistration,
   resolveIsTournamentOrganizer,
-  registrationGenderMismatchMessage,
-  teamMatchesTournamentGender,
 } from "@/lib/tournaments/permissions";
-import { syncDivisionAutoPoolMembers } from "@/lib/tournaments/division-pools";
-
 import {
-  getFirstDivisionId,
-  insertTeamRegistration,
+  MAX_TEAM_REGISTRATION_BATCH_SIZE,
+  registrationPlacementCachePolicy,
+  registerTeamsAtomically,
+  waitingTeamIdsForTournament,
 } from "@/lib/tournaments/registrations";
-import { createRegistrationPayment } from "@/lib/tournaments/payment-compliance";
+import { withdrawRegistrationAtomically } from "@/lib/tournaments/registration-roster-mutations";
+import {
+  OperationConflictError,
+  OperationValidationError,
+} from "@/lib/tournaments/competition-operation-rules";
+import { invalidatePublicTournamentCachesByIds } from "@/lib/tournaments/public-cache-invalidation";
 
-type TournamentRow = typeof tournaments.$inferSelect;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-async function validateTeamRegistration(
-  user: Awaited<ReturnType<typeof requireUser>>,
-  tournament: TournamentRow,
-  teamId: string,
-  isHost: boolean
-): Promise<{ error: string } | { ok: true }> {
-  const [team] = await db
-    .select({
-      id: teams.id,
-      gender: teams.gender,
-      schoolId: teams.schoolId,
-      schoolVerificationStatus: schools.verificationStatus,
-      teamVerificationStatus: teams.verificationStatus,
-    })
-    .from(teams)
-    .leftJoin(schools, eq(teams.schoolId, schools.id))
-    .where(eq(teams.id, teamId))
-    .limit(1);
-
-  if (!team) {
-    return { error: "Team not found" };
-  }
-
-  const registrationBlock = teamRegistrationBlockReason(
-    team.schoolId,
-    team.schoolVerificationStatus,
-    team.teamVerificationStatus
-  );
-  if (registrationBlock) {
-    return { error: registrationBlock };
-  }
-
-  if (!teamMatchesTournamentGender(team.gender, tournament.gender)) {
-    return { error: registrationGenderMismatchMessage(tournament.gender) };
-  }
-
-  if (!isHost) {
-    const [membership] = await db
-      .select()
-      .from(teamMembers)
-      .where(
-        and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, user.id))
-      );
-
-    if (!membership || membership.role !== "captain") {
-      return {
-        error:
-          "Only team captains or the tournament host can register teams for this event",
-      };
-    }
-  }
-
-  const [existing] = await db
-    .select({ id: registrations.id })
-    .from(registrations)
-    .where(
-      and(
-        eq(registrations.teamId, teamId),
-        eq(registrations.tournamentId, tournament.id)
-      )
-    )
-    .limit(1);
-
-  if (existing) {
-    return { error: "This team is already registered for this tournament" };
-  }
-
-  return { ok: true };
-}
-
-export async function registerTeams(tournamentId: string, teamIds: string[]) {
-  const user = await requireUser();
+function validateRegisterTeamIds(
+  tournamentId: string,
+  teamIds: string[],
+  operationId: string
+): { teamIds: string[] } | { error: string } {
   const uniqueIds = [...new Set(teamIds.filter(Boolean))];
-
-  if (uniqueIds.length === 0) {
-    return { error: "Select at least one team" };
+  if (uniqueIds.length === 0) return { error: "Select at least one team" };
+  if (!UUID_RE.test(tournamentId)) {
+    return { error: "Tournament ID is invalid." };
   }
-
-  const [tournament] = await db
-    .select()
-    .from(tournaments)
-    .where(eq(tournaments.id, tournamentId))
-    .limit(1);
-
-  if (!tournament) {
-    return { error: "Tournament not found" };
+  if (uniqueIds.length > MAX_TEAM_REGISTRATION_BATCH_SIZE) {
+    return { error:
+      `Select no more than ${MAX_TEAM_REGISTRATION_BATCH_SIZE} teams at once.` };
   }
-
-  if (!canRegisterTeams(tournament)) {
-    return {
-      error:
-        "Registration is not open for this tournament. Contact the host if you need to sign up.",
-    };
+  if (uniqueIds.some((teamId) => !UUID_RE.test(teamId))) {
+    return { error: "One or more team IDs are invalid." };
   }
-
-  const isHost = await resolveIsTournamentOrganizer(tournament, user);
-
-  for (const teamId of uniqueIds) {
-    const validation = await validateTeamRegistration(
-      user,
-      tournament,
-      teamId,
-      isHost
-    );
-    if ("error" in validation) {
-      return { error: validation.error };
-    }
+  if (!UUID_RE.test(operationId)) {
+    return { error: "Could not start registration. Try again." };
   }
-
-  const firstDivisionId = await getFirstDivisionId(tournamentId);
-
-  try {
-    for (const teamId of uniqueIds) {
-      const [team] = await db
-        .select({ schoolId: teams.schoolId })
-        .from(teams)
-        .where(eq(teams.id, teamId))
-        .limit(1);
-
-      const registrationId = await insertTeamRegistration(
-        tournamentId,
-        teamId,
-        isHost ? "confirmed" : "pending",
-        firstDivisionId
-      );
-
-      await createRegistrationPayment(
-        tournament,
-        registrationId,
-        teamId,
-        team?.schoolId ?? null,
-        isHost
-          ? { hostWaived: true, hostUserId: user.id }
-          : undefined
-      );
-    }
-  } catch (e) {
-    return {
-      error:
-        e instanceof Error
-          ? e.message
-          : "Could not register teams. Try again.",
-    };
-  }
-
-  revalidatePath("/tournaments/[slug]", "page");
-  revalidatePath("/tournaments/[slug]/register", "page");
-  return { success: true as const, count: uniqueIds.length };
+  return { teamIds: uniqueIds };
 }
 
-export async function registerTeam(tournamentId: string, teamId: string) {
-  const result = await registerTeams(tournamentId, [teamId]);
+export async function registerTeams(
+  tournamentId: string,
+  teamIds: string[],
+  operationId: string
+) {
+  const user = await requireUser();
+  const selection = validateRegisterTeamIds(tournamentId, teamIds, operationId);
+  if ("error" in selection) return { error: selection.error };
+
+  let result: Awaited<ReturnType<typeof registerTeamsAtomically>>;
+  try {
+    result = await registerTeamsAtomically({
+      tournamentId,
+      teamIds: selection.teamIds,
+      actor: user,
+      operationId,
+    });
+  } catch (e) {
+    if (
+      e instanceof OperationConflictError ||
+      e instanceof OperationValidationError
+    ) {
+      return { error: e.message };
+    }
+    console.error("Team registration failed", e);
+    return { error: "Could not register teams. Try again." };
+  }
+
+  const cachePolicy = registrationPlacementCachePolicy(result.replayed);
+  if (cachePolicy.revalidateRoutePatterns) {
+    revalidatePath("/tournaments/[slug]", "page");
+    revalidatePath("/tournaments/[slug]/register", "page");
+  }
+  // Durable replays still refresh tournament detail after an uncertain response.
+  // The public listing self-refreshes within 60 seconds, so suppressing its tag
+  // on replays prevents one operation ID from causing global cache churn.
+  await invalidatePublicTournamentCachesByIds(
+    [tournamentId],
+    { listing: cachePolicy.listing }
+  );
+  return {
+    success: true as const,
+    acceptedCount: result.acceptedCount,
+    waitlistedCount: result.waitlistedCount,
+  };
+}
+
+export async function registerTeam(
+  tournamentId: string,
+  teamId: string,
+  operationId: string
+) {
+  const result = await registerTeams(tournamentId, [teamId], operationId);
   if ("error" in result && result.error) {
     return { error: result.error };
   }
-  return { success: true as const };
+  return {
+    success: true as const,
+    acceptedCount: result.acceptedCount,
+    waitlistedCount: result.waitlistedCount,
+  };
 }
 
 export async function withdrawRegistration(
@@ -215,61 +144,26 @@ export async function withdrawRegistration(
 ) {
   const user = await requireUser();
 
-  const [tournament] = await db
-    .select()
-    .from(tournaments)
-    .where(eq(tournaments.id, tournamentId))
-    .limit(1);
-
-  if (!tournament) {
-    return { error: "Tournament not found" };
-  }
-
-  if (!canWithdrawRegistration(tournament)) {
-    return { error: "Registration can no longer be withdrawn for this event." };
-  }
-
-  const isHost = await resolveIsTournamentOrganizer(tournament, user);
-
-  if (!isHost) {
-    const [membership] = await db
-      .select()
-      .from(teamMembers)
-      .where(
-        and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, user.id))
-      )
-      .limit(1);
-
-    if (!membership || membership.role !== "captain") {
-      return {
-        error: "Only team captains or the tournament host can withdraw a team",
-      };
+  try {
+    await withdrawRegistrationAtomically({
+      tournamentId,
+      teamId,
+      actorUserId: user.id,
+    });
+  } catch (error) {
+    if (
+      error instanceof OperationConflictError ||
+      error instanceof OperationValidationError
+    ) {
+      return { error: error.message };
     }
+    console.error("Registration withdrawal failed", error);
+    return { error: "Could not withdraw this registration. Try again." };
   }
 
-  const [reg] = await db
-    .select()
-    .from(registrations)
-    .where(
-      and(
-        eq(registrations.tournamentId, tournamentId),
-        eq(registrations.teamId, teamId)
-      )
-    )
-    .limit(1);
-
-  if (!reg) {
-    return { error: "This team is not registered for this tournament" };
-  }
-
-  const removedDivisionId = reg.divisionId;
-
-  await db.delete(registrations).where(eq(registrations.id, reg.id));
-
-  if (removedDivisionId) {
-    await syncDivisionAutoPoolMembers(tournamentId, removedDivisionId);
-  }
-
+  await invalidatePublicTournamentCachesByIds([tournamentId], {
+    listing: true,
+  });
   revalidatePath("/tournaments/[slug]", "page");
   revalidatePath("/tournaments/[slug]/register", "page");
   revalidatePath("/tournaments/[slug]/brackets", "page");
@@ -283,6 +177,49 @@ export type AddableTeamResult = {
   schoolId: string | null;
   schoolName: string | null;
 };
+
+async function loadAddableTeamRows(
+  tournamentId: string,
+  schoolId: string,
+  gender: (typeof tournaments.$inferSelect)["gender"]
+): Promise<AddableTeamResult[]> {
+  const [existingRegs, waitingTeamIds] = await Promise.all([
+    db.select({ teamId: registrations.teamId }).from(registrations)
+      .where(eq(registrations.tournamentId, tournamentId)),
+    waitingTeamIdsForTournament(tournamentId),
+  ]);
+  const unavailableIds = [...new Set([
+    ...existingRegs.map((row) => row.teamId),
+    ...waitingTeamIds,
+  ])];
+  return db
+    .select({
+      id: teams.id, name: teams.name, university: teams.university,
+      schoolId: teams.schoolId, schoolName: schools.name,
+    })
+    .from(teams)
+    .innerJoin(schools, eq(teams.schoolId, schools.id))
+    .where(and(
+      eq(teams.schoolId, schoolId),
+      eq(teams.gender, gender),
+      unavailableIds.length > 0
+        ? notInArray(teams.id, unavailableIds)
+        : undefined
+    ))
+    .orderBy(asc(teams.name));
+}
+
+async function pickerSchoolError(schoolId: string): Promise<string | null> {
+  const [school] = await db
+    .select({ verificationStatus: schools.verificationStatus })
+    .from(schools)
+    .where(eq(schools.id, schoolId))
+    .limit(1);
+  if (!school) return "School not found";
+  return isSchoolVerifiedForTournament(school.verificationStatus)
+    ? null
+    : SCHOOL_NOT_VERIFIED_FOR_TOURNAMENT_ERROR;
+}
 
 /** Host-only: eligible teams for one school (matching gender, not yet registered). */
 export async function getAddableTeamsForSchool(
@@ -316,50 +253,14 @@ export async function getAddableTeamsForSchool(
     return { error: "Registration is not open for this tournament" };
   }
 
-  const [school] = await db
-    .select({
-      id: schools.id,
-      verificationStatus: schools.verificationStatus,
-    })
-    .from(schools)
-    .where(eq(schools.id, schoolId))
-    .limit(1);
+  const schoolError = await pickerSchoolError(schoolId);
+  if (schoolError) return { error: schoolError };
 
-  if (!school) {
-    return { error: "School not found" };
-  }
-
-  if (!isSchoolVerifiedForTournament(school.verificationStatus)) {
-    return { error: SCHOOL_NOT_VERIFIED_FOR_TOURNAMENT_ERROR };
-  }
-
-  const existingRegs = await db
-    .select({ teamId: registrations.teamId })
-    .from(registrations)
-    .where(eq(registrations.tournamentId, tournamentId));
-
-  const registeredIds = existingRegs.map((r) => r.teamId);
-
-  const rows = await db
-    .select({
-      id: teams.id,
-      name: teams.name,
-      university: teams.university,
-      schoolId: teams.schoolId,
-      schoolName: schools.name,
-    })
-    .from(teams)
-    .innerJoin(schools, eq(teams.schoolId, schools.id))
-    .where(
-      and(
-        eq(teams.schoolId, schoolId),
-        eq(teams.gender, tournament.gender),
-        registeredIds.length > 0
-          ? notInArray(teams.id, registeredIds)
-          : undefined
-      )
-    )
-    .orderBy(asc(teams.name));
-
-  return { teams: rows };
+  return {
+    teams: await loadAddableTeamRows(
+      tournamentId,
+      schoolId,
+      tournament.gender
+    ),
+  };
 }

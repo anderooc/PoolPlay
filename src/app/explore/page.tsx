@@ -16,14 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { db } from "@/lib/db";
-import { tournaments } from "@/lib/db/schema";
-import { desc, ne } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 import { SiteHeader } from "@/components/layout/site-header";
 import { getCurrentAuthProfile } from "@/lib/auth";
 import { TournamentGrid } from "@/components/tournament-grid";
-import { enrichTournamentsWithHostSchools } from "@/lib/tournaments/host-school";
-import { tournamentListColumns } from "@/lib/tournaments/list-columns";
+import { PUBLIC_TOURNAMENTS_CACHE_TAG } from "@/lib/tournaments/public-cache";
+import { loadPublicTournamentList } from "@/lib/tournaments/public-list-loader";
 import { pageMetadata } from "@/lib/metadata";
 import { PublicSiteFooter } from "@/components/layout/public-site-footer";
 
@@ -35,16 +33,16 @@ export const metadata = pageMetadata(
 
 export const dynamic = "force-dynamic";
 
+const getPublicTournaments = unstable_cache(
+  loadPublicTournamentList,
+  ["public-tournaments"],
+  { revalidate: 60, tags: [PUBLIC_TOURNAMENTS_CACHE_TAG] }
+);
 export default async function ExplorePage() {
-  const user = await getCurrentAuthProfile();
-
-  const allTournaments = await enrichTournamentsWithHostSchools(
-    await db
-      .select(tournamentListColumns)
-      .from(tournaments)
-      .where(ne(tournaments.status, "draft"))
-      .orderBy(desc(tournaments.date))
-  );
+  const [user, allTournaments] = await Promise.all([
+    getCurrentAuthProfile(),
+    getPublicTournaments(),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col">
