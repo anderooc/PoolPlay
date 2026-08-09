@@ -138,28 +138,39 @@ export function TournamentRow({ tournament }: Props) {
   return (
     <>
       <TableRow>
-        <TableCell>
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/tournaments/${slug}`}
-              className="inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline"
-            >
-              {name}
-              <ExternalLink className="h-3 w-3 text-muted-foreground" />
-            </Link>
+        <TableCell className="min-w-0 overflow-hidden">
+          <Link
+            href={`/tournaments/${slug}`}
+            title={name}
+            className="flex min-w-0 max-w-full items-center gap-1 font-medium underline-offset-4 hover:underline"
+          >
+            <span className="truncate">{name}</span>
+            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+          </Link>
+          <div
+            className="truncate text-xs text-muted-foreground"
+            title={tournament.location}
+          >
+            {tournament.location}
           </div>
-          <div className="text-xs text-muted-foreground">{tournament.location}</div>
         </TableCell>
-        <TableCell className="text-muted-foreground">
+        <TableCell className="whitespace-nowrap text-muted-foreground">
           {tournament.date}
         </TableCell>
-        <TableCell className="text-muted-foreground">
-          {tournament.organizerName ?? "—"}
+        <TableCell className="min-w-0 overflow-hidden text-muted-foreground">
+          <div
+            className="truncate"
+            title={tournament.organizerName ?? undefined}
+          >
+            {tournament.organizerName ?? "—"}
+          </div>
           {tournament.organizerEmail && (
-            <div className="text-xs">{tournament.organizerEmail}</div>
+            <div className="truncate text-xs" title={tournament.organizerEmail}>
+              {tournament.organizerEmail}
+            </div>
           )}
         </TableCell>
-        <TableCell>
+        <TableCell className="overflow-hidden">
           <div className="inline-flex items-center gap-2">
             <Select
               value={status}
@@ -182,7 +193,7 @@ export function TournamentRow({ tournament }: Props) {
             )}
           </div>
         </TableCell>
-        <TableCell className="text-right">
+        <TableCell className="overflow-hidden text-right">
           <div className="inline-flex gap-1">
             <Button
               type="button"

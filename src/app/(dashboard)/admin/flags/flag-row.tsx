@@ -78,31 +78,45 @@ export function FlagRow({ flag }: Props) {
 
   return (
     <TableRow className={flag.resolvedAt ? "opacity-60" : undefined}>
-      <TableCell className="text-muted-foreground">
+      <TableCell className="whitespace-nowrap text-muted-foreground">
         {relativeTime(flag.createdAt)}
       </TableCell>
-      <TableCell className="text-muted-foreground">
+      <TableCell className="min-w-0 overflow-hidden text-muted-foreground">
         {flag.userName ? (
           <>
-            <div className="font-medium text-foreground">{flag.userName}</div>
-            <div className="text-xs">{flag.userEmail}</div>
+            <div
+              className="truncate font-medium text-foreground"
+              title={flag.userName}
+            >
+              {flag.userName}
+            </div>
+            <div className="truncate text-xs" title={flag.userEmail ?? undefined}>
+              {flag.userEmail}
+            </div>
           </>
         ) : (
           "—"
         )}
       </TableCell>
-      <TableCell className="font-mono text-xs text-muted-foreground">
-        {flag.area}
+      <TableCell className="min-w-0 overflow-hidden font-mono text-xs text-muted-foreground">
+        <div className="truncate" title={flag.area}>
+          {flag.area}
+        </div>
       </TableCell>
-      <TableCell>
-        <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive">
+      <TableCell className="min-w-0 overflow-hidden">
+        <span
+          className="inline-block max-w-full truncate rounded bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive"
+          title={flag.blockedWord}
+        >
           {flag.blockedWord}
         </span>
       </TableCell>
-      <TableCell className="max-w-[24rem] whitespace-normal break-words">
-        {flag.text}
+      <TableCell className="min-w-0 overflow-hidden whitespace-normal">
+        <p className="line-clamp-2 break-words" title={flag.text}>
+          {flag.text}
+        </p>
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="overflow-hidden text-right">
         <div className="inline-flex gap-1">
           {!flag.resolvedAt && (
             <Button

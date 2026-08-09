@@ -77,7 +77,15 @@ export async function AdminFlagsPanel({ page }: { page: number }) {
         </p>
       ) : (
         <div className="overflow-hidden rounded-md border border-border/80">
-          <Table>
+          <Table className="table-fixed">
+            <colgroup>
+              <col className="w-[5.5rem]" />
+              <col className="w-[18%]" />
+              <col className="w-[14%]" />
+              <col className="w-[12%]" />
+              <col />
+              <col className="w-44" />
+            </colgroup>
             <TableHeader>
               <TableRow>
                 <TableHead>When</TableHead>

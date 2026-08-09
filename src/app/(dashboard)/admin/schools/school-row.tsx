@@ -114,25 +114,37 @@ export function SchoolRow({ school }: Props) {
   return (
     <>
       <TableRow>
-        <TableCell className="min-w-0">
+        <TableCell className="min-w-0 overflow-hidden">
           <Link
             href={`/schools/${school.slug}`}
-            className="inline-flex max-w-full items-center gap-1 font-medium underline-offset-4 hover:underline"
+            title={school.name}
+            className="flex min-w-0 max-w-full items-center gap-1 font-medium underline-offset-4 hover:underline"
           >
-            {school.name}
-            <ExternalLink className="h-3 w-3 text-muted-foreground" />
+            <span className="truncate">{school.name}</span>
+            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
           </Link>
-          <div className="text-xs text-muted-foreground">
+          <div
+            className="truncate text-xs text-muted-foreground"
+            title={
+              school.domainHint
+                ? `${school.university} @${school.domainHint}`
+                : school.university
+            }
+          >
             {school.university}
             {school.domainHint && (
               <span className="ml-2 font-mono">@{school.domainHint}</span>
             )}
           </div>
         </TableCell>
-        <TableCell className="min-w-0 text-muted-foreground">
-          {school.presidentName ?? "—"}
+        <TableCell className="min-w-0 overflow-hidden text-muted-foreground">
+          <div className="truncate" title={school.presidentName ?? undefined}>
+            {school.presidentName ?? "—"}
+          </div>
           {school.presidentEmail && (
-            <div className="truncate text-xs">{school.presidentEmail}</div>
+            <div className="truncate text-xs" title={school.presidentEmail}>
+              {school.presidentEmail}
+            </div>
           )}
         </TableCell>
         <TableCell className="text-right tabular-nums">
@@ -141,7 +153,7 @@ export function SchoolRow({ school }: Props) {
         <TableCell className="text-right tabular-nums">
           {school.teamCount}
         </TableCell>
-        <TableCell className="min-w-0">
+        <TableCell className="min-w-0 overflow-hidden">
           <div className="flex flex-wrap items-center gap-1">
             <StatusBadge
               kind="verification"
@@ -157,7 +169,7 @@ export function SchoolRow({ school }: Props) {
             )}
           </div>
         </TableCell>
-        <TableCell className="w-72 text-right">
+        <TableCell className="overflow-hidden text-right">
           <div className="flex w-full items-center justify-end gap-2">
             <span
               className="flex h-4 w-4 shrink-0 items-center justify-center"

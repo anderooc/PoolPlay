@@ -144,17 +144,22 @@ export function TeamRow({ team }: Props) {
   return (
     <>
       <TableRow>
-        <TableCell>
+        <TableCell className="min-w-0 overflow-hidden">
           <Link
             href={`/teams/${slug}`}
-            className="inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline"
+            title={name}
+            className="flex min-w-0 max-w-full items-center gap-1 font-medium underline-offset-4 hover:underline"
           >
-            {name}
-            <ExternalLink className="h-3 w-3 text-muted-foreground" />
+            <span className="truncate">{name}</span>
+            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
           </Link>
         </TableCell>
-        <TableCell className="text-muted-foreground">{team.university}</TableCell>
-        <TableCell>
+        <TableCell className="min-w-0 overflow-hidden text-muted-foreground">
+          <div className="truncate" title={team.university}>
+            {team.university}
+          </div>
+        </TableCell>
+        <TableCell className="overflow-hidden">
           <StatusBadge
             kind="verification"
             status={team.verificationStatus}
@@ -163,7 +168,7 @@ export function TeamRow({ team }: Props) {
         <TableCell className="text-right tabular-nums">
           {team.memberCount}
         </TableCell>
-        <TableCell className="text-right">
+        <TableCell className="overflow-hidden text-right">
           <div className="flex flex-wrap justify-end gap-1">
             {isStandalone && team.verificationStatus !== "verified" && (
               <Button

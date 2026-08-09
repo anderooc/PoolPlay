@@ -72,7 +72,14 @@ export async function AdminTournamentsPanel({ page }: { page: number }) {
       </div>
 
       <div className="overflow-hidden rounded-md border border-border/80">
-        <Table>
+        <Table className="table-fixed">
+          <colgroup>
+            <col />
+            <col className="w-[7.5rem]" />
+            <col />
+            <col className="w-[13.5rem]" />
+            <col className="w-48" />
+          </colgroup>
           <TableHeader>
             <TableRow>
               <TableHead>Tournament</TableHead>

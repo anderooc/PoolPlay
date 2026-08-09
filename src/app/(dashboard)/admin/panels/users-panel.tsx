@@ -70,7 +70,14 @@ export async function AdminUsersPanel({ page }: { page: number }) {
       </div>
 
       <div className="overflow-hidden rounded-md border border-border/80">
-        <Table>
+        <Table className="table-fixed">
+          <colgroup>
+            <col className="w-[22%]" />
+            <col className="w-[28%]" />
+            <col className="w-[20%]" />
+            <col className="w-[10rem]" />
+            <col className="w-[8.5rem]" />
+          </colgroup>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>

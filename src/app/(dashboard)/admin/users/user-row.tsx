@@ -95,19 +95,29 @@ export function UserRow({ user, isSelf }: Props) {
 
   return (
     <TableRow>
-      <TableCell className="font-medium">
-        {user.fullName}
-        {isSelf && (
-          <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
-            you
+      <TableCell className="min-w-0 overflow-hidden font-medium">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate" title={user.fullName}>
+            {user.fullName}
           </span>
-        )}
+          {isSelf && (
+            <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
+              you
+            </span>
+          )}
+        </div>
       </TableCell>
-      <TableCell className="text-muted-foreground">{user.email}</TableCell>
-      <TableCell className="text-muted-foreground">
-        {user.university ?? "—"}
+      <TableCell className="min-w-0 overflow-hidden text-muted-foreground">
+        <div className="truncate" title={user.email}>
+          {user.email}
+        </div>
       </TableCell>
-      <TableCell>
+      <TableCell className="min-w-0 overflow-hidden text-muted-foreground">
+        <div className="truncate" title={user.university ?? undefined}>
+          {user.university ?? "—"}
+        </div>
+      </TableCell>
+      <TableCell className="overflow-hidden">
         <div className="inline-flex items-center gap-2">
           <Select value={role} onValueChange={onRoleChange} disabled={savingRole}>
             <SelectTrigger size="sm" className="w-[8.5rem]">
@@ -126,7 +136,7 @@ export function UserRow({ user, isSelf }: Props) {
           )}
         </div>
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="overflow-hidden text-right">
         <Button
           type="button"
           variant={confirmDelete ? "destructive" : "outline"}

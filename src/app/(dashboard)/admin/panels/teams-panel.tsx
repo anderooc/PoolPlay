@@ -87,7 +87,14 @@ export async function AdminTeamsPanel({ page }: { page: number }) {
       </div>
 
       <div className="overflow-hidden rounded-md border border-border/80">
-        <Table>
+        <Table className="table-fixed">
+          <colgroup>
+            <col />
+            <col />
+            <col className="w-[9rem]" />
+            <col className="w-20" />
+            <col className="w-56" />
+          </colgroup>
           <TableHeader>
             <TableRow>
               <TableHead>Team</TableHead>
