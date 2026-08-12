@@ -1050,7 +1050,7 @@ function WarmupTimer({
                   <li
                     key={`${p.label}-${i}`}
                     className={cn(
-                      "flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-[11px]",
+                      "flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-xs sm:text-sm",
                       active
                         ? "border-primary/40 bg-primary/10 font-medium text-foreground"
                         : done

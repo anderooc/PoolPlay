@@ -193,18 +193,18 @@ export function CourtManager({
                       : undefined
                   }
                   className={cn(
-                    "relative inline-flex max-w-[min(100%,18rem)] items-start gap-1 rounded-md border border-border/70 bg-transparent px-2 py-1 text-xs text-foreground transition-[box-shadow,background-color] duration-300",
+                    "relative inline-flex max-w-[min(100%,18rem)] items-start gap-1 rounded-md border border-border/70 bg-transparent px-2.5 py-1.5 text-sm text-foreground transition-[box-shadow,background-color] duration-300",
                     isRemoving && "ring-1 ring-primary/25",
                     isHighlighted &&
                       "border-primary/60 bg-primary/10 shadow-sm shadow-primary/20 ring-2 ring-primary/60"
                   )}
                 >
-                  <span className="min-w-0 flex-1 flex flex-col gap-px">
+                  <span className="min-w-0 flex-1 flex flex-col gap-0.5">
                     <span className="font-medium leading-tight break-words">
                       {court.name}
                     </span>
                     {court.divisionNames.length > 0 && (
-                      <span className="text-[0.65rem] font-normal leading-tight text-muted-foreground break-words">
+                      <span className="text-xs font-normal leading-snug text-muted-foreground break-words">
                         {court.divisionNames.join(", ")}
                       </span>
                     )}

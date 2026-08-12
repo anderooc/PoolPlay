@@ -255,19 +255,19 @@ export function PoolView({
               <div
                 key={match.id}
                 className={cn(
-                  "relative space-y-1 rounded border p-2 text-sm",
+                  "relative space-y-2 rounded-lg border p-3 text-sm",
                   isUpdatingRef && "opacity-70"
                 )}
               >
                 {isUpdatingRef && (
-                  <div className="absolute inset-0 z-10 grid place-items-center rounded bg-background/40 backdrop-blur-[1px]">
-                    <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+                  <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-background/40 backdrop-blur-[1px]">
+                    <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-sm text-muted-foreground shadow-sm">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       Saving…
                     </div>
                   </div>
                 )}
-                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
                   {canEditSchedule ? (
                     <MatchStartTimeEditor
                       matchId={match.id}
@@ -279,8 +279,8 @@ export function PoolView({
                       tournamentDate={tournamentDate}
                     />
                   ) : (
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3 shrink-0" />
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 shrink-0" />
                       {match.scheduledTime
                         ? formatDate(new Date(match.scheduledTime), "h:mm a")
                         : "No start time"}
@@ -291,13 +291,13 @@ export function PoolView({
                     className="flex items-center gap-0.5 font-medium text-primary underline-offset-4 hover:underline"
                   >
                     Open
-                    <ArrowUpRight className="h-3 w-3" />
+                    <ArrowUpRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <div className="grid grid-cols-1 items-stretch gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
                   <span
                     className={cn(
-                      "min-w-0 truncate text-right",
+                      "min-w-0 text-center text-base leading-snug sm:truncate sm:text-right sm:text-sm",
                       match.winnerId === match.teamAId && "font-semibold"
                     )}
                   >
@@ -306,7 +306,10 @@ export function PoolView({
                   <div className="flex shrink-0 items-center justify-center gap-2 px-1">
                     {match.sets.length > 0 ? (
                       match.sets.map((s, i) => (
-                        <span key={i} className="text-xs text-muted-foreground">
+                        <span
+                          key={i}
+                          className="text-sm tabular-nums text-muted-foreground"
+                        >
                           {s.teamAScore}-{s.teamBScore}
                         </span>
                       ))
@@ -316,7 +319,7 @@ export function PoolView({
                   </div>
                   <span
                     className={cn(
-                      "min-w-0 truncate text-left",
+                      "min-w-0 text-center text-base leading-snug sm:truncate sm:text-left sm:text-sm",
                       match.winnerId === match.teamBId && "font-semibold"
                     )}
                   >
@@ -325,8 +328,8 @@ export function PoolView({
                 </div>
                 {showRefControl ? (
                   <div className="space-y-1">
-                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                      <span>Ref:</span>
+                    <div className="flex flex-col gap-1.5 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-center sm:gap-2">
+                      <span className="shrink-0">Ref</span>
                       <Select
                         value={refTeamId ?? REF_NONE_VALUE}
                         onValueChange={(value) =>
@@ -334,7 +337,7 @@ export function PoolView({
                         }
                         disabled={isUpdatingRef}
                       >
-                        <SelectTrigger size="sm" className="h-7 min-w-[10rem]">
+                        <SelectTrigger size="sm" className="h-9 w-full min-w-0 sm:h-8 sm:min-w-[10rem]">
                           <SelectValue placeholder="Choose working team">
                             {selectedRefLabel}
                           </SelectValue>
@@ -352,14 +355,14 @@ export function PoolView({
                       </Select>
                     </div>
                     {refError && (
-                      <p className="text-center text-xs text-destructive" role="alert">
+                      <p className="text-center text-sm text-destructive" role="alert">
                         {refError}
                       </p>
                     )}
                   </div>
                 ) : (
                   match.refTeamId && (
-                    <p className="text-center text-xs text-muted-foreground">
+                    <p className="text-center text-sm text-muted-foreground">
                       Ref: {teamLabelMap.get(match.refTeamId) ?? "Unassigned"}
                     </p>
                   )

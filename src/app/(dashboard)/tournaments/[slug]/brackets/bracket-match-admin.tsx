@@ -244,7 +244,7 @@ export function BracketMatchAdmin({
         <h3 className="font-heading text-base font-semibold tracking-tight">
           {bracketName} — schedule & refs
         </h3>
-        <p className="mt-0.5 text-xs text-muted-foreground">
+        <p className="mt-0.5 text-sm text-muted-foreground">
           Round 1 refs: bye teams or later same-court matches · Later rounds:
           previous-round losers
         </p>
@@ -387,7 +387,7 @@ function BracketMatchTile({
         />
         <div className="my-1 flex items-center gap-2">
           <div className="h-px flex-1 bg-border/60" />
-          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/80">
             vs
           </span>
           <div className="h-px flex-1 bg-border/60" />
@@ -399,7 +399,7 @@ function BracketMatchTile({
           setsWon={countSetsWon(match.sets, "b")}
         />
         {match.sets.length > 0 && (
-          <p className="pt-1 text-center text-[10px] tabular-nums text-muted-foreground">
+          <p className="pt-1.5 text-center text-sm tabular-nums text-muted-foreground">
             {match.sets.map((s, i) => (
               <span key={i}>
                 {i > 0 ? " · " : ""}
@@ -410,9 +410,9 @@ function BracketMatchTile({
         )}
       </div>
 
-      <div className="mt-auto space-y-2 border-t border-border/50 bg-muted/20 px-3 py-2.5">
-        <label className="flex items-center gap-2 text-xs">
-          <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+      <div className="mt-auto space-y-2.5 border-t border-border/50 bg-muted/20 px-3 py-3">
+        <label className="flex items-center gap-2 text-sm">
+          <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
           <Select
             value={courtId ?? COURT_NONE_VALUE}
             onValueChange={(value) =>
@@ -420,7 +420,7 @@ function BracketMatchTile({
             }
             disabled={isUpdating || match.status === "completed"}
           >
-            <SelectTrigger size="sm" className="h-7 min-w-0 flex-1">
+            <SelectTrigger size="sm" className="h-9 min-w-0 flex-1">
               <SelectValue placeholder="Court">
                 {(v) =>
                   v && v !== COURT_NONE_VALUE
@@ -441,9 +441,9 @@ function BracketMatchTile({
         </label>
 
         {showRefControl ? (
-          <label className="flex items-center gap-2 text-xs">
+          <label className="flex items-center gap-2 text-sm">
             <UserRound
-              className="h-3 w-3 shrink-0 text-muted-foreground"
+              className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
               aria-hidden
             />
             <Select
@@ -453,7 +453,7 @@ function BracketMatchTile({
               }
               disabled={isUpdating}
             >
-              <SelectTrigger size="sm" className="h-7 min-w-0 flex-1">
+              <SelectTrigger size="sm" className="h-9 min-w-0 flex-1">
                 <SelectValue placeholder="Ref">
                   {(v) =>
                     v && v !== REF_NONE_VALUE
@@ -473,25 +473,25 @@ function BracketMatchTile({
             </Select>
           </label>
         ) : match.ref ? (
-          <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-            <UserRound className="h-3 w-3 shrink-0" aria-hidden />
+          <p className="flex items-center gap-1.5 truncate text-sm text-muted-foreground">
+            <UserRound className="h-3.5 w-3.5 shrink-0" aria-hidden />
             <span className="truncate">Ref: {match.ref.name}</span>
           </p>
         ) : match.status !== "completed" ? (
-          <p className="flex items-center gap-1.5 text-xs italic text-muted-foreground">
-            <UserRound className="h-3 w-3 shrink-0" aria-hidden />
+          <p className="flex items-center gap-1.5 text-sm italic text-muted-foreground">
+            <UserRound className="h-3.5 w-3.5 shrink-0" aria-hidden />
             Ref pending
           </p>
         ) : null}
 
         {courtId && !match.scheduledTime && (
-          <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Clock className="h-3 w-3 shrink-0" />
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Clock className="h-3.5 w-3.5 shrink-0" />
             Set time for same-court refs
           </p>
         )}
 
-        {error ? <p className="text-[10px] text-destructive">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </div>
     </article>
   );
@@ -524,7 +524,7 @@ function MatchupLine({
     <div className="flex items-center justify-between gap-2">
       <span
         className={cn(
-          "min-w-0 truncate font-heading text-sm leading-snug",
+          "min-w-0 truncate font-heading text-base leading-snug sm:text-sm",
           won && "font-bold text-primary",
           lost &&
             "text-muted-foreground/60 line-through decoration-muted-foreground/40",

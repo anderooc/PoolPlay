@@ -148,17 +148,17 @@ function MatchCard({
               className="shrink-0"
             />
           </div>
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
             <span>{match.context}</span>
             {match.scheduledTime && (
               <span className="flex items-center gap-1">
-                <CalendarClock className="h-3 w-3" />
+                <CalendarClock className="h-3.5 w-3.5" />
                 {formatDate(match.scheduledTime, "EEE h:mm a")}
               </span>
             )}
             {match.refName && (
               <span className="flex items-center gap-1">
-                <Users className="h-3 w-3" />
+                <Users className="h-3.5 w-3.5" />
                 Ref {match.refName}
               </span>
             )}
@@ -179,7 +179,7 @@ function MatchCard({
                 {match.sets.map((s, i) => (
                   <div
                     key={i}
-                    className="flex justify-between px-1 text-xs tabular-nums"
+                    className="flex justify-between px-1 text-sm tabular-nums"
                   >
                     <span className="text-muted-foreground">Set {i + 1}</span>
                     <span>
@@ -204,7 +204,7 @@ function MatchCard({
               </div>
             </>
           ) : (
-            <p className="mt-3 text-center text-xs text-muted-foreground">
+            <p className="mt-3 text-center text-sm text-muted-foreground">
               {match.status === "in_progress"
                 ? "In progress, no sets recorded yet"
                 : "Not started"}
@@ -240,7 +240,7 @@ function ScoreColumn({
       >
         {value}
       </p>
-      <p className="max-w-[7rem] truncate text-xs text-muted-foreground">
+      <p className="max-w-[9rem] truncate text-sm text-muted-foreground sm:max-w-[10rem]">
         {name}
       </p>
     </div>

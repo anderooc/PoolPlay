@@ -211,11 +211,11 @@ export async function TournamentBracketPanel({
       {!hasAnything ? (
         <EmptyState
           icon={Trophy}
-          title="No brackets yet"
+          title={isOrganizer ? "No brackets yet" : "Brackets not released yet"}
           description={
             isOrganizer
               ? "Add a pool-to-bracket division in Setup. All pools combine into gold / silver / bronze after pool play."
-              : "Brackets haven’t been released for this tournament yet. Check back soon."
+              : "The host hasn’t released brackets for this tournament. Check back once they’re published."
           }
         />
       ) : (
