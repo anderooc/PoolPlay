@@ -411,7 +411,7 @@ export function TournamentPageHeading({
         </div>
         <div
           className={cn(
-            "flex flex-wrap items-center gap-x-3 gap-y-0.5 text-muted-foreground",
+            "space-y-1 text-muted-foreground",
             compact ? "mt-1 text-xs" : "mt-2 text-sm"
           )}
         >
@@ -419,14 +419,16 @@ export function TournamentPageHeading({
             location={listingLocation}
             address={listingAddress}
           />
-          <span className="flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" />
-            {formatTournamentDateDisplay(date)}
-          </span>
-          <span className="flex items-center gap-1">
-            <User className="h-3.5 w-3.5" />
-            {organizerName}
-          </span>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5 shrink-0" />
+              {formatTournamentDateDisplay(date)}
+            </span>
+            <span className="flex items-center gap-1">
+              <User className="h-3.5 w-3.5 shrink-0" />
+              {organizerName}
+            </span>
+          </div>
         </div>
         <div
           className={cn(

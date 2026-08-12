@@ -365,19 +365,21 @@ export default async function TournamentDetailPage({
                 className="shrink-0"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+            <div className="space-y-1 text-sm text-muted-foreground">
               <TournamentLocationLink
                 location={tournament.location}
                 address={tournament.address}
               />
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                {formatTournamentDateDisplay(tournament.date)}
-              </span>
-              <span className="flex items-center gap-1">
-                <User className="h-3.5 w-3.5" />
-                {organizer?.fullName ?? "Unknown organizer"}
-              </span>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5 shrink-0" />
+                  {formatTournamentDateDisplay(tournament.date)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <User className="h-3.5 w-3.5 shrink-0" />
+                  {organizer?.fullName ?? "Unknown organizer"}
+                </span>
+              </div>
             </div>
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <TeamAttributesBadges
