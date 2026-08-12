@@ -139,20 +139,17 @@ export async function TournamentPoolPlayPanel({
       {eligibleDivisions.length === 0 ? (
         <EmptyState
           icon={LayoutGrid}
-          title="No pool play yet"
+          title={isOrganizer ? "No pool play yet" : "Pools not released yet"}
           description={
             isOrganizer
               ? "Add pools on the Setup tab. Play format was set when you created the tournament."
-              : "Pools haven’t been released for this tournament yet. Check back soon."
+              : "The host hasn’t released pools for this tournament. Check back once they’re published."
           }
         />
       ) : (
         <Tabs defaultValue={defaultDivisionId} className="w-full gap-4">
           {eligibleDivisions.length > 1 && (
-            <TabsList
-              variant="line"
-              className="max-w-full shrink-0 overflow-x-auto [scrollbar-width:thin]"
-            >
+            <TabsList variant="line" className="max-w-full shrink-0">
               {eligibleDivisions.map((div) => (
                 <TabsTrigger key={div.id} value={div.id}>
                   {div.name}

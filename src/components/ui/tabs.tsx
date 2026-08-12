@@ -51,8 +51,8 @@ const tabsListVariants = cva(
       variant: {
         default:
           "h-8 w-fit justify-center rounded-lg bg-muted p-[3px]",
-        /** Compact underline row for division pickers. */
-        line: "h-auto w-full justify-start gap-0 rounded-none border-b border-border/70 bg-transparent p-0",
+        /** Compact underline row for division pickers. Wraps instead of side-scrolling. */
+        line: "h-auto w-full flex-wrap justify-start gap-0 rounded-none border-b border-border/70 bg-transparent p-0",
       },
     },
     defaultVariants: {
