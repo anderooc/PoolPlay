@@ -53,17 +53,31 @@ function digitsOnly(value: string): string {
   return value.replace(/\D/g, "");
 }
 
-function settingsSummary(
+function bracketSettingsFacts(
   bracketCount: number,
   goldTeamCount: number | null,
   silverTeamCount: number | null
-): string {
-  const start = "Sets start 0–0";
-  if (bracketCount <= 1) return `${start} · Single bracket (all pools combine)`;
-  if (bracketCount === 2) {
-    return `${start} · Gold (${goldTeamCount ?? "?"} teams) · Silver (remainder) · all pools combine`;
+): { scoring: string; structure: string; advance: string } {
+  const scoring = "Sets start 0–0";
+  if (bracketCount <= 1) {
+    return {
+      scoring,
+      structure: "Single combined bracket",
+      advance: "All pool teams advance together",
+    };
   }
-  return `${start} · Gold (${goldTeamCount ?? "?"}) · Silver (${silverTeamCount ?? "?"}) · Bronze (remainder) · all pools combine`;
+  if (bracketCount === 2) {
+    return {
+      scoring,
+      structure: "Gold and silver",
+      advance: `Gold: ${goldTeamCount ?? "?"} teams · Silver: remainder`,
+    };
+  }
+  return {
+    scoring,
+    structure: "Gold, silver, and bronze",
+    advance: `Gold: ${goldTeamCount ?? "?"} · Silver: ${silverTeamCount ?? "?"} · Bronze: remainder`,
+  };
 }
 
 /**
@@ -168,7 +182,11 @@ export function BracketSettingsPanel({
     startTransition(() => router.refresh());
   }
 
-  const summary = settingsSummary(bracketCount, goldTeamCount, silverTeamCount);
+  const facts = bracketSettingsFacts(
+    bracketCount,
+    goldTeamCount,
+    silverTeamCount
+  );
   const countNum = Number(draftCount);
   const settingsLocked = locked && !canRegenerate;
   const saveRegenerates = locked && canRegenerate;
@@ -223,58 +241,76 @@ export function BracketSettingsPanel({
 
   return (
     <>
-      <div
-        className={cn(
-          "flex items-center gap-2 rounded-lg border border-border/50",
-          "bg-muted/20 px-2.5 py-1.5 sm:gap-3 sm:px-3 sm:py-2"
-        )}
-      >
-        <Settings2
-          className="hidden h-3.5 w-3.5 shrink-0 text-muted-foreground/60 sm:block"
-          aria-hidden
-        />
-        <p
-          className="min-w-0 flex-1 truncate text-xs text-muted-foreground sm:text-sm"
-          title={summary}
-        >
-          <span className="font-medium text-foreground">Bracket settings</span>
-          <span className="mx-1.5 text-border/80" aria-hidden>
-            ·
-          </span>
-          <span>{summary}</span>
-        </p>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-            disabled={!canRegenerate || regenerating}
-            title={
-              canRegenerate
-                ? "Re-seed brackets from current pool standings"
-                : regenerateBlockedReason
-            }
-            onClick={() => {
-              setError(null);
-              setConfirmRegenerateOpen(true);
-            }}
-          >
-            {regenerating ? "Regenerating…" : "Regenerate"}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 shrink-0 px-2 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              resetDrafts();
-              setOpen(true);
-            }}
-          >
-            Edit
-          </Button>
+      <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2">
+            <Settings2
+              className="hidden h-4 w-4 shrink-0 text-muted-foreground/60 sm:block"
+              aria-hidden
+            />
+            <p className="text-sm font-medium text-foreground">
+              Bracket settings
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 w-full text-sm sm:h-8 sm:w-auto"
+              disabled={!canRegenerate || regenerating}
+              title={
+                canRegenerate
+                  ? "Re-seed brackets from current pool standings"
+                  : regenerateBlockedReason
+              }
+              onClick={() => {
+                setError(null);
+                setConfirmRegenerateOpen(true);
+              }}
+            >
+              {regenerating ? "Regenerating…" : "Regenerate"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 w-full text-sm sm:h-8 sm:w-auto"
+              onClick={() => {
+                resetDrafts();
+                setOpen(true);
+              }}
+            >
+              Edit
+            </Button>
+          </div>
         </div>
+        <dl className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="min-w-0 rounded-md bg-background/60 px-2.5 py-2 ring-1 ring-border/40">
+            <dt className="text-xs font-medium text-muted-foreground">
+              Scoring
+            </dt>
+            <dd className="mt-0.5 text-sm font-medium text-foreground">
+              {facts.scoring}
+            </dd>
+          </div>
+          <div className="min-w-0 rounded-md bg-background/60 px-2.5 py-2 ring-1 ring-border/40">
+            <dt className="text-xs font-medium text-muted-foreground">
+              Structure
+            </dt>
+            <dd className="mt-0.5 text-sm font-medium text-foreground">
+              {facts.structure}
+            </dd>
+          </div>
+          <div className="min-w-0 rounded-md bg-background/60 px-2.5 py-2 ring-1 ring-border/40">
+            <dt className="text-xs font-medium text-muted-foreground">
+              Advancement
+            </dt>
+            <dd className="mt-0.5 text-sm font-medium text-foreground">
+              {facts.advance}
+            </dd>
+          </div>
+        </dl>
       </div>
 
       <Dialog
@@ -286,8 +322,11 @@ export function BracketSettingsPanel({
           setOpen(next);
         }}
       >
-        <DialogContent className="sm:max-w-md" showCloseButton={!saving}>
-          <DialogHeader>
+        <DialogContent
+          className="flex max-h-[min(92dvh,44rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
+          showCloseButton={!saving}
+        >
+          <DialogHeader className="shrink-0 space-y-1.5 border-b px-4 py-4 pr-12">
             <DialogTitle>Bracket settings</DialogTitle>
             <DialogDescription>
               All pools combine for bracket play. Bracket sets always start at
@@ -296,15 +335,15 @@ export function BracketSettingsPanel({
               gold (and silver).
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4">
             {settingsLocked && (
-              <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+              <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2.5 text-sm text-warning">
                 Bracket matches have already been played. Tier settings are
                 locked until bracket play finishes or is cleared.
               </p>
             )}
             {saveRegenerates && (
-              <p className="rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              <p className="rounded-md border border-border/60 bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
                 Brackets are already seeded. Saving will clear and re-seed from
                 current pool standings using your updated tier counts.
               </p>
@@ -353,7 +392,7 @@ export function BracketSettingsPanel({
                   onChange={(e) => setDraftGold(digitsOnly(e.target.value))}
                   disabled={saving || settingsLocked}
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Top finishers across all pools (1sts, then 2nds, and so on)
                   enter gold. Remaining teams go to silver
                   {countNum === 3 ? " or bronze" : ""}.
@@ -380,7 +419,7 @@ export function BracketSettingsPanel({
                   onChange={(e) => setDraftSilver(digitsOnly(e.target.value))}
                   disabled={saving || settingsLocked}
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Next-best teams after gold. Everyone else goes to bronze.
                   {totalBracketTeams >= 2 && (
                     <>
@@ -394,7 +433,7 @@ export function BracketSettingsPanel({
             {totalBracketTeams >= 2 && countNum > 1 && (
               <div
                 className={cn(
-                  "rounded-md border px-3 py-2 text-xs",
+                  "rounded-md border px-3 py-2.5 text-sm",
                   tierPreviewInvalid
                     ? "border-destructive/40 bg-destructive/5 text-destructive"
                     : "border-border/60 bg-muted/30 text-muted-foreground"
@@ -420,13 +459,13 @@ export function BracketSettingsPanel({
                 )}
               </div>
             )}
+            {error && (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            )}
           </div>
-          {error && (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          )}
-          <DialogFooter>
+          <DialogFooter className="mx-0 mb-0 shrink-0">
             <Button
               type="button"
               variant="outline"

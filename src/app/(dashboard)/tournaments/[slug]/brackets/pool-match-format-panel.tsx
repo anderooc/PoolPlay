@@ -41,7 +41,6 @@ import {
   type PoolTiebreakCriterion,
 } from "@/lib/labels/pool-tiebreak";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -67,7 +66,14 @@ const TIE_BREAK_SHORT: Record<PoolTiebreakCriterion, string> = {
   head_to_head: "H2H",
 };
 
-function poolSettingsSummary({
+type PoolSettingsFacts = {
+  match: string;
+  scoring: string;
+  warmup: string;
+  tieBreaks: string;
+};
+
+function poolSettingsFacts({
   matchFormat,
   setStartingScore,
   setTargetScore,
@@ -81,23 +87,21 @@ function poolSettingsSummary({
   tiebreakTargetScore: number;
   warmupFormat: WarmupFormat;
   poolTiebreakCriteria: PoolTiebreakCriterion[];
-}) {
-  const scoring = [
-    formatMatchFormatLabel(matchFormat),
-    setStartingScore > 0 ? `from ${setStartingScore}` : null,
+}): PoolSettingsFacts {
+  const scoringParts = [
+    setStartingScore > 0 ? `start ${setStartingScore}` : "start 0",
     `to ${setTargetScore}`,
     matchFormat === "two_with_tiebreak"
       ? `TB ${tiebreakTargetScore}`
       : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  ].filter(Boolean);
 
-  const tieBreaks = poolTiebreakCriteria
-    .map((c) => TIE_BREAK_SHORT[c])
-    .join(" › ");
-
-  return `${scoring} · ${formatWarmupFormatLabel(warmupFormat)} · ${tieBreaks}`;
+  return {
+    match: formatMatchFormatLabel(matchFormat),
+    scoring: scoringParts.join(" · "),
+    warmup: formatWarmupFormatLabel(warmupFormat),
+    tieBreaks: poolTiebreakCriteria.map((c) => TIE_BREAK_SHORT[c]).join(" › "),
+  };
 }
 
 export function PoolMatchFormatPanel({
@@ -182,7 +186,7 @@ export function PoolMatchFormatPanel({
     });
   }
 
-  const summary = poolSettingsSummary({
+  const facts = poolSettingsFacts({
     matchFormat,
     setStartingScore,
     setTargetScore,
@@ -193,38 +197,56 @@ export function PoolMatchFormatPanel({
 
   return (
     <>
-      <div
-        className={cn(
-          "flex items-center gap-2 rounded-lg border border-border/50",
-          "bg-muted/20 px-2.5 py-1.5 sm:gap-3 sm:px-3 sm:py-2"
-        )}
-      >
-        <Settings2
-          className="hidden h-3.5 w-3.5 shrink-0 text-muted-foreground/60 sm:block"
-          aria-hidden
-        />
-        <p
-          className="min-w-0 flex-1 truncate text-xs text-muted-foreground sm:text-sm"
-          title={summary}
-        >
-          <span className="font-medium text-foreground">Pool settings</span>
-          <span className="mx-1.5 text-border/80" aria-hidden>
-            ·
-          </span>
-          <span>{summary}</span>
-        </p>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 shrink-0 px-2 text-xs text-muted-foreground hover:text-foreground"
-          onClick={() => {
-            resetDrafts();
-            setOpen(true);
-          }}
-        >
-          Edit
-        </Button>
+      <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <Settings2
+              className="hidden h-4 w-4 shrink-0 text-muted-foreground/60 sm:block"
+              aria-hidden
+            />
+            <p className="text-sm font-medium text-foreground">Pool settings</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 shrink-0 text-sm"
+            onClick={() => {
+              resetDrafts();
+              setOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+        </div>
+        <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+          <div className="min-w-0 rounded-md bg-background/60 px-2.5 py-2 ring-1 ring-border/40">
+            <dt className="text-xs font-medium text-muted-foreground">Match</dt>
+            <dd className="mt-0.5 text-sm font-medium text-foreground">
+              {facts.match}
+            </dd>
+          </div>
+          <div className="min-w-0 rounded-md bg-background/60 px-2.5 py-2 ring-1 ring-border/40">
+            <dt className="text-xs font-medium text-muted-foreground">Scoring</dt>
+            <dd className="mt-0.5 text-sm font-medium text-foreground">
+              {facts.scoring}
+            </dd>
+          </div>
+          <div className="min-w-0 rounded-md bg-background/60 px-2.5 py-2 ring-1 ring-border/40">
+            <dt className="text-xs font-medium text-muted-foreground">Warmup</dt>
+            <dd className="mt-0.5 text-sm font-medium text-foreground">
+              {facts.warmup}
+            </dd>
+          </div>
+          <div className="min-w-0 rounded-md bg-background/60 px-2.5 py-2 ring-1 ring-border/40 sm:col-span-2">
+            <dt className="text-xs font-medium text-muted-foreground">
+              Tie-break order
+            </dt>
+            <dd className="mt-0.5 text-sm font-medium text-foreground">
+              {facts.tieBreaks}
+            </dd>
+          </div>
+        </dl>
       </div>
 
       <Dialog
@@ -236,8 +258,11 @@ export function PoolMatchFormatPanel({
           setOpen(next);
         }}
       >
-        <DialogContent className="sm:max-w-md" showCloseButton={!saving}>
-          <DialogHeader>
+        <DialogContent
+          className="flex max-h-[min(92dvh,44rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
+          showCloseButton={!saving}
+        >
+          <DialogHeader className="shrink-0 space-y-1.5 border-b px-4 py-4 pr-12">
             <DialogTitle>Pool play settings</DialogTitle>
             <DialogDescription>
               Match format, warmup, and standings tie-breaks for pool play.
@@ -245,7 +270,7 @@ export function PoolMatchFormatPanel({
               changed when you save.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="pool-match-format">Match format</Label>
               <Select
@@ -270,7 +295,7 @@ export function PoolMatchFormatPanel({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {formatMatchFormatHint(draftFormat)}
               </p>
             </div>
@@ -341,7 +366,7 @@ export function PoolMatchFormatPanel({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {warmupMinutesForFormat(draftWarmupFormat) === 0
                   ? "No warmup is reserved between matches."
                   : `Runs as timed segments on the match console and reserves ${warmupMinutesForFormat(draftWarmupFormat)} min when auto-scheduling.`}
@@ -349,17 +374,17 @@ export function PoolMatchFormatPanel({
             </div>
             <div className="space-y-2">
               <Label>Tie-break order (standings / seeding)</Label>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {draftTiebreakCriteria.map((c, index) => (
                   <div
                     key={c}
-                    className="flex items-start justify-between gap-2 rounded-md border bg-muted/30 px-2 py-1.5"
+                    className="flex items-start justify-between gap-2 rounded-md border bg-muted/30 px-2.5 py-2"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium leading-snug">
                         {index + 1}. {formatPoolTiebreakCriterionLabel(c)}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-sm text-muted-foreground">
                         {formatPoolTiebreakCriterionHint(c)}
                       </p>
                     </div>
@@ -368,7 +393,7 @@ export function PoolMatchFormatPanel({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className="h-8 w-8"
                         disabled={saving || index === 0}
                         onClick={() => {
                           setDraftTiebreakCriteria((current) => {
@@ -388,7 +413,7 @@ export function PoolMatchFormatPanel({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className="h-8 w-8"
                         disabled={
                           saving || index === draftTiebreakCriteria.length - 1
                         }
@@ -411,7 +436,7 @@ export function PoolMatchFormatPanel({
                 ))}
               </div>
               {draftTiebreakCriteria.length !== POOL_TIEBREAK_CRITERIA.length ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Using a custom subset. Reset to defaults to include all
                   criteria.
                 </p>
@@ -439,13 +464,13 @@ export function PoolMatchFormatPanel({
                 </Button>
               </div>
             </div>
+            {error && (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            )}
           </div>
-          {error && (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          )}
-          <DialogFooter>
+          <DialogFooter className="mx-0 mb-0 shrink-0">
             <Button
               type="button"
               variant="outline"
