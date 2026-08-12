@@ -1,5 +1,5 @@
 /*
- * ShootSet - Collegiate club volleyball tournament hub
+ * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  *
  * This program is free software: you can redistribute it and/or modify
@@ -10,7 +10,7 @@
 
 import { ImageResponse } from "next/og";
 
-export const alt = "ShootSet — collegiate club volleyball tournament hub";
+export const alt = "brackt — collegiate club volleyball tournament hub";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -36,8 +36,8 @@ export default function OpenGraphImage() {
           fontWeight: 800,
         }}
       >
-        <span style={{ color: "#c92f45" }}>Shoot</span>
-        <span style={{ color: "#315ca8" }}>Set</span>
+        <span style={{ color: "#c92f45" }}>brack</span>
+        <span style={{ color: "#315ca8" }}>t</span>
       </div>
       <div
         style={{

@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * ShootSet - Collegiate club volleyball tournament hub
+ * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { navLinks, type NavLink } from "./nav-links";
 import { Button } from "@/components/ui/button";
 
-const SIDEBAR_COLLAPSED_KEY = "shootset-sidebar-collapsed";
+const SIDEBAR_COLLAPSED_KEY = "brackt-sidebar-collapsed";
 
 function navHref(link: NavLink, schoolsHref?: string): string {
   if (link.activePrefix === "/schools" && schoolsHref) return schoolsHref;

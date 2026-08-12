@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * ShootSet - Collegiate club volleyball tournament hub
+ * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  *
  * This program is free software: you can redistribute it and/or modify
@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/sheet";
 import { navLinks, type NavLink } from "./nav-links";
 import { SITE_TOP_LINKS } from "./header-nav";
-import { ShootSetMark } from "./shoot-set-mark";
+import { BracktMark } from "./brackt-mark";
 import { useState } from "react";
 
 function navHref(link: NavLink, schoolsHref?: string): string {
@@ -83,7 +83,7 @@ export function MobileNav({
           <SheetDescription className="sr-only">
             Links to dashboard sections and site pages
           </SheetDescription>
-          <ShootSetMark
+          <BracktMark
             href="/dashboard"
             wordmarkClassName="text-lg font-bold"
             onClick={() => setOpen(false)}

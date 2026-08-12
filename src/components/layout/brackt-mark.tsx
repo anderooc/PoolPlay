@@ -1,5 +1,5 @@
 /*
- * ShootSet - Collegiate club volleyball tournament hub
+ * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,24 +19,25 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-type ShootSetMarkProps = {
+type BracktMarkProps = {
   /** If set, wraps the wordmark in a link */
   href?: string;
   className?: string;
-  /** Classes on the inner wordmark (Shoot + Set) */
+  /** Classes on the inner wordmark (brack + t) */
   wordmarkClassName?: string;
   onClick?: () => void;
 };
 
 /**
- * Brand wordmark: "ShootSet" as one word — Shoot (primary/red), Set (secondary/blue).
+ * Brand wordmark: "brackt" as one word — brack (primary/red), t (secondary/blue).
+ * Domain: brack-t.com
  */
-export function ShootSetMark({
+export function BracktMark({
   href,
   className,
   wordmarkClassName,
   onClick,
-}: ShootSetMarkProps) {
+}: BracktMarkProps) {
   const wordmark = (
     <span
       className={cn(
@@ -44,8 +45,8 @@ export function ShootSetMark({
         wordmarkClassName
       )}
     >
-      <span className="text-primary">Shoot</span>
-      <span className="text-secondary">Set</span>
+      <span className="text-primary">brack</span>
+      <span className="text-secondary">t</span>
     </span>
   );
 

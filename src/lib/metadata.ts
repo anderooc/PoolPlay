@@ -1,5 +1,5 @@
 /*
- * ShootSet - Collegiate club volleyball tournament hub
+ * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 
 import type { Metadata } from "next";
 
-export const APP_NAME = "ShootSet";
+export const APP_NAME = "brackt";
 
 export const COPYRIGHT_HOLDER = "Andrew Chang";
 export const COPYRIGHT_YEAR = 2026;
