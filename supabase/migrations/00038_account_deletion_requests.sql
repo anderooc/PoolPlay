@@ -1,4 +1,4 @@
--- ShootSet - Collegiate club volleyball tournament hub
+-- brackt - Collegiate club volleyball tournament hub
 -- Copyright (C) 2026 Andrew Chang
 --
 -- Tracks deletion completion when Supabase Auth cleanup must be retried after
