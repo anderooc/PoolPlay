@@ -34,32 +34,32 @@ export default async function AboutPage() {
   const user = await getCurrentAuthProfile();
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col overflow-x-hidden">
       <SiteHeader user={user} />
 
-      <main id="main-content" tabIndex={-1} className="relative flex-1">
+      <main id="main-content" tabIndex={-1} className="relative flex-1 overflow-x-hidden">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 text-foreground/[0.05] bg-dot-grid [mask-image:linear-gradient(to_bottom,black,transparent)]"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute -left-24 top-24 -z-10 h-72 w-72 rounded-full bg-primary/15 blur-3xl"
+          className="pointer-events-none absolute -left-24 top-24 -z-10 h-56 w-56 rounded-full bg-primary/15 blur-3xl sm:h-72 sm:w-72"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute -right-20 top-40 -z-10 h-64 w-64 rounded-full bg-secondary/15 blur-3xl"
+          className="pointer-events-none absolute -right-20 top-40 -z-10 h-52 w-52 rounded-full bg-secondary/15 blur-3xl sm:h-64 sm:w-64"
         />
 
-        <article className="container mx-auto max-w-3xl px-4 py-16 sm:py-20">
-          <header className="space-y-4">
+        <article className="container mx-auto max-w-3xl px-4 py-10 sm:py-16 md:py-20">
+          <header className="space-y-3 sm:space-y-4">
             <p className="text-sm font-medium text-muted-foreground">
               About brackt
             </p>
-            <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
+            <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
               Built from running tournaments the hard way
             </h1>
-            <p className="max-w-2xl text-pretty text-lg text-muted-foreground">
+            <p className="max-w-2xl text-pretty text-base text-muted-foreground sm:text-lg">
               I created brackt after years as president of Emory Club
               Volleyball, hosting and traveling to tournaments that were held
               together by spreadsheets, group chats, and too many last-minute
@@ -67,9 +67,9 @@ export default async function AboutPage() {
             </p>
           </header>
 
-          <div className="mt-12 space-y-10 text-base leading-relaxed text-foreground/90">
+          <div className="mt-10 space-y-9 text-base leading-relaxed text-foreground/90 sm:mt-12 sm:space-y-10">
             <section className="space-y-4">
-              <h2 className="font-heading text-2xl font-semibold tracking-tight">
+              <h2 className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">
                 What it was like at Emory
               </h2>
               <p className="text-pretty">
@@ -92,7 +92,7 @@ export default async function AboutPage() {
             </section>
 
             <section className="space-y-4">
-              <h2 className="font-heading text-2xl font-semibold tracking-tight">
+              <h2 className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">
                 Why I built brackt
               </h2>
               <p className="text-pretty">
@@ -122,7 +122,7 @@ export default async function AboutPage() {
             </section>
 
             <section className="space-y-4">
-              <h2 className="font-heading text-2xl font-semibold tracking-tight">
+              <h2 className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">
                 What I&apos;m building toward
               </h2>
               <p className="text-pretty">
@@ -145,12 +145,12 @@ export default async function AboutPage() {
             </section>
           </div>
 
-          <div className="mt-14 flex flex-col gap-3 border-t border-border/70 pt-10 sm:flex-row sm:items-center">
+          <div className="mt-12 flex flex-col gap-3 border-t border-border/70 pt-8 sm:mt-14 sm:flex-row sm:items-center sm:pt-10">
             <Link
               href="/explore"
               className={buttonVariants({
                 size: "lg",
-                className: "group h-11 px-6 text-sm",
+                className: "group h-11 w-full px-6 text-sm sm:w-auto",
               })}
             >
               Browse tournaments
@@ -162,7 +162,7 @@ export default async function AboutPage() {
                 className={buttonVariants({
                   size: "lg",
                   variant: "outline",
-                  className: "h-11 px-6 text-sm",
+                  className: "h-11 w-full px-6 text-sm sm:w-auto",
                 })}
               >
                 Create account
@@ -170,12 +170,18 @@ export default async function AboutPage() {
             ) : null}
           </div>
 
-          <p className="mt-10 text-sm text-muted-foreground">
-            Andrew Chang
-            <span className="mx-2 text-border">/</span>
-            Founder
-            <span className="mx-2 text-border">/</span>
-            Former president, Emory Club Volleyball
+          <p className="mt-8 text-pretty text-sm leading-relaxed text-muted-foreground sm:mt-10">
+            <span className="font-medium text-foreground/80">Andrew Chang</span>
+            <span className="mt-1 block sm:mt-0 sm:inline">
+              <span className="mx-2 hidden text-border sm:inline" aria-hidden>
+                /
+              </span>
+              Founder
+              <span className="mx-2 text-border" aria-hidden>
+                /
+              </span>
+              Former president, Emory Club Volleyball
+            </span>
           </p>
         </article>
       </main>

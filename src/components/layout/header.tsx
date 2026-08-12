@@ -41,12 +41,16 @@ export function Header({
   return (
     <>
       <SkipLink />
-      <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur-sm transition-[background-color,backdrop-filter,padding,gap] duration-300 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 sm:gap-3 sm:px-4 md:gap-4 md:px-6">
-        <MobileNav isAdmin={isAdmin} schoolsHref={schoolsHref} />
-        <BracktMark href="/" wordmarkClassName="text-lg font-bold" />
-        <HeaderNav className="min-w-0" />
+      <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-1 border-b bg-background/95 px-3 backdrop-blur-sm transition-[background-color,backdrop-filter,padding,gap] duration-300 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 sm:gap-3 sm:px-4 md:gap-4 md:px-6">
+        <div className="flex min-w-0 items-center gap-0.5 sm:gap-2">
+          <MobileNav isAdmin={isAdmin} schoolsHref={schoolsHref} />
+          <BracktMark href="/" wordmarkClassName="text-lg font-bold" />
+          <HeaderNav className="min-w-0" />
+        </div>
+
         <div className="flex-1" />
-        <div className="flex shrink-0 items-center gap-1">
+
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
           <ThemeToggle />
           {user && (
             <UserMenu

@@ -20,14 +20,30 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  Compass,
+  Home,
+  Info,
+  LayoutDashboard,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const SITE_TOP_LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/explore", label: "Explore" },
-  { href: "/about", label: "About" },
-  { href: "/dashboard", label: "Dashboard" },
+export const SITE_TOP_LINKS: readonly {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}[] = [
+  { href: "/", label: "Home", icon: Home },
+  { href: "/explore", label: "Explore", icon: Compass },
+  { href: "/about", label: "About", icon: Info },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 ] as const;
+
+export function siteLinkActive(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function HeaderNav({ className }: { className?: string }) {
   const pathname = usePathname();
@@ -36,22 +52,19 @@ export function HeaderNav({ className }: { className?: string }) {
     <nav
       aria-label="Site"
       className={cn(
-        "hidden items-center gap-1 md:flex md:gap-4",
+        "hidden items-center gap-1 md:flex md:gap-1 lg:gap-2",
         className
       )}
     >
       {SITE_TOP_LINKS.map((link) => {
-        const active =
-          link.href === "/"
-            ? pathname === "/"
-            : pathname === link.href || pathname.startsWith(`${link.href}/`);
+        const active = siteLinkActive(pathname, link.href);
         return (
           <Link
             key={link.href}
             href={link.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "rounded-md px-2 py-1.5 text-sm font-medium transition-[color,background-color,transform] duration-200 ease-out hover:text-foreground motion-safe:hover:-translate-y-0.5 sm:px-3",
+              "rounded-md px-2.5 py-1.5 text-sm font-medium transition-[color,background-color,transform] duration-200 ease-out hover:text-foreground motion-safe:hover:-translate-y-0.5 lg:px-3",
               active ? "text-foreground" : "text-muted-foreground"
             )}
           >

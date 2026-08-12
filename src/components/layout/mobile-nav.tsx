@@ -31,7 +31,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { navLinks, type NavLink } from "./nav-links";
-import { SITE_TOP_LINKS } from "./header-nav";
+import { SITE_TOP_LINKS, siteLinkActive } from "./header-nav";
 import { BracktMark } from "./brackt-mark";
 import { useState } from "react";
 
@@ -61,6 +61,7 @@ export function MobileNav({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const visibleLinks = navLinks.filter((link) => !link.adminOnly || isAdmin);
+  const siteLinks = SITE_TOP_LINKS.filter((link) => link.href !== "/dashboard");
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -69,16 +70,15 @@ export function MobileNav({
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0 md:hidden"
+            className="size-9 shrink-0 md:hidden"
             aria-label="Open menu"
           />
         }
       >
-        <Menu className="h-5 w-5" />
-        <span className="sr-only">Open menu</span>
+        <Menu className="size-5" />
       </SheetTrigger>
-      <SheetContent side="left" className="w-[min(100%,18rem)] gap-0 p-0">
-        <div className="flex h-14 items-center border-b px-4 pr-12">
+      <SheetContent side="left" className="w-[min(100%,20rem)] gap-0 p-0">
+        <div className="flex h-14 shrink-0 items-center border-b px-4 pr-14">
           <SheetTitle className="sr-only">App navigation</SheetTitle>
           <SheetDescription className="sr-only">
             Links to dashboard sections and site pages
@@ -89,62 +89,61 @@ export function MobileNav({
             onClick={() => setOpen(false)}
           />
         </div>
-        <nav
-          className="flex-1 space-y-1 overflow-y-auto p-3"
-          aria-label="App"
-        >
-          {visibleLinks.map((link) => {
-            const Icon = link.icon;
-            const href = navHref(link, schoolsHref);
-            const active = navActive(link, pathname);
-            return (
-              <Link
-                key={link.label}
-                href={href}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {link.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="border-t p-3">
-          <p className="mb-2 px-3 text-xs font-medium text-muted-foreground">
-            Site
-          </p>
-          <nav className="space-y-1" aria-label="Site">
-            {SITE_TOP_LINKS.filter((link) => link.href !== "/dashboard").map(
-              (link) => {
-                const active =
-                  link.href === "/"
-                    ? pathname === "/"
-                    : pathname === link.href ||
-                      pathname.startsWith(`${link.href}/`);
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <nav className="space-y-1 p-3" aria-label="App">
+            {visibleLinks.map((link) => {
+              const Icon = link.icon;
+              const href = navHref(link, schoolsHref);
+              const active = navActive(link, pathname);
+              return (
+                <Link
+                  key={link.label}
+                  href={href}
+                  onClick={() => setOpen(false)}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
+                    active
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                  )}
+                >
+                  <Icon className="size-4 shrink-0 opacity-80" aria-hidden />
+                  {link.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <p className="mb-2 px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              Site
+            </p>
+            <nav className="space-y-1" aria-label="Site">
+              {siteLinks.map((link) => {
+                const Icon = link.icon;
+                const active = siteLinkActive(pathname, link.href);
                 return (
                   <Link
                     key={link.href}
                     href={link.href}
                     onClick={() => setOpen(false)}
+                    aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex min-h-11 items-center rounded-md px-3 text-sm font-medium transition-colors",
+                      "flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
                       active
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                     )}
                   >
+                    <Icon className="size-4 shrink-0 opacity-80" aria-hidden />
                     {link.label}
                   </Link>
                 );
-              }
-            )}
-          </nav>
+              })}
+            </nav>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

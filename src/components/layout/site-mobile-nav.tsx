@@ -32,7 +32,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { BracktMark } from "./brackt-mark";
-import { SITE_TOP_LINKS } from "./header-nav";
+import { SITE_TOP_LINKS, siteLinkActive } from "./header-nav";
 
 export function SiteMobileNav({ signedIn = false }: { signedIn?: boolean }) {
   const pathname = usePathname();
@@ -45,16 +45,18 @@ export function SiteMobileNav({ signedIn = false }: { signedIn?: boolean }) {
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0 md:hidden"
+            className="size-9 shrink-0 md:hidden"
             aria-label="Open menu"
           />
         }
       >
-        <Menu className="h-5 w-5" />
-        <span className="sr-only">Open menu</span>
+        <Menu className="size-5" />
       </SheetTrigger>
-      <SheetContent side="left" className="w-[min(100%,18rem)] gap-0 p-0">
-        <div className="flex h-14 items-center border-b px-4 pr-12">
+      <SheetContent
+        side="left"
+        className="w-[min(100%,20rem)] gap-0 p-0"
+      >
+        <div className="flex h-14 shrink-0 items-center border-b px-4 pr-14">
           <SheetTitle className="sr-only">Site navigation</SheetTitle>
           <SheetDescription className="sr-only">
             Links to main brackt pages
@@ -65,32 +67,36 @@ export function SiteMobileNav({ signedIn = false }: { signedIn?: boolean }) {
             onClick={() => setOpen(false)}
           />
         </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Site">
+
+        <nav
+          className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3"
+          aria-label="Site"
+        >
           {SITE_TOP_LINKS.map((link) => {
-            const active =
-              link.href === "/"
-                ? pathname === "/"
-                : pathname === link.href ||
-                  pathname.startsWith(`${link.href}/`);
+            const Icon = link.icon;
+            const active = siteLinkActive(pathname, link.href);
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-11 items-center rounded-md px-3 text-sm font-medium transition-colors",
+                  "flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
                   active
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                 )}
               >
+                <Icon className="size-4 shrink-0 opacity-80" aria-hidden />
                 {link.label}
               </Link>
             );
           })}
         </nav>
+
         {!signedIn ? (
-          <div className="mt-auto space-y-2 border-t p-3">
+          <div className="mt-auto shrink-0 space-y-2 border-t bg-muted/20 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <Link
               href="/login"
               onClick={() => setOpen(false)}

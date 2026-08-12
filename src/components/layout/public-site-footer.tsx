@@ -22,7 +22,7 @@ import { COPYRIGHT_HOLDER, COPYRIGHT_YEAR } from "@/lib/metadata";
 
 export function PublicSiteFooter({ showTagline = false }: { showTagline?: boolean }) {
   return (
-    <footer className="border-t py-8 text-center text-sm text-muted-foreground">
+    <footer className="border-t px-4 py-8 text-center text-sm text-muted-foreground">
       <BracktMark wordmarkClassName="text-sm font-bold" />
       {showTagline ? (
         <p className="mt-2 text-xs">

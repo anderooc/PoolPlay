@@ -37,12 +37,16 @@ export function SiteHeader({ user }: { user?: SiteHeaderUser | null }) {
     <>
       <SkipLink />
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur-sm transition-[background-color,backdrop-filter] duration-300 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1">
-        <div className="container mx-auto flex h-14 items-center gap-2 px-4 transition-[padding,gap] duration-300 ease-out sm:gap-4">
-          <SiteMobileNav signedIn={Boolean(user)} />
-          <BracktMark href="/" wordmarkClassName="text-lg" />
-          <HeaderNav className="min-w-0" />
+        <div className="container mx-auto flex h-14 items-center gap-1 px-3 sm:gap-3 sm:px-4 md:gap-4">
+          <div className="flex min-w-0 items-center gap-0.5 sm:gap-2">
+            <SiteMobileNav signedIn={Boolean(user)} />
+            <BracktMark href="/" wordmarkClassName="text-lg" />
+            <HeaderNav className="min-w-0" />
+          </div>
+
           <div className="flex-1" />
-          <div className="flex shrink-0 items-center gap-1">
+
+          <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
             <ThemeToggle />
             {user ? (
               <UserMenu
@@ -56,7 +60,7 @@ export function SiteHeader({ user }: { user?: SiteHeaderUser | null }) {
                   href="/login"
                   className={cn(
                     buttonVariants({ variant: "ghost", size: "sm" }),
-                    "hidden sm:inline-flex"
+                    "hidden md:inline-flex"
                   )}
                 >
                   Sign In
@@ -65,7 +69,7 @@ export function SiteHeader({ user }: { user?: SiteHeaderUser | null }) {
                   href="/signup"
                   className={cn(
                     buttonVariants({ size: "sm" }),
-                    "hidden sm:inline-flex"
+                    "h-8 px-2.5 text-xs sm:px-3 sm:text-sm"
                   )}
                 >
                   Get Started
