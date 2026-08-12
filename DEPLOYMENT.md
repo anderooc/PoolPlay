@@ -2,10 +2,10 @@
 
 ## Domain
 
-Production origin for this rebrand is `https://shoot-set.com`. Set
+Production origin for this rebrand is `https://brack-t.com`. Set
 `NEXT_PUBLIC_APP_URL` to that value in Vercel (and local `.env` when testing
 auth/email redirects). Update Supabase Auth redirect URLs and Resend domain
-DNS for `shoot-set.com` before cutover.
+DNS for `brack-t.com` before cutover.
 
 ## Required before deploying this change
 
@@ -17,7 +17,7 @@ DNS for `shoot-set.com` before cutover.
   storage operations require it.
 - Ensure the deployment proxy overwrites `x-forwarded-for`, `x-real-ip`, or
   `cf-connecting-ip`; auth rate limiting trusts those proxy headers.
-- Set the GitHub Actions repository variable `SHOOTSET_STAGING_URL` to enable
+- Set the GitHub Actions repository variable `BRACKT_STAGING_URL` to enable
   the staged Playwright and Lighthouse job.
 
 ## Supabase checks

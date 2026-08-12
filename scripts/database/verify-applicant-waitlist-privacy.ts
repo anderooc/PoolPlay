@@ -218,7 +218,7 @@ export async function verifyApplicantWaitlistPrivacy(
 }
 
 async function main(): Promise<void> {
-  const databaseUrl = process.env.SHOOTSET_BOOTSTRAP_DATABASE_URL;
+  const databaseUrl = process.env.BRACKT_BOOTSTRAP_DATABASE_URL;
   if (!databaseUrl) return;
   if (!databaseUrl.startsWith("postgresql://postgres@127.0.0.1:")) {
     throw new Error("Applicant verifier requires the disposable local database");

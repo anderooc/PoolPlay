@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import postgres from "postgres";
 
-const databaseUrl = process.env.SHOOTSET_BOOTSTRAP_DATABASE_URL;
+const databaseUrl = process.env.BRACKT_BOOTSTRAP_DATABASE_URL;
 if (!databaseUrl?.startsWith("postgresql://postgres@127.0.0.1:")) {
   throw new Error(
-    "SHOOTSET_BOOTSTRAP_DATABASE_URL must target the disposable local database"
+    "BRACKT_BOOTSTRAP_DATABASE_URL must target the disposable local database"
   );
 }
 

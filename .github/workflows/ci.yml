@@ -31,11 +31,11 @@ jobs:
       - run: npm run build
 
   browser-quality:
-    if: ${{ vars.SHOOTSET_STAGING_URL != '' }}
+    if: ${{ vars.BRACKT_STAGING_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      E2E_BASE_URL: ${{ vars.SHOOTSET_STAGING_URL }}
+      E2E_BASE_URL: ${{ vars.BRACKT_STAGING_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
