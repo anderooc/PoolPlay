@@ -1,5 +1,5 @@
 /*
- * ShootSet - Collegiate club volleyball tournament hub
+ * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  *
  * This program is free software: you can redistribute it and/or modify
@@ -190,7 +190,7 @@ export async function FeaturedTournamentsSection() {
               Upcoming tournaments
             </h2>
             <p className="mt-3 max-w-xl text-pretty text-muted-foreground">
-              Real events on ShootSet right now. Registration, schedules, and
+              Real events on brackt right now. Registration, schedules, and
               scores in one place.
             </p>
           </div>

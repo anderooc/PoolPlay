@@ -1,5 +1,5 @@
 /*
- * ShootSet - Collegiate club volleyball tournament hub
+ * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  *
  * This program is free software: you can redistribute it and/or modify
@@ -26,7 +26,7 @@ import { PublicSiteFooter } from "@/components/layout/public-site-footer";
 
 export const metadata = pageMetadata(
   "About",
-  "Why ShootSet exists: built by Andrew Chang from running Emory club volleyball tournaments without the right tools.",
+  "Why brackt exists: built by Andrew Chang from running Emory club volleyball tournaments without the right tools.",
   { canonical: "/about" }
 );
 
@@ -54,13 +54,13 @@ export default async function AboutPage() {
         <article className="container mx-auto max-w-3xl px-4 py-16 sm:py-20">
           <header className="space-y-4">
             <p className="text-sm font-medium text-muted-foreground">
-              About ShootSet
+              About brackt
             </p>
             <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
               Built from running tournaments the hard way
             </h1>
             <p className="max-w-2xl text-pretty text-lg text-muted-foreground">
-              I created ShootSet after years as president of Emory Club
+              I created brackt after years as president of Emory Club
               Volleyball, hosting and traveling to tournaments that were held
               together by spreadsheets, group chats, and too many last-minute
               fixes.
@@ -93,7 +93,7 @@ export default async function AboutPage() {
 
             <section className="space-y-4">
               <h2 className="font-heading text-2xl font-semibold tracking-tight">
-                Why I built ShootSet
+                Why I built brackt
               </h2>
               <p className="text-pretty">
                 Those frustrations weren&apos;t unique to Emory. Nearly every
@@ -106,7 +106,7 @@ export default async function AboutPage() {
                 rebuilding the same systems from scratch and solving avoidable
                 problems throughout the weekend.
               </p>
-              <p className="text-pretty">ShootSet is my answer to that.</p>
+              <p className="text-pretty">brackt is my answer to that.</p>
               <p className="text-pretty">
                 I wanted a single platform for hosts to manage registration,
                 build divisions, generate pools and brackets, schedule courts, and
@@ -126,7 +126,7 @@ export default async function AboutPage() {
                 What I&apos;m building toward
               </h2>
               <p className="text-pretty">
-                ShootSet is built for collegiate club volleyball first because
+                brackt is built for collegiate club volleyball first because
                 that&apos;s the community I know best.
               </p>
               <p className="text-pretty">
@@ -137,7 +137,7 @@ export default async function AboutPage() {
                 alumni volunteering their weekends to make the event happen.
               </p>
               <p className="text-pretty">
-                If ShootSet can save a host from a stressful Saturday morning, make
+                If brackt can save a host from a stressful Saturday morning, make
                 a tournament run a little smoother, or help one team find the right
                 court at the right time, then it&apos;s accomplishing exactly what
                 it was built to do.

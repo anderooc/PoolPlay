@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * ShootSet - Collegiate club volleyball tournament hub
+ * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -274,7 +274,7 @@ export function TournamentWaiverSettingsPanel({
                   }
                 />
                 <Label htmlFor="waiver-digital">
-                  Digital acknowledgment in ShootSet (each player signs)
+                  Digital acknowledgment in brackt (each player signs)
                 </Label>
               </div>
             </div>

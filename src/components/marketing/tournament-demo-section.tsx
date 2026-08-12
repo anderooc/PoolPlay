@@ -1,5 +1,5 @@
 /*
- * ShootSet - Collegiate club volleyball tournament hub
+ * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  *
  * This program is free software: you can redistribute it and/or modify
@@ -44,7 +44,7 @@ function DemoPlayer({ video }: { video: TournamentDemoVideo }) {
     <iframe
       className="h-full w-full border-0"
       src={video.embedUrl}
-      title="ShootSet tournament demo"
+      title="brackt tournament demo"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
       allowFullScreen
     />
@@ -95,7 +95,7 @@ export function TournamentDemoSection() {
                 id="demo-heading"
                 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl"
               >
-                See a tournament run on ShootSet
+                See a tournament run on brackt
               </h2>
               <p className="max-w-xl text-pretty text-muted-foreground">
                 Walk through setup, pool play, court scheduling, and live scoring

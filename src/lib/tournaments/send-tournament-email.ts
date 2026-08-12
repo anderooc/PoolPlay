@@ -1,5 +1,5 @@
 /*
- * ShootSet - Collegiate club volleyball tournament hub
+ * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -193,7 +193,7 @@ export function buildWaiverReminderEmail(): { subject: string; body: string } {
 
 This is a reminder to complete the tournament waiver before check-in.
 
-Your team still has roster members who have not completed the waiver. You can mark offline signatures in ShootSet, or players can acknowledge digitally if allowed.
+Your team still has roster members who have not completed the waiver. You can mark offline signatures in brackt, or players can acknowledge digitally if allowed.
 
 Thank you,
 Tournament staff`,

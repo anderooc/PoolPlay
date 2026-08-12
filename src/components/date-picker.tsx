@@ -1,7 +1,7 @@
 "use client";
 
 /*
- * ShootSet - Collegiate club volleyball tournament hub
+ * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -49,7 +49,7 @@ export type DatePickerCalendarProps = {
   autoFocus?: boolean;
 };
 
-/** Shared ShootSet calendar: month/year dropdowns, current-year start, no outside days. */
+/** Shared brackt calendar: month/year dropdowns, current-year start, no outside days. */
 export function DatePickerCalendar({
   selected,
   onSelect,

@@ -1,5 +1,5 @@
 /*
- * ShootSet - Collegiate club volleyball tournament hub
+ * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  *
  * This program is free software: you can redistribute it and/or modify
@@ -35,7 +35,7 @@ export default async function ProfilePage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Edit profile</h1>
         <p className="text-sm text-muted-foreground">
-          Update how you appear across ShootSet.
+          Update how you appear across brackt.
         </p>
       </div>
 

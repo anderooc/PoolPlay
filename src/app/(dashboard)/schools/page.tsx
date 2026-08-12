@@ -1,5 +1,5 @@
 /*
- * ShootSet - Collegiate club volleyball tournament hub
+ * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -46,7 +46,7 @@ export default async function SchoolsPage() {
         title="Find schools"
         description={
           mySchool
-            ? "Browse other collegiate club programs on ShootSet."
+            ? "Browse other collegiate club programs on brackt."
             : "Find your program below. A school president or officer must add you to their roster using your signup email — or create a new school if you're starting a program."
         }
         actions={

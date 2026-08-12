@@ -1,5 +1,5 @@
 /*
- * ShootSet - Collegiate club volleyball tournament hub
+ * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@ import { pageMetadata } from "@/lib/metadata";
 
 export const metadata = pageMetadata(
   "Terms",
-  "The rules and responsibilities for using ShootSet.",
+  "The rules and responsibilities for using brackt.",
   { canonical: "/terms" }
 );
 
@@ -36,7 +36,7 @@ export default async function TermsPage() {
               Effective July 21, 2026
             </p>
             <p className="mt-5 max-w-2xl text-pretty leading-relaxed text-foreground/90">
-              These terms set expectations for using ShootSet to organize,
+              These terms set expectations for using brackt to organize,
               join, and follow collegiate club volleyball tournaments.
             </p>
           </header>
@@ -74,10 +74,10 @@ export default async function TermsPage() {
                 Payments and waivers
               </h2>
               <p>
-                ShootSet records payment status but does not process or hold
+                brackt records payment status but does not process or hold
                 funds. Payment disputes remain between organizers and teams.
                 Digital acknowledgments and uploaded waiver documents are tools
-                for organizers; ShootSet does not determine whether a waiver is
+                for organizers; brackt does not determine whether a waiver is
                 legally sufficient or enforceable.
               </p>
             </section>
@@ -88,7 +88,7 @@ export default async function TermsPage() {
               </h2>
               <p>
                 You retain responsibility for content you submit and grant
-                ShootSet permission to store, process, display, and send it as
+                brackt permission to store, process, display, and send it as
                 needed to operate the service. Public event information may be
                 visible without an account. If an account is deleted, historical
                 schedules and results may remain with the organizer identity
@@ -114,7 +114,7 @@ export default async function TermsPage() {
                 Changes
               </h2>
               <p>
-                These terms may change as ShootSet evolves. The effective date
+                These terms may change as brackt evolves. The effective date
                 above will be updated when material changes are published.
                 Continued use after an update means you accept the revised terms.
               </p>
