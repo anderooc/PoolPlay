@@ -32,6 +32,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { SmartBackLink } from "@/components/layout/smart-back-link";
+import { schoolTabUrl } from "@/app/(dashboard)/schools/[slug]/school-tab";
 import { TeamAttributeFields } from "@/components/team-attribute-fields";
 import { cn } from "@/lib/utils";
 import { formatTeamGender, formatTeamRegion } from "@/lib/labels/team";
@@ -97,7 +98,7 @@ export function NewTeamForm({
   }
 
   const backFallback = selectedSchool
-    ? `/schools/${selectedSchool.slug}`
+    ? schoolTabUrl(selectedSchool.slug, "teams")
     : "/teams";
 
   return (
