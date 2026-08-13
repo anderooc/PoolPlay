@@ -27,7 +27,7 @@ import {
   teams,
   users,
 } from "@/lib/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SmartBackLink } from "@/components/layout/smart-back-link";
@@ -36,6 +36,7 @@ import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Building2, CheckCircle2 } from "lucide-react";
 import { isStandaloneTeam } from "@/lib/teams/verification";
+import { schoolTabUrl } from "@/app/(dashboard)/schools/[slug]/school-tab";
 import { AddMemberForm } from "./add-member-form";
 import { RosterRow } from "./roster-row";
 import { TeamDeleteButton } from "./team-delete-button";
@@ -73,46 +74,65 @@ export default async function TeamDetailPage({ params }: Props) {
 
   const id = team.id;
 
-  const [members, schoolRow, mySchoolMembership] = await Promise.all([
-    db
-      .select({
-        id: teamMembers.id,
-        role: teamMembers.role,
-        jerseyNumber: teamMembers.jerseyNumber,
-        userId: users.id,
-        fullName: users.fullName,
-        email: users.email,
-      })
-      .from(teamMembers)
-      .innerJoin(users, eq(teamMembers.userId, users.id))
-      .where(eq(teamMembers.teamId, id)),
-    team.schoolId
-      ? db
-          .select({
-            id: schools.id,
-            name: schools.name,
-            slug: schools.slug,
-            verificationStatus: schools.verificationStatus,
-          })
-          .from(schools)
-          .where(eq(schools.id, team.schoolId))
-          .limit(1)
-          .then((rows) => rows[0] ?? null)
-      : Promise.resolve(null),
-    team.schoolId
-      ? db
-          .select({ role: schoolMembers.role })
-          .from(schoolMembers)
-          .where(
-            and(
-              eq(schoolMembers.schoolId, team.schoolId),
-              eq(schoolMembers.userId, user.id)
+  const [members, schoolRow, mySchoolMembership, schoolRoster] =
+    await Promise.all([
+      db
+        .select({
+          id: teamMembers.id,
+          role: teamMembers.role,
+          jerseyNumber: teamMembers.jerseyNumber,
+          userId: users.id,
+          fullName: users.fullName,
+          email: users.email,
+        })
+        .from(teamMembers)
+        .innerJoin(users, eq(teamMembers.userId, users.id))
+        .where(eq(teamMembers.teamId, id)),
+      team.schoolId
+        ? db
+            .select({
+              id: schools.id,
+              name: schools.name,
+              slug: schools.slug,
+              verificationStatus: schools.verificationStatus,
+            })
+            .from(schools)
+            .where(eq(schools.id, team.schoolId))
+            .limit(1)
+            .then((rows) => rows[0] ?? null)
+        : Promise.resolve(null),
+      team.schoolId
+        ? db
+            .select({ role: schoolMembers.role })
+            .from(schoolMembers)
+            .where(
+              and(
+                eq(schoolMembers.schoolId, team.schoolId),
+                eq(schoolMembers.userId, user.id)
+              )
             )
-          )
-          .limit(1)
-          .then((rows) => rows[0] ?? null)
-      : Promise.resolve(null),
-  ]);
+            .limit(1)
+            .then((rows) => rows[0] ?? null)
+        : Promise.resolve(null),
+      team.schoolId
+        ? db
+            .select({
+              userId: users.id,
+              fullName: users.fullName,
+              email: users.email,
+              role: schoolMembers.role,
+            })
+            .from(schoolMembers)
+            .innerJoin(users, eq(schoolMembers.userId, users.id))
+            .where(eq(schoolMembers.schoolId, team.schoolId))
+            .orderBy(asc(users.fullName))
+        : Promise.resolve([]),
+    ]);
+
+  const teamUserIds = new Set(members.map((m) => m.userId));
+  const schoolRosterCandidates = schoolRoster.filter(
+    (member) => !teamUserIds.has(member.userId)
+  );
 
   const currentMembership = members.find((m) => m.userId === user.id);
   const isCaptain =
@@ -122,7 +142,7 @@ export default async function TeamDetailPage({ params }: Props) {
     mySchoolMembership?.role === "officer";
 
   const backFallback = schoolRow
-    ? `/schools/${schoolRow.slug}`
+    ? schoolTabUrl(schoolRow.slug, "teams")
     : "/teams";
 
   const standalone = isStandaloneTeam(team.schoolId);
@@ -205,20 +225,16 @@ export default async function TeamDetailPage({ params }: Props) {
           {isCaptain && (
             <>
               <Separator className="my-2" />
-              {schoolRow && (
-                <p className="text-sm text-muted-foreground">
-                  Teams under a school can only add players from the
-                  school&apos;s roster. Add new members at{" "}
-                  <Link
-                    href={`/schools/${schoolRow.slug}`}
-                    className="underline underline-offset-4"
-                  >
-                    {schoolRow.name}
-                  </Link>{" "}
-                  first.
-                </p>
-              )}
-              <AddMemberForm teamId={id} />
+              <AddMemberForm
+                teamId={id}
+                schoolRosterCandidates={
+                  schoolRow ? schoolRosterCandidates : undefined
+                }
+                schoolHref={
+                  schoolRow ? `/schools/${schoolRow.slug}` : undefined
+                }
+                schoolName={schoolRow?.name}
+              />
             </>
           )}
         </CardContent>

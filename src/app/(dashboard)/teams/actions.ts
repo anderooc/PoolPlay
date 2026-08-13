@@ -189,7 +189,10 @@ export async function createTeam(formData: FormData) {
 
 export async function addTeamMember(teamId: string, formData: FormData) {
   const user = await requireUser();
-  const email = formData.get("email") as string;
+  const email = String(formData.get("email") ?? "")
+    .toLowerCase()
+    .trim();
+  if (!email) return { error: "Email is required" };
 
   const [team] = await db
     .select()
@@ -233,18 +236,20 @@ export async function addTeamMember(teamId: string, formData: FormData) {
 
   // When the team belongs to a school, the new player must already be on the
   // school's master roster. This keeps the school as the source of truth.
+  let schoolSlug: string | null = null;
   if (team.schoolId) {
     const [schoolRow] = await db
       .select({ slug: schools.slug })
       .from(schools)
       .where(eq(schools.id, team.schoolId))
       .limit(1);
+    schoolSlug = schoolRow?.slug ?? null;
 
     const targetRole = await getSchoolRole(team.schoolId, targetUser.id);
     if (!targetRole) {
       return {
-        error: schoolRow
-          ? `Add this user to the school roster first at /schools/${schoolRow.slug}`
+        error: schoolSlug
+          ? `Add this user to the school roster first at /schools/${schoolSlug}`
           : "User must be on the school roster first.",
       };
     }
@@ -273,7 +278,8 @@ export async function addTeamMember(teamId: string, formData: FormData) {
     jerseyNumber: jerseyNumber ? parseInt(jerseyNumber as string, 10) : null,
   });
 
-  revalidatePath("/teams/[slug]", "page");
+  revalidatePath(`/teams/${team.slug}`);
+  if (schoolSlug) revalidatePath(`/schools/${schoolSlug}`);
   return { success: true };
 }
 
@@ -370,11 +376,57 @@ export async function updateJerseyNumber(
   memberId: string,
   jerseyNumber: number | null
 ) {
+  const user = await requireUser();
+  if (
+    jerseyNumber !== null &&
+    (!Number.isInteger(jerseyNumber) || jerseyNumber < 0 || jerseyNumber > 99)
+  ) {
+    return { error: "Jersey number must be 0–99" };
+  }
+
+  const [row] = await db
+    .select({
+      id: teamMembers.id,
+      teamId: teams.id,
+      slug: teams.slug,
+      schoolId: teams.schoolId,
+    })
+    .from(teamMembers)
+    .innerJoin(teams, eq(teamMembers.teamId, teams.id))
+    .where(eq(teamMembers.id, memberId))
+    .limit(1);
+  if (!row) return { error: "Member not found" };
+
+  const [membership] = await db
+    .select()
+    .from(teamMembers)
+    .where(
+      and(eq(teamMembers.teamId, row.teamId), eq(teamMembers.userId, user.id))
+    );
+  let canManage: boolean = isAdmin(user) || membership?.role === "captain";
+  if (!canManage && row.schoolId) {
+    const role = await getSchoolRole(row.schoolId, user.id);
+    canManage = isSchoolOfficerOrAbove(
+      role ? { schoolId: row.schoolId, userId: user.id, role } : null
+    );
+  }
+  if (!canManage) {
+    return { error: "Only captains or school officers can edit jersey numbers" };
+  }
+
   await db
     .update(teamMembers)
     .set({ jerseyNumber })
     .where(eq(teamMembers.id, memberId));
 
-  revalidatePath("/teams");
+  revalidatePath(`/teams/${row.slug}`);
+  if (row.schoolId) {
+    const [schoolRow] = await db
+      .select({ slug: schools.slug })
+      .from(schools)
+      .where(eq(schools.id, row.schoolId))
+      .limit(1);
+    if (schoolRow) revalidatePath(`/schools/${schoolRow.slug}`);
+  }
   return { success: true };
 }

@@ -19,12 +19,70 @@
  */
 
 import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { SCHOOL_MEMBER_ROLE_LABELS } from "@/lib/constants/school";
 import { addTeamMember } from "../actions";
+import type { SchoolMemberRole } from "@/types";
 
-export function AddMemberForm({ teamId }: { teamId: string }) {
+export type SchoolRosterCandidate = {
+  userId: string;
+  fullName: string;
+  email: string;
+  role: SchoolMemberRole;
+};
+
+const GROUPS: {
+  id: string;
+  label: string;
+  roles: SchoolMemberRole[];
+}[] = [
+  { id: "officers", label: "Officers", roles: ["president", "officer"] },
+  { id: "members", label: "Members", roles: ["member"] },
+];
+
+export function AddMemberForm({
+  teamId,
+  schoolRosterCandidates,
+  schoolHref,
+  schoolName,
+  description,
+}: {
+  teamId: string;
+  schoolRosterCandidates?: SchoolRosterCandidate[];
+  schoolHref?: string;
+  schoolName?: string;
+  description?: string;
+}) {
+  if (schoolRosterCandidates) {
+    return (
+      <SchoolRosterAddForm
+        teamId={teamId}
+        candidates={schoolRosterCandidates}
+        schoolHref={schoolHref}
+        schoolName={schoolName}
+        description={description}
+      />
+    );
+  }
+
+  return <EmailAddForm teamId={teamId} />;
+}
+
+function EmailAddForm({ teamId }: { teamId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -45,7 +103,10 @@ export function AddMemberForm({ teamId }: { teamId: string }) {
   return (
     <div className="rounded-xl border bg-muted/30 p-4 sm:p-5">
       <h3 className="mb-4 text-sm font-semibold">Add player</h3>
-      <form action={handleSubmit} className="grid gap-4 sm:grid-cols-[1fr_6.5rem_auto]">
+      <form
+        action={handleSubmit}
+        className="grid gap-4 sm:grid-cols-[1fr_6.5rem_auto]"
+      >
         <div className="space-y-2">
           <Label htmlFor="email">School email</Label>
           <Input
@@ -81,6 +142,317 @@ export function AddMemberForm({ teamId }: { teamId: string }) {
       {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
       {success ? (
         <p className="mt-3 text-sm text-success">Player added!</p>
+      ) : null}
+    </div>
+  );
+}
+
+function SchoolRosterAddForm({
+  teamId,
+  candidates,
+  schoolHref,
+  schoolName,
+  description,
+}: {
+  teamId: string;
+  candidates: SchoolRosterCandidate[];
+  schoolHref?: string;
+  schoolName?: string;
+  description?: string;
+}) {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [jerseyNumber, setJerseyNumber] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [addedCount, setAddedCount] = useState(0);
+
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? candidates.filter(
+        (c) =>
+          c.fullName.toLowerCase().includes(q) ||
+          c.email.toLowerCase().includes(q) ||
+          SCHOOL_MEMBER_ROLE_LABELS[c.role].toLowerCase().includes(q)
+      )
+    : candidates;
+
+  const allFilteredSelected =
+    filtered.length > 0 && filtered.every((c) => selected.has(c.email));
+  const someFilteredSelected = filtered.some((c) => selected.has(c.email));
+
+  function toggleEmail(email: string, checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(email);
+      else next.delete(email);
+      return next;
+    });
+  }
+
+  function toggleAllFiltered(checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const c of filtered) {
+        if (checked) next.add(c.email);
+        else next.delete(c.email);
+      }
+      return next;
+    });
+  }
+
+  async function handleAddSelected() {
+    const emails = [...selected];
+    if (emails.length === 0) return;
+
+    setLoading(true);
+    setError(null);
+    setAddedCount(0);
+
+    let succeeded = 0;
+    let lastError: string | null = null;
+
+    for (const email of emails) {
+      const formData = new FormData();
+      formData.set("email", email);
+      if (emails.length === 1 && jerseyNumber.trim()) {
+        formData.set("jerseyNumber", jerseyNumber.trim());
+      }
+      const result = await addTeamMember(teamId, formData);
+      if (result?.error) {
+        lastError = result.error;
+        break;
+      }
+      succeeded += 1;
+    }
+
+    setLoading(false);
+    if (succeeded > 0) {
+      setAddedCount(succeeded);
+      setSelected(new Set());
+      setJerseyNumber("");
+      router.refresh();
+    }
+    if (lastError) {
+      setError(
+        succeeded > 0
+          ? `Added ${succeeded}, then stopped: ${lastError}`
+          : lastError
+      );
+    }
+  }
+
+  return (
+    <div className="rounded-xl border bg-muted/30 p-4 sm:p-5">
+      <div className="mb-4 space-y-1">
+        <h3 className="text-sm font-semibold">Add from school roster</h3>
+        <p className="text-sm text-muted-foreground">
+          {description ?? (
+            <>
+              Select players from the school roster
+              {schoolName ? (
+                <>
+                  {" "}
+                  {schoolHref ? (
+                    <Link
+                      href={schoolHref}
+                      className="underline underline-offset-4"
+                    >
+                      {schoolName}
+                    </Link>
+                  ) : (
+                    schoolName
+                  )}
+                </>
+              ) : null}
+              . New people must be added there first.
+            </>
+          )}
+        </p>
+      </div>
+
+      {candidates.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Everyone on the school roster is already on this team
+          {schoolHref ? (
+            <>
+              , or the{" "}
+              <Link
+                href={schoolHref}
+                className="underline underline-offset-4"
+              >
+                school roster
+              </Link>{" "}
+              is empty
+            </>
+          ) : null}
+          .
+        </p>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-[1fr_6.5rem]">
+            <div className="space-y-2">
+              <Label htmlFor="roster-search">Search roster</Label>
+              <Input
+                id="roster-search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Name, email, or role"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="jerseyNumber">Jersey #</Label>
+              <Input
+                id="jerseyNumber"
+                name="jerseyNumber"
+                type="number"
+                placeholder="—"
+                min={0}
+                max={99}
+                value={jerseyNumber}
+                onChange={(e) => setJerseyNumber(e.target.value)}
+                disabled={selected.size !== 1}
+                title={
+                  selected.size === 1
+                    ? undefined
+                    : "Select exactly one player to set a jersey number"
+                }
+              />
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-lg border bg-background">
+            <div className="max-h-80 overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 z-10">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="h-8 w-10 py-0">
+                      <Checkbox
+                        checked={allFilteredSelected}
+                        indeterminate={
+                          someFilteredSelected && !allFilteredSelected
+                        }
+                        onCheckedChange={(checked) =>
+                          toggleAllFiltered(checked === true)
+                        }
+                        aria-label="Select all visible players"
+                      />
+                    </TableHead>
+                    <TableHead className="h-8 py-0">Name</TableHead>
+                    <TableHead className="h-8 py-0">Email</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.length === 0 ? (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell
+                        colSpan={3}
+                        className="h-12 text-center text-muted-foreground"
+                      >
+                        No roster members match “{query.trim()}”.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    GROUPS.flatMap((group) => {
+                      const rows = filtered.filter((c) =>
+                        group.roles.includes(c.role)
+                      );
+                      if (rows.length === 0) return [];
+                      return [
+                        <TableRow
+                          key={`group-${group.id}`}
+                          className="hover:bg-transparent"
+                        >
+                          <TableCell
+                            colSpan={3}
+                            className="bg-muted/50 py-1.5 text-xs font-medium text-muted-foreground"
+                          >
+                            {group.label} ({rows.length})
+                          </TableCell>
+                        </TableRow>,
+                        ...rows.map((candidate) => {
+                          const isChecked = selected.has(candidate.email);
+                          return (
+                            <TableRow
+                              key={candidate.userId}
+                              data-state={isChecked ? "selected" : undefined}
+                              className={cn(
+                                "cursor-pointer",
+                                isChecked && "bg-muted/40"
+                              )}
+                              onClick={() =>
+                                toggleEmail(candidate.email, !isChecked)
+                              }
+                            >
+                              <TableCell
+                                className="w-10 py-1.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={(checked) =>
+                                    toggleEmail(
+                                      candidate.email,
+                                      checked === true
+                                    )
+                                  }
+                                  aria-label={`Select ${candidate.fullName}`}
+                                />
+                              </TableCell>
+                              <TableCell className="max-w-[12rem] py-1.5 font-medium">
+                                <span className="block truncate text-sm leading-tight">
+                                  {candidate.fullName}
+                                </span>
+                              </TableCell>
+                              <TableCell className="max-w-[14rem] py-1.5 text-muted-foreground">
+                                <span className="block truncate text-xs">
+                                  {candidate.email}
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }),
+                      ];
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="border-t bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              {filtered.length} available
+              {selected.size > 0 ? ` · ${selected.size} selected` : ""}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              Jersey # applies when adding a single player.
+            </p>
+            <Button
+              type="button"
+              disabled={loading || selected.size === 0}
+              onClick={handleAddSelected}
+              className="w-full sm:w-auto"
+            >
+              {loading
+                ? "Adding…"
+                : selected.size > 1
+                  ? `Add ${selected.size} players`
+                  : "Add player"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+      {addedCount > 0 && !error ? (
+        <p className="mt-3 text-sm text-success">
+          {addedCount === 1
+            ? "Player added!"
+            : `${addedCount} players added!`}
+        </p>
       ) : null}
     </div>
   );

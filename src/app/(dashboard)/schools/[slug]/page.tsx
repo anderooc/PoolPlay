@@ -50,6 +50,7 @@ import {
 } from "@/lib/schools/permissions";
 import { SchoolHeaderActions } from "./school-header-actions";
 import { SchoolRoster } from "./school-roster";
+import { SchoolAddToTeam } from "./school-add-to-team";
 import { parseSchoolTab } from "./school-tab";
 import { SchoolTabs } from "./school-tabs";
 import { VerificationControls } from "./verification-controls";
@@ -90,40 +91,51 @@ export default async function SchoolDetailPage({ params, searchParams }: Props) 
     .limit(1);
   if (!school) notFound();
 
-  const [memberRows, teamRows, [{ value: memberCount }]] = await Promise.all([
-    db
-      .select({
-        membershipId: schoolMembers.id,
-        userId: users.id,
-        fullName: users.fullName,
-        email: users.email,
-        role: schoolMembers.role,
-        title: schoolMembers.title,
-        joinedAt: schoolMembers.joinedAt,
-      })
-      .from(schoolMembers)
-      .innerJoin(users, eq(schoolMembers.userId, users.id))
-      .where(eq(schoolMembers.schoolId, school.id))
-      .orderBy(asc(users.fullName)),
-    db
-      .select({
-        id: teams.id,
-        slug: teams.slug,
-        name: teams.name,
-        gender: teams.gender,
-        region: teams.region,
-        memberCount: count(teamMembers.id),
-      })
-      .from(teams)
-      .leftJoin(teamMembers, eq(teamMembers.teamId, teams.id))
-      .where(eq(teams.schoolId, school.id))
-      .groupBy(teams.id)
-      .orderBy(asc(teams.name)),
-    db
-      .select({ value: count() })
-      .from(schoolMembers)
-      .where(eq(schoolMembers.schoolId, school.id)),
-  ]);
+  const [memberRows, teamRows, [{ value: memberCount }], teamMemberships] =
+    await Promise.all([
+      db
+        .select({
+          membershipId: schoolMembers.id,
+          userId: users.id,
+          fullName: users.fullName,
+          email: users.email,
+          role: schoolMembers.role,
+          title: schoolMembers.title,
+          joinedAt: schoolMembers.joinedAt,
+        })
+        .from(schoolMembers)
+        .innerJoin(users, eq(schoolMembers.userId, users.id))
+        .where(eq(schoolMembers.schoolId, school.id))
+        .orderBy(asc(users.fullName)),
+      db
+        .select({
+          id: teams.id,
+          slug: teams.slug,
+          name: teams.name,
+          gender: teams.gender,
+          region: teams.region,
+          memberCount: count(teamMembers.id),
+        })
+        .from(teams)
+        .leftJoin(teamMembers, eq(teamMembers.teamId, teams.id))
+        .where(eq(teams.schoolId, school.id))
+        .groupBy(teams.id)
+        .orderBy(asc(teams.name)),
+      db
+        .select({ value: count() })
+        .from(schoolMembers)
+        .where(eq(schoolMembers.schoolId, school.id)),
+      db
+        .select({
+          id: teamMembers.id,
+          teamId: teamMembers.teamId,
+          userId: teamMembers.userId,
+          jerseyNumber: teamMembers.jerseyNumber,
+        })
+        .from(teamMembers)
+        .innerJoin(teams, eq(teamMembers.teamId, teams.id))
+        .where(eq(teams.schoolId, school.id)),
+    ]);
 
   const myMembership =
     memberRows.find((m) => m.userId === user.id) ?? null;
@@ -317,27 +329,44 @@ export default async function SchoolDetailPage({ params, searchParams }: Props) 
                 }
               />
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {teamRows.map((team) => (
-                  <Link key={team.id} href={`/teams/${team.slug}`}>
-                    <Card className="h-full cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">{team.name}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <TeamAttributesBadges
-                          gender={team.gender}
-                          region={team.region}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          {team.memberCount} player
-                          {team.memberCount === 1 ? "" : "s"}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
+              <>
+                {canRosterManage ? (
+                  <SchoolAddToTeam
+                    teams={teamRows.map((team) => ({
+                      id: team.id,
+                      name: team.name,
+                    }))}
+                    members={memberRows.map((m) => ({
+                      userId: m.userId,
+                      fullName: m.fullName,
+                      email: m.email,
+                      role: m.role,
+                    }))}
+                    memberships={teamMemberships}
+                  />
+                ) : null}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {teamRows.map((team) => (
+                    <Link key={team.id} href={`/teams/${team.slug}`}>
+                      <Card className="h-full cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-base">{team.name}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <TeamAttributesBadges
+                            gender={team.gender}
+                            region={team.region}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            {team.memberCount} player
+                            {team.memberCount === 1 ? "" : "s"}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         )}
