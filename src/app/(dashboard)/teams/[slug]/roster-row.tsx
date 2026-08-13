@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { removeTeamMember } from "../actions";
 import { useState } from "react";
+import { JerseyNumberField } from "./jersey-number-field";
 
 interface Member {
   id: string;
@@ -51,27 +52,35 @@ export function RosterRow({
   }
 
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
-          {member.jerseyNumber !== null ? (
-            <span className="w-10 shrink-0 text-center text-lg font-bold tabular-nums text-muted-foreground">
+    <div className="rounded-lg border bg-card px-3 py-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {isCaptain ? (
+            <JerseyNumberField
+              key={`${member.id}-${member.jerseyNumber ?? "none"}`}
+              memberId={member.id}
+              jerseyNumber={member.jerseyNumber}
+            />
+          ) : member.jerseyNumber !== null ? (
+            <span className="w-11 shrink-0 text-center text-sm font-bold tabular-nums text-muted-foreground">
               {member.jerseyNumber}
             </span>
           ) : (
-            <span className="w-10 shrink-0 text-center text-lg font-bold text-muted-foreground/40">
+            <span className="w-11 shrink-0 text-center text-sm font-bold text-muted-foreground/40">
               —
             </span>
           )}
-          <div className="min-w-0 space-y-1">
-            <p className="font-medium leading-tight">{member.fullName}</p>
-            <p className="truncate text-sm text-muted-foreground">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium leading-tight">
+              {member.fullName}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
               {member.email}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:shrink-0">
+        <div className="flex shrink-0 items-center gap-1.5">
           <Badge
             variant={member.role === "captain" ? "default" : "secondary"}
             className="capitalize"
@@ -82,12 +91,14 @@ export function RosterRow({
             <Button
               variant="outline"
               size="sm"
-              className="h-9 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="h-7 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
               onClick={handleRemove}
               disabled={removing}
             >
-              <X className="mr-1.5 h-3.5 w-3.5" />
-              {removing ? "Removing…" : "Remove"}
+              <X className="h-3.5 w-3.5" />
+              <span className="sr-only">
+                {removing ? "Removing…" : `Remove ${member.fullName}`}
+              </span>
             </Button>
           ) : null}
         </div>

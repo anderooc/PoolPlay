@@ -32,7 +32,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { SCHOOL_MEMBER_ROLE_LABELS } from "@/lib/constants/school";
+import {
+  SCHOOL_MEMBER_ROLE_LABELS,
+  SCHOOL_MIN_OFFICERS_FOR_VERIFICATION,
+} from "@/lib/constants/school";
 import {
   addSchoolMember,
   removeSchoolMember,
@@ -122,24 +125,28 @@ export function SchoolRoster({
   const president = members.find((m) => m.role === "president");
   const officers = members.filter((m) => m.role === "officer");
   const others = members.filter((m) => m.role === "member");
+  const needsMoreOfficers =
+    officers.length < SCHOOL_MIN_OFFICERS_FOR_VERIFICATION;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <Section
         title="President"
         helper="One per school."
         icon={<Crown className="h-4 w-4" />}
       >
         {president ? (
-          <RosterRow
-            member={president}
-            canManage={false}
-            canTransferPresidencyAction={false}
-            isBusy={busyId === president.membershipId}
-            onRemove={handleRemove}
-            onRoleChange={handleRoleChange}
-            onTransfer={handleTransfer}
-          />
+          <div className="overflow-hidden rounded-lg border bg-card">
+            <RosterRow
+              member={president}
+              canManage={false}
+              canTransferPresidencyAction={false}
+              isBusy={busyId === president.membershipId}
+              onRemove={handleRemove}
+              onRoleChange={handleRoleChange}
+              onTransfer={handleTransfer}
+            />
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">No president set.</p>
         )}
@@ -147,16 +154,20 @@ export function SchoolRoster({
 
       <Section
         title={`Officers (${officers.length})`}
-        helper="Officers can add or remove members and link teams."
+        helper="Can add or remove members and link teams. Also eligible for any team roster."
         icon={<Star className="h-4 w-4" />}
       >
-        {officers.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No officers yet. Add at least one before submitting for
-            verification.
+        {needsMoreOfficers ? (
+          <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
+            Add at least {SCHOOL_MIN_OFFICERS_FOR_VERIFICATION} officer
+            {SCHOOL_MIN_OFFICERS_FOR_VERIFICATION === 1 ? "" : "s"} before
+            submitting for verification.
           </p>
+        ) : null}
+        {officers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No officers yet.</p>
         ) : (
-          <div className="space-y-3">
+          <div className="divide-y overflow-hidden rounded-lg border bg-card">
             {officers.map((m) => (
               <RosterRow
                 key={m.membershipId}
@@ -178,9 +189,9 @@ export function SchoolRoster({
         helper="Players and other roster members. Can be added to any team in the school."
       >
         {others.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No other members yet.</p>
+          <p className="text-sm text-muted-foreground">No members yet.</p>
         ) : (
-          <div className="space-y-3">
+          <div className="divide-y overflow-hidden rounded-lg border bg-card">
             {others.map((m) => (
               <RosterRow
                 key={m.membershipId}
@@ -308,90 +319,84 @@ function RosterRow({
   return (
     <div
       className={cn(
-        "rounded-xl border bg-card p-4",
+        "px-3 py-2",
         isBusy && "opacity-60"
       )}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="font-medium leading-tight">{member.fullName}</p>
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <p className="truncate text-sm font-medium leading-tight">
+              {member.fullName}
+            </p>
+            {member.title ? (
+              <span className="truncate text-xs text-muted-foreground">
+                {member.title}
+              </span>
+            ) : null}
             {!showRoleSelect ? (
-              <Badge variant="secondary">
+              <Badge variant="secondary" className="shrink-0">
                 {SCHOOL_MEMBER_ROLE_LABELS[member.role]}
               </Badge>
             ) : null}
           </div>
-          <p className="truncate text-sm text-muted-foreground">
+          <p className="truncate text-xs text-muted-foreground">
             {member.email}
           </p>
-          {member.title ? (
-            <p className="text-sm text-muted-foreground">{member.title}</p>
-          ) : null}
         </div>
 
         {showActions ? (
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[12rem] sm:items-stretch">
+          <div className="flex shrink-0 items-center gap-1.5">
             {showRoleSelect ? (
-              <div className="space-y-1.5">
-                <Label
-                  htmlFor={`role-${member.membershipId}`}
-                  className="text-xs text-muted-foreground"
+              <Select
+                value={member.role}
+                onValueChange={(v) => {
+                  if (v === "officer" || v === "member") {
+                    onRoleChange(member.membershipId, v);
+                  }
+                }}
+                disabled={isBusy}
+              >
+                <SelectTrigger
+                  id={`role-${member.membershipId}`}
+                  size="sm"
+                  className="h-7 w-[7.25rem]"
+                  aria-label={`Role for ${member.fullName}`}
                 >
-                  Role
-                </Label>
-                <Select
-                  value={member.role}
-                  onValueChange={(v) => {
-                    if (v === "officer" || v === "member") {
-                      onRoleChange(member.membershipId, v);
-                    }
-                  }}
-                  disabled={isBusy}
-                >
-                  <SelectTrigger
-                    id={`role-${member.membershipId}`}
-                    size="sm"
-                    className="h-9 w-full"
-                  >
-                    <SelectValue placeholder="Change role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="member">Member</SelectItem>
-                    <SelectItem value="officer">Officer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  <SelectValue placeholder="Role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Member</SelectItem>
+                  <SelectItem value="officer">Officer</SelectItem>
+                </SelectContent>
+              </Select>
             ) : null}
-
-            <div className="flex flex-col gap-2">
-              {canTransferPresidencyAction && member.role !== "president" ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 justify-center"
-                  disabled={isBusy}
-                  onClick={() => onTransfer(member.membershipId)}
-                >
-                  <Crown className="mr-1.5 h-3.5 w-3.5" />
-                  Make president
-                </Button>
-              ) : null}
-              {showRoleSelect ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 justify-center text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  disabled={isBusy}
-                  onClick={() => onRemove(member.membershipId)}
-                >
-                  <X className="mr-1.5 h-3.5 w-3.5" />
-                  Remove
-                </Button>
-              ) : null}
-            </div>
+            {canTransferPresidencyAction && member.role !== "president" ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2"
+                disabled={isBusy}
+                onClick={() => onTransfer(member.membershipId)}
+              >
+                <Crown className="mr-1 h-3 w-3" />
+                President
+              </Button>
+            ) : null}
+            {showRoleSelect ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                disabled={isBusy}
+                onClick={() => onRemove(member.membershipId)}
+              >
+                <X className="h-3.5 w-3.5" />
+                <span className="sr-only">Remove {member.fullName}</span>
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>
