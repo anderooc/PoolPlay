@@ -1,17 +1,17 @@
 /*
  * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -22,8 +22,10 @@ import {
   resolveIsTournamentOrganizer,
   type UserForPermissions,
 } from "@/lib/tournaments/permissions";
+import { scheduleGroupsFromPlayData } from "@/lib/utils/schedule-times-groups";
 import { getDivisionPlayData } from "../brackets/data";
 import { MatchBoard } from "../match-board";
+import { ScheduleMatchTimesSection } from "../matches/schedule-match-times-section";
 
 export async function TournamentMatchesPanel({
   tournament,
@@ -37,8 +39,19 @@ export async function TournamentMatchesPanel({
     forOrganizer: isOrganizer,
   });
 
+  const scheduleGroups = isOrganizer
+    ? scheduleGroupsFromPlayData(divisionPlayData, "all")
+    : [];
+
   return (
-    <div>
+    <div className="space-y-6">
+      {isOrganizer && scheduleGroups.length > 0 && (
+        <ScheduleMatchTimesSection
+          tournamentId={tournament.id}
+          tournamentDate={tournament.date}
+          groups={scheduleGroups}
+        />
+      )}
       <MatchBoard
         slug={tournament.slug}
         divisions={divisionPlayData}

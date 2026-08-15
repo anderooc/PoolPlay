@@ -36,6 +36,8 @@ import { PoolMatchFormatPanel } from "../brackets/pool-match-format-panel";
 import { PoolSeedingPanel } from "../brackets/pool-seeding-panel";
 import { PoolView } from "../brackets/pool-view";
 import { ScrollToPool } from "./scroll-to-pool";
+import { ScheduleMatchTimesSection } from "../matches/schedule-match-times-section";
+import { scheduleGroupsFromPlayData } from "@/lib/utils/schedule-times-groups";
 
 export async function TournamentPoolPlayPanel({
   tournament,
@@ -119,6 +121,10 @@ export async function TournamentPoolPlayPanel({
       initialDivisionId) ||
     eligibleDivisions[0]?.id;
 
+  const scheduleGroups = isOrganizer
+    ? scheduleGroupsFromPlayData(eligibleDivisions, "pools")
+    : [];
+
   return (
     <div className="space-y-6">
       {focusPoolId ? <ScrollToPool poolId={focusPoolId} /> : null}
@@ -131,6 +137,13 @@ export async function TournamentPoolPlayPanel({
           tiebreakTargetScore={tournament.tiebreakTargetScore}
           warmupFormat={tournament.warmupFormat}
           poolTiebreakCriteria={tournament.poolTiebreakCriteria}
+        />
+      )}
+      {isOrganizer && scheduleGroups.length > 0 && (
+        <ScheduleMatchTimesSection
+          tournamentId={tournament.id}
+          tournamentDate={tournament.date}
+          groups={scheduleGroups}
         />
       )}
       {isOrganizer && poolAssignmentBlocked && (

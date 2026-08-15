@@ -41,6 +41,8 @@ import { BracketMatchAdmin } from "../brackets/bracket-match-admin";
 import { BracketSeedingTable } from "../brackets/bracket-seeding-table";
 import { BracketSettingsPanel } from "../brackets/bracket-settings-panel";
 import { buildBracketSeedingReport } from "@/lib/tournaments/combined-bracket-standings";
+import { ScheduleMatchTimesSection } from "../matches/schedule-match-times-section";
+import { scheduleGroupsFromPlayData } from "@/lib/utils/schedule-times-groups";
 
 export async function TournamentBracketPanel({
   tournament,
@@ -193,6 +195,18 @@ export async function TournamentBracketPanel({
 
   const showBracketTiers = (tournament.bracketCount ?? 1) > 1;
 
+  const scheduleGroups = isOrganizer
+    ? scheduleGroupsFromPlayData(
+        [
+          ...(showCombined
+            ? playData.filter((d) => poolDivisionIds.has(d.id))
+            : []),
+          ...otherEligible,
+        ],
+        "brackets"
+      )
+    : [];
+
   return (
     <div className="space-y-6">
       {isOrganizer && poolDivisions.length > 0 && (
@@ -205,6 +219,13 @@ export async function TournamentBracketPanel({
           canRegenerate={regenerateState.canRegenerate}
           regenerateBlockedReason={regenerateState.reason}
           totalBracketTeams={totalBracketTeams}
+        />
+      )}
+      {isOrganizer && scheduleGroups.length > 0 && (
+        <ScheduleMatchTimesSection
+          tournamentId={tournament.id}
+          tournamentDate={tournament.date}
+          groups={scheduleGroups}
         />
       )}
 
