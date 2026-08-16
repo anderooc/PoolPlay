@@ -73,6 +73,10 @@ export function MatchStartTimeEditor({
   /** Optimistic label so the trigger updates before RSC refresh lands. */
   const [displayTime, setDisplayTime] = useState(scheduledTime);
   const [pendingToast, setPendingToast] = useState<PendingToast | null>(null);
+  const selectedMinutes = isoToMinutes(displayTime);
+  const [entry, setEntry] = useState<ClockEntry>(() =>
+    minutesToEntry(selectedMinutes)
+  );
 
   useEffect(() => {
     if (pendingToast) {
@@ -84,11 +88,6 @@ export function MatchStartTimeEditor({
     }
     setDisplayTime(scheduledTime);
   }, [scheduledTime, pendingToast]);
-
-  const selectedMinutes = isoToMinutes(displayTime);
-  const [entry, setEntry] = useState<ClockEntry>(() =>
-    minutesToEntry(selectedMinutes)
-  );
 
   useEffect(() => {
     if (open) {

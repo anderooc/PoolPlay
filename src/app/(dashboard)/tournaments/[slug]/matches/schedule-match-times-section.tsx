@@ -156,17 +156,6 @@ export function ScheduleMatchTimesSection({
       .map(([, value]) => value);
   }, [rows]);
 
-  if (groups.length === 0) return null;
-
-  function selectGroup(nextId: string) {
-    const next = groups.find((group) => group.id === nextId);
-    setGroupId(nextId);
-    setClockError(null);
-    setEntry(
-      minutesToEntry(isoToMinutes(next ? earliestScheduledIso(next) : null))
-    );
-  }
-
   // Confirm after the page refresh finishes so match cards show new times first.
   useEffect(() => {
     if (isRefreshing) {
@@ -178,6 +167,17 @@ export function ScheduleMatchTimesSection({
     toast.success(pendingToast);
     setPendingToast(null);
   }, [isRefreshing, pendingToast]);
+
+  if (groups.length === 0) return null;
+
+  function selectGroup(nextId: string) {
+    const next = groups.find((group) => group.id === nextId);
+    setGroupId(nextId);
+    setClockError(null);
+    setEntry(
+      minutesToEntry(isoToMinutes(next ? earliestScheduledIso(next) : null))
+    );
+  }
 
   async function handleApply() {
     if (!selectedGroup) return;
