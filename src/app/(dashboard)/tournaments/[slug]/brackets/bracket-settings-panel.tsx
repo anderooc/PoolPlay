@@ -241,23 +241,32 @@ export function BracketSettingsPanel({
 
   return (
     <>
-      <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 items-center gap-2">
+      <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <Settings2
-              className="hidden h-4 w-4 shrink-0 text-muted-foreground/60 sm:block"
+              className="hidden h-3.5 w-3.5 shrink-0 text-muted-foreground/60 sm:block"
               aria-hidden
             />
-            <p className="text-sm font-medium text-foreground">
-              Bracket settings
-            </p>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                Bracket settings
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                <span className="text-foreground/80">{facts.scoring}</span>
+                <span className="text-muted-foreground/50"> · </span>
+                <span className="text-foreground/80">{facts.structure}</span>
+                <span className="text-muted-foreground/50"> · </span>
+                <span className="text-foreground/80">{facts.advance}</span>
+              </p>
+            </div>
           </div>
-          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex shrink-0 items-center gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="h-9 w-full text-sm sm:h-8 sm:w-auto"
+              className="hidden h-8 text-sm sm:inline-flex"
               disabled={!canRegenerate || regenerating}
               title={
                 canRegenerate
@@ -275,7 +284,7 @@ export function BracketSettingsPanel({
               type="button"
               variant="outline"
               size="sm"
-              className="h-9 w-full text-sm sm:h-8 sm:w-auto"
+              className="h-8 text-sm"
               onClick={() => {
                 resetDrafts();
                 setOpen(true);
@@ -285,32 +294,26 @@ export function BracketSettingsPanel({
             </Button>
           </div>
         </div>
-        <dl className="mt-3 grid gap-2 sm:grid-cols-3">
-          <div className="min-w-0 rounded-md bg-background/60 px-2.5 py-2 ring-1 ring-border/40">
-            <dt className="text-xs font-medium text-muted-foreground">
-              Scoring
-            </dt>
-            <dd className="mt-0.5 text-sm font-medium text-foreground">
-              {facts.scoring}
-            </dd>
-          </div>
-          <div className="min-w-0 rounded-md bg-background/60 px-2.5 py-2 ring-1 ring-border/40">
-            <dt className="text-xs font-medium text-muted-foreground">
-              Structure
-            </dt>
-            <dd className="mt-0.5 text-sm font-medium text-foreground">
-              {facts.structure}
-            </dd>
-          </div>
-          <div className="min-w-0 rounded-md bg-background/60 px-2.5 py-2 ring-1 ring-border/40">
-            <dt className="text-xs font-medium text-muted-foreground">
-              Advancement
-            </dt>
-            <dd className="mt-0.5 text-sm font-medium text-foreground">
-              {facts.advance}
-            </dd>
-          </div>
-        </dl>
+        <div className="mt-2 flex sm:hidden">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 w-full text-sm"
+            disabled={!canRegenerate || regenerating}
+            title={
+              canRegenerate
+                ? "Re-seed brackets from current pool standings"
+                : regenerateBlockedReason
+            }
+            onClick={() => {
+              setError(null);
+              setConfirmRegenerateOpen(true);
+            }}
+          >
+            {regenerating ? "Regenerating…" : "Regenerate"}
+          </Button>
+        </div>
       </div>
 
       <Dialog

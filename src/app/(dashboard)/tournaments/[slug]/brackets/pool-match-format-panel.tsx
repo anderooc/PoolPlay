@@ -197,14 +197,25 @@ export function PoolMatchFormatPanel({
 
   return (
     <>
-      <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
+      <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <Settings2
-              className="hidden h-4 w-4 shrink-0 text-muted-foreground/60 sm:block"
+              className="hidden h-3.5 w-3.5 shrink-0 text-muted-foreground/60 sm:block"
               aria-hidden
             />
-            <p className="text-sm font-medium text-foreground">Pool settings</p>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Pool settings</p>
+              <p className="truncate text-xs text-muted-foreground">
+                <span className="text-foreground/80">{facts.match}</span>
+                <span className="text-muted-foreground/50"> · </span>
+                <span className="text-foreground/80">{facts.scoring}</span>
+                <span className="text-muted-foreground/50"> · </span>
+                <span className="text-foreground/80">{facts.warmup}</span>
+                <span className="text-muted-foreground/50"> · </span>
+                <span className="text-foreground/80">{facts.tieBreaks}</span>
+              </p>
+            </div>
           </div>
           <Button
             type="button"
@@ -219,34 +230,6 @@ export function PoolMatchFormatPanel({
             Edit
           </Button>
         </div>
-        <dl className="mt-3 grid gap-2 sm:grid-cols-2">
-          <div className="min-w-0 rounded-md bg-background/60 px-2.5 py-2 ring-1 ring-border/40">
-            <dt className="text-xs font-medium text-muted-foreground">Match</dt>
-            <dd className="mt-0.5 text-sm font-medium text-foreground">
-              {facts.match}
-            </dd>
-          </div>
-          <div className="min-w-0 rounded-md bg-background/60 px-2.5 py-2 ring-1 ring-border/40">
-            <dt className="text-xs font-medium text-muted-foreground">Scoring</dt>
-            <dd className="mt-0.5 text-sm font-medium text-foreground">
-              {facts.scoring}
-            </dd>
-          </div>
-          <div className="min-w-0 rounded-md bg-background/60 px-2.5 py-2 ring-1 ring-border/40">
-            <dt className="text-xs font-medium text-muted-foreground">Warmup</dt>
-            <dd className="mt-0.5 text-sm font-medium text-foreground">
-              {facts.warmup}
-            </dd>
-          </div>
-          <div className="min-w-0 rounded-md bg-background/60 px-2.5 py-2 ring-1 ring-border/40 sm:col-span-2">
-            <dt className="text-xs font-medium text-muted-foreground">
-              Tie-break order
-            </dt>
-            <dd className="mt-0.5 text-sm font-medium text-foreground">
-              {facts.tieBreaks}
-            </dd>
-          </div>
-        </dl>
       </div>
 
       <Dialog
