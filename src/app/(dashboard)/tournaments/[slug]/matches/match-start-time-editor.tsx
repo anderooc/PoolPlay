@@ -18,7 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Clock, X } from "lucide-react";
@@ -42,6 +42,12 @@ import {
   type ClockEntry,
 } from "./start-time-clock";
 
+type PendingToast = {
+  /** Minutes-of-day we expect on the trigger, or null when cleared. */
+  expectedMinutes: number | null;
+  message: string;
+};
+
 /**
  * Inline host control for editing a match's planned start time. Matches happen
  * on the tournament's single date, so this only sets a time of day (no
@@ -60,11 +66,26 @@ export function MatchStartTimeEditor({
   triggerLabel?: string;
 }) {
   const router = useRouter();
+  const [, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Optimistic label so the trigger updates before RSC refresh lands. */
+  const [displayTime, setDisplayTime] = useState(scheduledTime);
+  const [pendingToast, setPendingToast] = useState<PendingToast | null>(null);
 
-  const selectedMinutes = isoToMinutes(scheduledTime);
+  useEffect(() => {
+    if (pendingToast) {
+      // Keep the optimistic label until the refreshed prop matches what we saved.
+      if (isoToMinutes(scheduledTime) === pendingToast.expectedMinutes) {
+        setDisplayTime(scheduledTime);
+      }
+      return;
+    }
+    setDisplayTime(scheduledTime);
+  }, [scheduledTime, pendingToast]);
+
+  const selectedMinutes = isoToMinutes(displayTime);
   const [entry, setEntry] = useState<ClockEntry>(() =>
     minutesToEntry(selectedMinutes)
   );
@@ -76,17 +97,37 @@ export function MatchStartTimeEditor({
     }
   }, [open, selectedMinutes]);
 
+  // Toast only after the trigger label reflects the saved time.
+  useEffect(() => {
+    if (!pendingToast) return;
+    if (selectedMinutes !== pendingToast.expectedMinutes) return;
+    toast.success(pendingToast.message);
+    setPendingToast(null);
+  }, [pendingToast, selectedMinutes]);
+
   async function persist(iso: string | null) {
     setBusy(true);
+    const hadTime = isoToMinutes(displayTime) != null;
     const result = await updateMatchScheduledTime(matchId, iso);
     setBusy(false);
     if (result?.error) {
       toast.error(result.error);
       return;
     }
-    toast.success(iso ? "Start time updated" : "Start time cleared");
+
+    const message = !iso
+      ? "Start time cleared"
+      : hadTime
+        ? "Start time updated"
+        : "Start time added";
+
     setOpen(false);
-    router.refresh();
+    setDisplayTime(iso);
+    setPendingToast({
+      expectedMinutes: isoToMinutes(iso),
+      message,
+    });
+    startTransition(() => router.refresh());
   }
 
   function handleSave() {
@@ -96,7 +137,9 @@ export function MatchStartTimeEditor({
       return;
     }
     setError(null);
-    void persist(isoFromClockMinutes(tournamentDate, parsed.minutes, scheduledTime));
+    void persist(
+      isoFromClockMinutes(tournamentDate, parsed.minutes, displayTime)
+    );
   }
 
   const hasTime = selectedMinutes != null;
@@ -127,7 +170,7 @@ export function MatchStartTimeEditor({
             <button
               type="button"
               disabled={busy}
-              onClick={() => persist(null)}
+              onClick={() => void persist(null)}
               className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
             >
               <X className="h-3 w-3" />

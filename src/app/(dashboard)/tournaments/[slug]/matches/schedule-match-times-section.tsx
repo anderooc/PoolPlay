@@ -18,7 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format as formatDate } from "date-fns";
 import { ChevronDown, Clock } from "lucide-react";
@@ -111,12 +111,15 @@ export function ScheduleMatchTimesSection({
   groups: ScheduleTimesGroupDTO[];
 }) {
   const router = useRouter();
+  const [isRefreshing, startRefresh] = useTransition();
   const [open, setOpen] = useState(false);
   const [groupId, setGroupId] = useState(groups[0]?.id ?? "");
   const [interval, setInterval] = useState(DEFAULT_MATCH_INTERVAL_MINUTES);
   const [overwrite, setOverwrite] = useState(false);
   const [busy, setBusy] = useState(false);
   const [clockError, setClockError] = useState<string | null>(null);
+  const [pendingToast, setPendingToast] = useState<string | null>(null);
+  const sawRefreshRef = useRef(false);
   const selectedGroup =
     groups.find((group) => group.id === groupId) ?? groups[0] ?? null;
   const [entry, setEntry] = useState<ClockEntry>(() =>
@@ -163,6 +166,18 @@ export function ScheduleMatchTimesSection({
     );
   }
 
+  // Confirm after the page refresh finishes so match cards show new times first.
+  useEffect(() => {
+    if (isRefreshing) {
+      sawRefreshRef.current = true;
+      return;
+    }
+    if (!sawRefreshRef.current || !pendingToast) return;
+    sawRefreshRef.current = false;
+    toast.success(pendingToast);
+    setPendingToast(null);
+  }, [isRefreshing, pendingToast]);
+
   async function handleApply() {
     if (!selectedGroup) return;
     const parsed = validateClockEntry(entry);
@@ -185,12 +200,12 @@ export function ScheduleMatchTimesSection({
       toast.error(result.error);
       return;
     }
-    toast.success(
+    setPendingToast(
       result.updated === 1
         ? "Updated 1 start time"
         : `Updated ${result.updated} start times`
     );
-    router.refresh();
+    startRefresh(() => router.refresh());
   }
 
   const summary =
@@ -251,7 +266,12 @@ export function ScheduleMatchTimesSection({
                 onValueChange={(value) => selectGroup(String(value ?? ""))}
               >
                 <SelectTrigger id="schedule-group" className="w-full">
-                  <SelectValue />
+                  <SelectValue placeholder="Choose matches">
+                    {(value) =>
+                      groups.find((group) => group.id === value)?.label ??
+                      "Choose matches"
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {groups.map((group) => (
