@@ -147,10 +147,9 @@ export function BracketMatchAdmin({
     [matches, optimisticCourtByMatchId]
   );
 
+  // Include TBD later-round slots so hosts can assign courts before teams advance.
   const playableMatches = matches.filter(
     (m) =>
-      m.teamAId &&
-      m.teamBId &&
       !isBracketRoundOneByeMatch({
         teamAId: m.teamAId,
         teamBId: m.teamBId,
@@ -242,11 +241,11 @@ export function BracketMatchAdmin({
     <section className="rounded-xl border border-border/70 bg-card/40 shadow-[inset_0_1px_0_0_oklch(1_0_0/0.5)] dark:shadow-[inset_0_1px_0_0_oklch(1_0_0/0.06)]">
       <header className="border-b border-border/60 px-4 py-3 sm:px-5">
         <h3 className="font-heading text-base font-semibold tracking-tight">
-          {bracketName} — schedule & refs
+          {bracketName} — courts, times & refs
         </h3>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Round 1 refs: bye teams or later same-court matches · Later rounds:
-          previous-round losers
+          Assign courts before teams are known. Round 1 refs: bye teams or
+          later same-court matches · Later rounds: previous-round losers
         </p>
       </header>
 
@@ -411,34 +410,49 @@ function BracketMatchTile({
       </div>
 
       <div className="mt-auto space-y-2.5 border-t border-border/50 bg-muted/20 px-3 py-3">
-        <label className="flex items-center gap-2 text-sm">
-          <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-          <Select
-            value={courtId ?? COURT_NONE_VALUE}
-            onValueChange={(value) =>
-              onCourtChange(match.id, String(value ?? ""))
-            }
-            disabled={isUpdating || match.status === "completed"}
-          >
-            <SelectTrigger size="sm" className="h-9 min-w-0 flex-1">
-              <SelectValue placeholder="Court">
-                {(v) =>
-                  v && v !== COURT_NONE_VALUE
-                    ? (courts.find((c) => c.id === v)?.name ?? "Court")
-                    : "Assign court"
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={COURT_NONE_VALUE}>Unassigned</SelectItem>
-              {courts.map((court) => (
-                <SelectItem key={court.id} value={court.id}>
-                  {court.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </label>
+        {courts.length === 0 ? (
+          <p className="flex items-start gap-2 text-sm text-muted-foreground">
+            <MapPin
+              className="mt-0.5 h-3.5 w-3.5 shrink-0"
+              aria-hidden
+            />
+            <span>
+              Add courts in Setup to assign them to bracket matches.
+            </span>
+          </p>
+        ) : (
+          <label className="flex items-center gap-2 text-sm">
+            <MapPin
+              className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            <Select
+              value={courtId ?? COURT_NONE_VALUE}
+              onValueChange={(value) =>
+                onCourtChange(match.id, String(value ?? ""))
+              }
+              disabled={isUpdating || match.status === "completed"}
+            >
+              <SelectTrigger size="sm" className="h-9 min-w-0 flex-1">
+                <SelectValue placeholder="Court">
+                  {(v) =>
+                    v && v !== COURT_NONE_VALUE
+                      ? (courts.find((c) => c.id === v)?.name ?? "Court")
+                      : "Assign court"
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={COURT_NONE_VALUE}>Unassigned</SelectItem>
+                {courts.map((court) => (
+                  <SelectItem key={court.id} value={court.id}>
+                    {court.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+        )}
 
         {showRefControl ? (
           <label className="flex items-center gap-2 text-sm">

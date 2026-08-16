@@ -69,6 +69,7 @@ import {
   reopenMatch,
 } from "../actions";
 import { MatchStartTimeEditor } from "../match-start-time-editor";
+import { MatchCourtEditor } from "../match-court-editor";
 
 interface ConsoleMatch {
   id: string;
@@ -80,7 +81,10 @@ interface ConsoleMatch {
   teamA: { id: string; name: string } | null;
   teamB: { id: string; name: string } | null;
   refTeamName: string | null;
+  courtId: string | null;
   courtName: string | null;
+  /** When set, organizers can assign a court from the console. */
+  bracketId: string | null;
   sets: { setNumber: number; teamAScore: number; teamBScore: number }[];
 }
 
@@ -96,9 +100,11 @@ const SAVE_DEBOUNCE_MS = 1000;
 
 export function MatchConsole({
   slug,
+  tournamentId,
   tournamentDate,
   match,
   settings,
+  courts,
   canControl,
   isOrganizer,
   isRefMember,
@@ -108,6 +114,7 @@ export function MatchConsole({
   tournamentDate: string;
   match: ConsoleMatch;
   settings: ConsoleSettings;
+  courts: { id: string; name: string }[];
   canControl: boolean;
   isOrganizer: boolean;
   isRefMember: boolean;
@@ -273,11 +280,21 @@ export function MatchConsole({
             />
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            {match.courtName && (
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
-                {match.courtName}
-              </span>
+            {isOrganizer && match.bracketId ? (
+              <MatchCourtEditor
+                tournamentId={tournamentId}
+                matchId={match.id}
+                courtId={match.courtId}
+                courts={courts}
+                disabled={match.status === "completed"}
+              />
+            ) : (
+              match.courtName && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {match.courtName}
+                </span>
+              )
             )}
             <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
               {isOrganizer ? (

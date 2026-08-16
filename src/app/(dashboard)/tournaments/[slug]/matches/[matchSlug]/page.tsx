@@ -124,7 +124,7 @@ export default async function MatchPage({ params }: Props) {
     }
   }
 
-  const [teamA, teamB, refTeam, courtRow, matchSets, memberRows] =
+  const [teamA, teamB, refTeam, courtRow, tournamentCourts, matchSets, memberRows] =
     await Promise.all([
       loadTeam(match.teamAId),
       loadTeam(match.teamBId),
@@ -135,6 +135,13 @@ export default async function MatchPage({ params }: Props) {
             .from(courts)
             .where(eq(courts.id, match.courtId))
             .limit(1)
+        : Promise.resolve([]),
+      match.bracketId
+        ? db
+            .select({ id: courts.id, name: courts.name })
+            .from(courts)
+            .where(eq(courts.tournamentId, tournament.id))
+            .orderBy(asc(courts.name), asc(courts.id))
         : Promise.resolve([]),
       db
         .select({
@@ -214,7 +221,9 @@ export default async function MatchPage({ params }: Props) {
           teamA,
           teamB,
           refTeamName: refTeam?.name ?? null,
+          courtId: match.courtId,
           courtName: courtRow[0]?.name ?? null,
+          bracketId: match.bracketId,
           sets: matchSets,
         }}
         settings={{
@@ -224,6 +233,7 @@ export default async function MatchPage({ params }: Props) {
           tiebreakTargetScore: tournament.tiebreakTargetScore,
           warmupFormat: tournament.warmupFormat,
         }}
+        courts={tournamentCourts}
         canControl={canControl}
         isOrganizer={isOrganizer}
         isRefMember={isRefMember}
