@@ -34,6 +34,7 @@ import { requireUser } from "@/lib/auth";
 import { resolveIsTournamentOrganizer } from "@/lib/tournaments/permissions";
 import { isTournamentArchived } from "@/lib/tournament-status";
 import { assignBracketRefsForBracket } from "@/lib/tournaments/bracket-structure";
+import { bracketScheduleLabel } from "@/lib/tournaments/bracket-tiers";
 import { isBracketRoundOneByeMatch } from "@/lib/utils/bracket";
 import {
   assignIndexWaves,
@@ -148,6 +149,7 @@ async function loadBracketMatches(
     .select({
       id: brackets.id,
       name: brackets.name,
+      tier: brackets.tier,
       tournamentId: divisions.tournamentId,
     })
     .from(brackets)
@@ -175,7 +177,7 @@ async function loadBracketMatches(
     .where(eq(matches.bracketId, bracketId))
     .orderBy(asc(matches.bracketRound), asc(matches.id));
 
-  const groupName = bracket.name?.trim() || "Bracket";
+  const groupName = bracketScheduleLabel(bracket);
   return {
     bracketId,
     matches: rows.map((row) => ({

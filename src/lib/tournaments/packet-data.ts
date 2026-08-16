@@ -44,6 +44,7 @@ import {
   paymentSettingsFromTournament,
 } from "@/lib/tournaments/payment-settings";
 import { warmupMinutesForFormat } from "@/lib/labels/warmup-format";
+import { bracketDisplayName } from "@/lib/tournaments/bracket-tiers";
 import { format } from "date-fns";
 
 export type PacketRegisteredTeam = {
@@ -232,7 +233,11 @@ export async function gatherPacketData(
         : Promise.resolve([]),
       bracketIds.length
         ? db
-            .select({ id: brackets.id, name: brackets.name })
+            .select({
+              id: brackets.id,
+              name: brackets.name,
+              tier: brackets.tier,
+            })
             .from(brackets)
             .where(inArray(brackets.id, bracketIds))
         : Promise.resolve([]),
@@ -256,7 +261,7 @@ export async function gatherPacketData(
   const courtNameById = new Map(courtRows.map((c) => [c.id, c.name]));
   const poolNameById = new Map(poolRows.map((p) => [p.id, p.name]));
   const bracketNameById = new Map(
-    bracketRows.map((b) => [b.id, b.name ?? "Bracket"])
+    bracketRows.map((b) => [b.id, bracketDisplayName(b)])
   );
 
   const maxRoundByBracket = new Map<string, number>();

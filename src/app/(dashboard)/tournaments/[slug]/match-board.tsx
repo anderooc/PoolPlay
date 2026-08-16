@@ -26,6 +26,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { buildMatchScoreState } from "@/lib/tournaments/match-format";
 import type { MatchFormat } from "@/lib/labels/match-format";
 import { isBracketRoundOneByeMatch } from "@/lib/utils/bracket";
+import { bracketScheduleLabel } from "@/lib/tournaments/bracket-tiers";
 import { cn } from "@/lib/utils";
 import type { DivisionPlayData } from "./brackets/data";
 
@@ -57,6 +58,7 @@ interface FormatSettings {
 
 function flattenMatches(divisions: DivisionPlayData[]): BoardMatch[] {
   const out: BoardMatch[] = [];
+
   for (const div of divisions) {
     for (const pool of div.pools) {
       for (const m of pool.matches) {
@@ -76,35 +78,44 @@ function flattenMatches(divisions: DivisionPlayData[]): BoardMatch[] {
         });
       }
     }
-    for (const bracket of div.brackets) {
-      for (const m of bracket.matches) {
-        if (!m.teamAName && !m.teamBName) continue;
-        if (
-          isBracketRoundOneByeMatch({
-            bracketRound: m.bracketRound,
-            teamAId: m.teamAId,
-            teamBId: m.teamBId,
-          })
-        ) {
-          continue;
-        }
-        out.push({
-          id: m.id,
-          slug: m.slug,
-          status: m.status,
-          scheduledTime: m.scheduledTime,
-          context: `${div.name} · Bracket`,
-          teamAName: m.teamAName,
-          teamBName: m.teamBName,
-          winnerId: m.winnerId,
+  }
+
+  const brackets = divisions
+    .flatMap((div) => div.brackets)
+    .sort((a, b) => a.tier - b.tier);
+  const seenBrackets = new Set<string>();
+
+  for (const bracket of brackets) {
+    if (seenBrackets.has(bracket.id)) continue;
+    seenBrackets.add(bracket.id);
+    for (const m of bracket.matches) {
+      if (!m.teamAName && !m.teamBName) continue;
+      if (
+        isBracketRoundOneByeMatch({
+          bracketRound: m.bracketRound,
           teamAId: m.teamAId,
           teamBId: m.teamBId,
-          refName: null,
-          sets: m.sets,
-        });
+        })
+      ) {
+        continue;
       }
+      out.push({
+        id: m.id,
+        slug: m.slug,
+        status: m.status,
+        scheduledTime: m.scheduledTime,
+        context: bracketScheduleLabel(bracket),
+        teamAName: m.teamAName,
+        teamBName: m.teamBName,
+        winnerId: m.winnerId,
+        teamAId: m.teamAId,
+        teamBId: m.teamBId,
+        refName: null,
+        sets: m.sets,
+      });
     }
   }
+
   return out;
 }
 

@@ -29,6 +29,7 @@ import {
   DEFAULT_BRACKET_SLOTS,
   isBracketRoundOneByeMatch,
 } from "@/lib/utils/bracket";
+import { bracketDisplayName } from "@/lib/tournaments/bracket-tiers";
 
 interface BracketMatch {
   id: string;
@@ -103,7 +104,7 @@ export function BracketView({
     return (
       <section className="rounded-xl border border-border/70 bg-card/40 px-4 py-8 text-center shadow-[inset_0_1px_0_0_oklch(1_0_0/0.5)] dark:shadow-[inset_0_1px_0_0_oklch(1_0_0/0.06)]">
         <h3 className="font-heading text-base font-semibold tracking-tight sm:text-lg">
-          {bracket.name ? `${bracket.name} Bracket` : "Bracket"}
+          {`${bracketDisplayName(bracket)} Bracket`}
         </h3>
         <p className="mt-2 text-sm text-muted-foreground">
           Seeds automatically when pool play finishes in every pool.
@@ -122,11 +123,7 @@ export function BracketView({
     return `R${round}`;
   }
 
-  const title = bracket.name
-    ? `${bracket.name} Bracket`
-    : bracket.bracketType === "double_elimination"
-      ? formatBracketTypeLabel(bracket.bracketType)
-      : "Bracket";
+  const title = `${bracketDisplayName(bracket)} Bracket`;
 
   const showBracketType =
     bracket.bracketType === "double_elimination" && !bracket.name;

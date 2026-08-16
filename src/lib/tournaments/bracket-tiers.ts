@@ -27,6 +27,23 @@ export function bracketTierName(tier: number): string {
   return BRACKET_TIER_NAMES[tier] ?? `Bracket ${tier + 1}`;
 }
 
+/** Host-facing bracket title from stored name or tier (never a pool/division name). */
+export function bracketDisplayName(bracket: {
+  name: string | null | undefined;
+  tier: number;
+}): string {
+  const named = bracket.name?.trim();
+  return named || bracketTierName(bracket.tier);
+}
+
+/** Schedule / admin label, e.g. "Gold bracket". */
+export function bracketScheduleLabel(bracket: {
+  name: string | null | undefined;
+  tier: number;
+}): string {
+  return `${bracketDisplayName(bracket)} bracket`;
+}
+
 export type BracketTierSettingsValidation =
   | { ok: true; tiers: number[] }
   | { ok: false; error: string };

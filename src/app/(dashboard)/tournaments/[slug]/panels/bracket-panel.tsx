@@ -41,6 +41,7 @@ import { BracketMatchAdmin } from "../brackets/bracket-match-admin";
 import { BracketSeedingTable } from "../brackets/bracket-seeding-table";
 import { BracketSettingsPanel } from "../brackets/bracket-settings-panel";
 import { buildBracketSeedingReport } from "@/lib/tournaments/combined-bracket-standings";
+import { bracketScheduleLabel } from "@/lib/tournaments/bracket-tiers";
 import { ScheduleMatchTimesSection } from "../matches/schedule-match-times-section";
 import { scheduleGroupsFromPlayData } from "@/lib/utils/schedule-times-groups";
 
@@ -275,7 +276,7 @@ export async function TournamentBracketPanel({
                           tournamentId={tournament.id}
                           slug={tournament.slug}
                           tournamentDate={tournament.date}
-                          bracketName={bracket.name ?? "Bracket"}
+                          bracketName={bracketScheduleLabel(bracket)}
                           matches={bracket.matches}
                           courts={tournamentCourts}
                           teamLabels={teamLabels}
@@ -324,9 +325,7 @@ export async function TournamentBracketPanel({
                               tournamentId={tournament.id}
                               slug={tournament.slug}
                               tournamentDate={tournament.date}
-                              bracketName={
-                                bracket.name ?? `${div.name} bracket`
-                              }
+                              bracketName={bracketScheduleLabel(bracket)}
                               matches={bracket.matches}
                               courts={tournamentCourts}
                               teamLabels={teamLabels}

@@ -17,6 +17,7 @@
  */
 
 import { isBracketRoundOneByeMatch } from "@/lib/utils/bracket";
+import { bracketScheduleLabel } from "@/lib/tournaments/bracket-tiers";
 import {
   assignIndexWaves,
   type MatchTimeFillStatus,
@@ -57,6 +58,7 @@ type PlayPool = {
 type PlayBracket = {
   id: string;
   name: string | null;
+  tier: number;
   matches: {
     id: string;
     status: string;
@@ -123,10 +125,9 @@ export function poolScheduleGroup(
 }
 
 export function bracketScheduleGroup(
-  bracket: PlayBracket,
-  fallbackLabel: string
+  bracket: PlayBracket
 ): ScheduleTimesGroupDTO | null {
-  const label = bracket.name?.trim() || fallbackLabel;
+  const label = bracketScheduleLabel(bracket);
   const matches: ScheduleTimesMatchDTO[] = bracket.matches.map((match) => ({
     id: match.id,
     groupId: bracket.id,
@@ -155,22 +156,30 @@ export function scheduleGroupsFromPlayData(
   divisions: PlayDivision[],
   kind: "pools" | "brackets" | "all"
 ): ScheduleTimesGroupDTO[] {
-  const groups: ScheduleTimesGroupDTO[] = [];
+  const poolGroups: ScheduleTimesGroupDTO[] = [];
+  const bracketEntries: { tier: number; group: ScheduleTimesGroupDTO }[] = [];
   const seenBrackets = new Set<string>();
 
   for (const division of divisions) {
     if (kind === "pools" || kind === "all") {
       const group = poolScheduleGroup(division);
-      if (group) groups.push(group);
+      if (group) poolGroups.push(group);
     }
+  }
+
+  for (const division of divisions) {
     if (kind === "brackets" || kind === "all") {
       for (const bracket of division.brackets) {
         if (seenBrackets.has(bracket.id)) continue;
         seenBrackets.add(bracket.id);
-        const group = bracketScheduleGroup(bracket, `${division.name} bracket`);
-        if (group) groups.push(group);
+        const group = bracketScheduleGroup(bracket);
+        if (group) {
+          bracketEntries.push({ tier: bracket.tier, group });
+        }
       }
     }
   }
-  return groups;
+
+  bracketEntries.sort((a, b) => a.tier - b.tier);
+  return [...poolGroups, ...bracketEntries.map((entry) => entry.group)];
 }

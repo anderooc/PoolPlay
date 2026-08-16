@@ -291,7 +291,7 @@ export async function ensureTournamentCombinedBrackets(
       divisionId: ownerId,
       bracketType: "single_elimination",
       seedCount: 0,
-      name: desiredCount > 1 ? bracketTierName(tier) : null,
+      name: bracketTierName(tier),
       tier,
     });
   }
