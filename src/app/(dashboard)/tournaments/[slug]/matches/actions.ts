@@ -35,6 +35,7 @@ import {
   resolveIsTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
 import { getMatchTournamentId } from "@/lib/tournaments/match-query";
+import { assertNoCourtScheduleConflict } from "@/lib/tournaments/court-schedule";
 import { tryFillBracketFromPoolPlay, assignBracketRefsForBracket } from "@/lib/tournaments/bracket-structure";
 import { revertTournamentIfBracketsIncomplete } from "@/lib/tournaments/tournament-completion";
 import {
@@ -357,10 +358,23 @@ export async function updateMatchScheduledTime(
   }
 
   const [match] = await db
-    .select({ bracketId: matches.bracketId, courtId: matches.courtId })
+    .select({
+      bracketId: matches.bracketId,
+      courtId: matches.courtId,
+    })
     .from(matches)
     .where(eq(matches.id, matchId))
     .limit(1);
+
+  if (scheduledTime) {
+    const conflict = await assertNoCourtScheduleConflict({
+      tournamentId,
+      matchId,
+      courtId: match?.courtId ?? null,
+      scheduledTime,
+    });
+    if (conflict) return conflict;
+  }
 
   await db
     .update(matches)

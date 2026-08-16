@@ -110,7 +110,7 @@ export function MatchStartTimeEditor({
     const hadTime = isoToMinutes(displayTime) != null;
     const result = await updateMatchScheduledTime(matchId, iso);
     setBusy(false);
-    if (result?.error) {
+    if (result && "error" in result && result.error) {
       toast.error(result.error);
       return;
     }

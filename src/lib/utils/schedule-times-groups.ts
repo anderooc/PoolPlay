@@ -31,6 +31,7 @@ export type ScheduleTimesMatchDTO = {
   wave: number;
   status: MatchTimeFillStatus;
   scheduledTime: string | null;
+  courtId: string | null;
   teamAName: string | null;
   teamBName: string | null;
   isBye: boolean;
@@ -50,6 +51,7 @@ type PlayPool = {
     id: string;
     status: string;
     scheduledTime: Date | string | null;
+    courtId?: string | null;
     teamA: { name: string } | null;
     teamB: { name: string } | null;
   }[];
@@ -63,6 +65,7 @@ type PlayBracket = {
     id: string;
     status: string;
     scheduledTime: Date | string | null;
+    courtId?: string | null;
     bracketRound: number | null;
     teamAId: string | null;
     teamBId: string | null;
@@ -110,6 +113,7 @@ export function poolScheduleGroup(
       wave: waves.get(match.id) ?? 0,
       status: asStatus(match.status),
       scheduledTime: timeIso(match.scheduledTime),
+      courtId: match.courtId ?? null,
       teamAName: match.teamA?.name ?? null,
       teamBName: match.teamB?.name ?? null,
       isBye: false,
@@ -135,6 +139,7 @@ export function bracketScheduleGroup(
     wave: match.bracketRound ?? 1,
     status: asStatus(match.status),
     scheduledTime: timeIso(match.scheduledTime),
+    courtId: match.courtId ?? null,
     teamAName: match.teamAName ?? match.teamA?.name ?? null,
     teamBName: match.teamBName ?? match.teamB?.name ?? null,
     isBye: isBracketRoundOneByeMatch({

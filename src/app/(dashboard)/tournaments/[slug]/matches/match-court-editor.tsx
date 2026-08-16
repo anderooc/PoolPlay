@@ -71,11 +71,13 @@ export function MatchCourtEditor({
     const previous = selectedCourtId;
     setSelectedCourtId(next);
     const result = await updateBracketMatchCourt(tournamentId, matchId, next);
-    if (result.success) {
+    if ("success" in result && result.success) {
       startTransition(() => router.refresh());
     } else {
       setSelectedCourtId(previous);
-      toast.error(result.error ?? "Could not update court");
+      toast.error(
+        "error" in result ? result.error : "Could not update court"
+      );
     }
   }
 

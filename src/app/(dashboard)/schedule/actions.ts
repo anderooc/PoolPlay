@@ -34,6 +34,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { requireUser } from "@/lib/auth";
 import { canScheduleMatches } from "@/lib/tournaments/permissions";
 import { getMatchTournamentId } from "@/lib/tournaments/match-query";
+import { assertNoCourtScheduleConflict } from "@/lib/tournaments/court-schedule";
 import { autoScheduleMatchesWithCourtSets } from "@/lib/utils/scheduling";
 import { warmupMinutesForFormat } from "@/lib/labels/warmup-format";
 
@@ -181,11 +182,24 @@ export async function updateMatchSchedule(
     return { error: "Only the organizer can update match schedules during setup." };
   }
 
+  const parsed = new Date(scheduledTime);
+  if (Number.isNaN(parsed.getTime())) {
+    return { error: "Enter a valid start time." };
+  }
+
+  const conflict = await assertNoCourtScheduleConflict({
+    tournamentId,
+    matchId,
+    courtId,
+    scheduledTime: parsed,
+  });
+  if (conflict) return conflict;
+
   await db
     .update(matches)
     .set({
       courtId,
-      scheduledTime: new Date(scheduledTime),
+      scheduledTime: parsed,
       updatedAt: new Date(),
     })
     .where(eq(matches.id, matchId));

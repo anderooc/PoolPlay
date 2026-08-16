@@ -218,17 +218,17 @@ export function BracketMatchAdmin({
       matchId,
       courtId
     );
-    if (result.success) {
+    if ("success" in result && result.success) {
       setOptimisticCourtByMatchId((current) => {
         const next = new Map(current);
         next.set(matchId, courtId);
         return next;
       });
       startTransition(() => router.refresh());
-    } else if (result.error) {
+    } else if ("error" in result && result.error) {
       setErrorByMatchId((current) => {
         const next = new Map(current);
-        next.set(matchId, result.error!);
+        next.set(matchId, result.error);
         return next;
       });
     }

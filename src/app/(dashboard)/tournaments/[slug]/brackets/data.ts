@@ -54,6 +54,7 @@ export type DivisionPlayData = {
       winnerId: string | null;
       status: string;
       scheduledTime: Date | null;
+      courtId: string | null;
       teamA: { id: string; name: string } | null;
       teamB: { id: string; name: string } | null;
       ref: { id: string; name: string } | null;
@@ -333,6 +334,7 @@ export async function getDivisionPlayData(
           winnerId: m.winnerId,
           status: m.status,
           scheduledTime: m.scheduledTime,
+          courtId: m.courtId,
           sets: setsByMatch.get(m.id) ?? [],
           teamA: teamA ? { id: teamA.id, name: teamA.name } : null,
           teamB: teamB ? { id: teamB.id, name: teamB.name } : null,

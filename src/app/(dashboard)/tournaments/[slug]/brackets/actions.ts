@@ -33,6 +33,7 @@ import {
 import { eq, and, count } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import type { UserForPermissions } from "@/lib/tournaments/permissions";
+import { assertNoCourtScheduleConflict } from "@/lib/tournaments/court-schedule";
 import {
   canAssignTeamsToPools,
   resolveIsTournamentOrganizer,
@@ -317,6 +318,7 @@ export async function updateBracketMatchCourt(
       id: matches.id,
       bracketId: matches.bracketId,
       status: matches.status,
+      scheduledTime: matches.scheduledTime,
     })
     .from(matches)
     .where(eq(matches.id, matchId))
@@ -339,6 +341,14 @@ export async function updateBracketMatchCourt(
     if (!court) {
       return { error: "Court not found" };
     }
+
+    const conflict = await assertNoCourtScheduleConflict({
+      tournamentId,
+      matchId,
+      courtId,
+      scheduledTime: match.scheduledTime,
+    });
+    if (conflict) return conflict;
   }
 
   await db

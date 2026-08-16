@@ -95,6 +95,7 @@ function scheduledCount(group: ScheduleTimesGroupDTO): {
 
 function rowNote(row: MatchTimeFillRow): string | null {
   if (row.kind === "locked") return "Completed or in progress, skipped";
+  if (row.courtConflict) return "Court already booked at this time";
   if (row.kind === "keep" && row.currentIso) {
     return `Keeping ${timeLabel(row.currentIso)}`;
   }

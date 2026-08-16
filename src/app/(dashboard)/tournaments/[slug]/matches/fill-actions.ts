@@ -35,6 +35,7 @@ import { resolveIsTournamentOrganizer } from "@/lib/tournaments/permissions";
 import { isTournamentArchived } from "@/lib/tournament-status";
 import { assignBracketRefsForBracket } from "@/lib/tournaments/bracket-structure";
 import { bracketScheduleLabel } from "@/lib/tournaments/bracket-tiers";
+import { loadTournamentCourtOccupancy } from "@/lib/tournaments/court-schedule";
 import { isBracketRoundOneByeMatch } from "@/lib/utils/bracket";
 import {
   assignIndexWaves,
@@ -100,6 +101,7 @@ async function loadPoolDivisionMatches(
       poolId: matches.poolId,
       status: matches.status,
       scheduledTime: matches.scheduledTime,
+      courtId: matches.courtId,
       teamAName: teamA.name,
       teamBName: teamB.name,
     })
@@ -130,6 +132,7 @@ async function loadPoolDivisionMatches(
           wave: waves.get(row.id) ?? 0,
           status: asStatus(row.status),
           scheduledTime: row.scheduledTime,
+          courtId: row.courtId,
           teamAName: row.teamAName,
           teamBName: row.teamBName,
           isBye: false,
@@ -165,6 +168,7 @@ async function loadBracketMatches(
       id: matches.id,
       status: matches.status,
       scheduledTime: matches.scheduledTime,
+      courtId: matches.courtId,
       bracketRound: matches.bracketRound,
       teamAId: matches.teamAId,
       teamBId: matches.teamBId,
@@ -187,6 +191,7 @@ async function loadBracketMatches(
       wave: row.bracketRound ?? 1,
       status: asStatus(row.status),
       scheduledTime: row.scheduledTime,
+      courtId: row.courtId,
       teamAName: row.teamAName,
       teamBName: row.teamBName,
       isBye: isBracketRoundOneByeMatch({
@@ -219,11 +224,18 @@ export async function applyMatchTimeFill(
       : await loadBracketMatches(tournamentId, scope.bracketId);
   if ("error" in loaded) return { error: loaded.error };
 
+  const occupancy = await loadTournamentCourtOccupancy(tournamentId);
+  const groupIds = new Set(loaded.matches.map((match) => match.id));
+  const externalOccupancy = occupancy.filter(
+    (occupant) => !groupIds.has(occupant.matchId)
+  );
+
   const rows = proposeMatchTimeFill({
     matches: loaded.matches,
     firstStart,
     intervalMinutes: clampMatchIntervalMinutes(intervalMinutes),
     overwrite,
+    externalOccupancy,
   });
   const toApply = rows.filter((row) => row.kind === "apply");
   if (toApply.length === 0) {

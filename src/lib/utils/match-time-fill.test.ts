@@ -37,6 +37,7 @@ function poolMatch(
     groupName: partial.groupId === "a" ? "Pool A" : "Pool B",
     status: "upcoming",
     scheduledTime: null,
+    courtId: null,
     teamAName: "Alpha",
     teamBName: "Beta",
     isBye: false,
@@ -201,6 +202,7 @@ describe("proposeMatchTimeFill", () => {
           wave: 1,
           status: "upcoming",
           scheduledTime: null,
+          courtId: null,
           teamAName: "Seed 1",
           teamBName: "Seed 8",
           isBye: false,
@@ -212,6 +214,7 @@ describe("proposeMatchTimeFill", () => {
           wave: 1,
           status: "upcoming",
           scheduledTime: null,
+          courtId: null,
           teamAName: "Seed 2",
           teamBName: null,
           isBye: true,
@@ -223,5 +226,32 @@ describe("proposeMatchTimeFill", () => {
       undefined
     );
     assert.equal(rows.find((row) => row.matchId === "r1")?.kind, "apply");
+  });
+
+  it("skips a same-court collision and keeps the already-set match", () => {
+    const rows = proposeMatchTimeFill({
+      firstStart: T0,
+      intervalMinutes: 60,
+      overwrite: true,
+      matches: [
+        poolMatch({
+          id: "a0",
+          groupId: "a",
+          wave: 0,
+          courtId: "c1",
+          scheduledTime: T0,
+        }),
+        poolMatch({
+          id: "b0",
+          groupId: "b",
+          wave: 0,
+          courtId: "c1",
+          scheduledTime: null,
+        }),
+      ],
+    });
+    assert.equal(rows.find((row) => row.matchId === "a0")?.kind, "keep");
+    assert.equal(rows.find((row) => row.matchId === "b0")?.kind, "keep");
+    assert.equal(rows.find((row) => row.matchId === "b0")?.courtConflict, true);
   });
 });

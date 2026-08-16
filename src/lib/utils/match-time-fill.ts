@@ -16,6 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import {
+  resolveCourtScheduleApplies,
+  type CourtScheduleOccupant,
+} from "./court-schedule-conflict";
+
 export const DEFAULT_MATCH_INTERVAL_MINUTES = 60;
 export const MIN_MATCH_INTERVAL_MINUTES = 5;
 export const MAX_MATCH_INTERVAL_MINUTES = 180;
@@ -30,6 +35,7 @@ export type MatchTimeFillInput = {
   wave: number;
   status: MatchTimeFillStatus;
   scheduledTime: Date | null;
+  courtId: string | null;
   teamAName: string | null;
   teamBName: string | null;
   isBye: boolean;
@@ -45,6 +51,8 @@ export type MatchTimeFillRow = {
   currentIso: string | null;
   proposedIso: string;
   kind: MatchTimeFillKind;
+  /** True when skipped because another match already holds this court+time. */
+  courtConflict?: boolean;
 };
 
 export type ScheduleTimesScope =
@@ -97,17 +105,21 @@ export function minPlayableWave(matches: MatchTimeFillInput[]): number | null {
  * Propose start times from a first-wave clock time. Same wave copies that
  * time (parallel courts); later waves add `intervalMinutes`. Completed and
  * in-progress matches are locked. Existing times are kept unless overwrite.
+ * Same-court collisions keep the match that already held the slot.
  */
 export function proposeMatchTimeFill({
   matches,
   firstStart,
   intervalMinutes,
   overwrite,
+  externalOccupancy = [],
 }: {
   matches: MatchTimeFillInput[];
   firstStart: Date;
   intervalMinutes: number;
   overwrite: boolean;
+  /** Other tournament matches already booked on a court (outside this group). */
+  externalOccupancy?: CourtScheduleOccupant[];
 }): MatchTimeFillRow[] {
   const startWave = minPlayableWave(matches);
   if (startWave == null || Number.isNaN(firstStart.getTime())) return [];
@@ -115,6 +127,15 @@ export function proposeMatchTimeFill({
   const intervalMs = clampMatchIntervalMinutes(intervalMinutes) * 60 * 1000;
   const startMs = firstStart.getTime();
   const rows: MatchTimeFillRow[] = [];
+  const metaById = new Map(
+    matches.map((match) => [
+      match.id,
+      {
+        courtId: match.courtId,
+        currentTime: match.scheduledTime,
+      },
+    ])
+  );
 
   for (const match of matches) {
     if (match.isBye) continue;
@@ -151,7 +172,37 @@ export function proposeMatchTimeFill({
     rows.push({ ...base, kind: "apply" });
   }
 
-  return rows.sort((a, b) => {
+  const applyRows = rows.filter((row) => row.kind === "apply");
+  const occupancy: CourtScheduleOccupant[] = [...externalOccupancy];
+  for (const match of matches) {
+    if (!match.courtId || !match.scheduledTime) continue;
+    if (applyRows.some((row) => row.matchId === match.id)) continue;
+    occupancy.push({
+      matchId: match.id,
+      courtId: match.courtId,
+      scheduledTime: match.scheduledTime,
+    });
+  }
+
+  const { rejectedIds } = resolveCourtScheduleApplies(
+    applyRows.map((row) => {
+      const meta = metaById.get(row.matchId);
+      return {
+        matchId: row.matchId,
+        proposedIso: row.proposedIso,
+        courtId: meta?.courtId ?? null,
+        currentTime: meta?.currentTime ?? null,
+      };
+    }),
+    occupancy
+  );
+
+  const resolved = rows.map((row) => {
+    if (row.kind !== "apply" || !rejectedIds.has(row.matchId)) return row;
+    return { ...row, kind: "keep" as const, courtConflict: true };
+  });
+
+  return resolved.sort((a, b) => {
     if (a.wave !== b.wave) return a.wave - b.wave;
     const group = a.groupName.localeCompare(b.groupName);
     if (group !== 0) return group;
