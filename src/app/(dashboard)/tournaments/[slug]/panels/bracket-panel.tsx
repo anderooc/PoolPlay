@@ -209,24 +209,34 @@ export async function TournamentBracketPanel({
 
   return (
     <div className="space-y-6">
-      {isOrganizer && poolDivisions.length > 0 && (
-        <BracketSettingsPanel
-          tournamentId={tournament.id}
-          bracketCount={tournament.bracketCount ?? 1}
-          goldTeamCount={tournament.goldTeamCount ?? null}
-          silverTeamCount={tournament.silverTeamCount ?? null}
-          locked={combinedLocked}
-          canRegenerate={regenerateState.canRegenerate}
-          regenerateBlockedReason={regenerateState.reason}
-          totalBracketTeams={totalBracketTeams}
-        />
-      )}
-      {isOrganizer && scheduleGroups.length > 0 && (
-        <ScheduleMatchTimesSection
-          tournamentId={tournament.id}
-          tournamentDate={tournament.date}
-          groups={scheduleGroups}
-        />
+      {isOrganizer && (poolDivisions.length > 0 || scheduleGroups.length > 0) && (
+        <div
+          className={
+            poolDivisions.length > 0 && scheduleGroups.length > 0
+              ? "grid gap-3 lg:grid-cols-2"
+              : undefined
+          }
+        >
+          {poolDivisions.length > 0 && (
+            <BracketSettingsPanel
+              tournamentId={tournament.id}
+              bracketCount={tournament.bracketCount ?? 1}
+              goldTeamCount={tournament.goldTeamCount ?? null}
+              silverTeamCount={tournament.silverTeamCount ?? null}
+              locked={combinedLocked}
+              canRegenerate={regenerateState.canRegenerate}
+              regenerateBlockedReason={regenerateState.reason}
+              totalBracketTeams={totalBracketTeams}
+            />
+          )}
+          {scheduleGroups.length > 0 && (
+            <ScheduleMatchTimesSection
+              tournamentId={tournament.id}
+              tournamentDate={tournament.date}
+              groups={scheduleGroups}
+            />
+          )}
+        </div>
       )}
 
       {!hasAnything ? (

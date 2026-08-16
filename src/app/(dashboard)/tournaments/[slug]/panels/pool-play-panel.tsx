@@ -129,22 +129,28 @@ export async function TournamentPoolPlayPanel({
     <div className="space-y-6">
       {focusPoolId ? <ScrollToPool poolId={focusPoolId} /> : null}
       {isOrganizer && (
-        <PoolMatchFormatPanel
-          tournamentId={tournament.id}
-          matchFormat={tournament.matchFormat}
-          setStartingScore={tournament.setStartingScore}
-          setTargetScore={tournament.setTargetScore}
-          tiebreakTargetScore={tournament.tiebreakTargetScore}
-          warmupFormat={tournament.warmupFormat}
-          poolTiebreakCriteria={tournament.poolTiebreakCriteria}
-        />
-      )}
-      {isOrganizer && scheduleGroups.length > 0 && (
-        <ScheduleMatchTimesSection
-          tournamentId={tournament.id}
-          tournamentDate={tournament.date}
-          groups={scheduleGroups}
-        />
+        <div
+          className={
+            scheduleGroups.length > 0 ? "grid gap-3 lg:grid-cols-2" : undefined
+          }
+        >
+          <PoolMatchFormatPanel
+            tournamentId={tournament.id}
+            matchFormat={tournament.matchFormat}
+            setStartingScore={tournament.setStartingScore}
+            setTargetScore={tournament.setTargetScore}
+            tiebreakTargetScore={tournament.tiebreakTargetScore}
+            warmupFormat={tournament.warmupFormat}
+            poolTiebreakCriteria={tournament.poolTiebreakCriteria}
+          />
+          {scheduleGroups.length > 0 && (
+            <ScheduleMatchTimesSection
+              tournamentId={tournament.id}
+              tournamentDate={tournament.date}
+              groups={scheduleGroups}
+            />
+          )}
+        </div>
       )}
       {isOrganizer && poolAssignmentBlocked && (
         <p className="text-sm text-muted-foreground">{poolAssignmentBlocked}</p>

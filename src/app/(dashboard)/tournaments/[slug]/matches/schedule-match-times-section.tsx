@@ -201,16 +201,21 @@ export function ScheduleMatchTimesSection({
         : `${counts.scheduled} of ${counts.total} matches have a start time`;
 
   return (
-    <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
+    <div
+      className={cn(
+        "rounded-lg border border-border/50 bg-muted/20",
+        open ? "col-span-full p-3" : "px-3 py-2"
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <Clock
-            className="hidden h-4 w-4 shrink-0 text-muted-foreground/60 sm:block"
+            className="hidden h-3.5 w-3.5 shrink-0 text-muted-foreground/60 sm:block"
             aria-hidden
           />
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground">Schedule times</p>
-            <p className="text-xs text-muted-foreground">{summary}</p>
+            <p className="truncate text-xs text-muted-foreground">{summary}</p>
           </div>
         </div>
         <Button
@@ -233,16 +238,18 @@ export function ScheduleMatchTimesSection({
       </div>
 
       {open && selectedGroup ? (
-        <div className="mt-3 space-y-4 border-t border-border/40 pt-3">
-          <p className="text-sm text-muted-foreground">
-            Set the first start time and gap. Parallel matches on other courts
-            get the same time.
+        <div className="mt-3 space-y-3 border-t border-border/40 pt-3">
+          <p className="text-xs text-muted-foreground">
+            First start and gap fill the group. Parallel courts share a time.
           </p>
 
           {groups.length > 1 && (
             <div className="space-y-1.5">
               <Label htmlFor="schedule-group">Matches</Label>
-              <Select value={groupId} onValueChange={(value) => selectGroup(String(value ?? ""))}>
+              <Select
+                value={groupId}
+                onValueChange={(value) => selectGroup(String(value ?? ""))}
+              >
                 <SelectTrigger id="schedule-group" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -257,51 +264,56 @@ export function ScheduleMatchTimesSection({
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <Label>First start time</Label>
-            <StartTimeClockFields
-              idPrefix="schedule-start"
-              entry={entry}
-              disabled={busy}
-              error={clockError}
-              onChange={(next) => {
-                setClockError(null);
-                setEntry(next);
-              }}
-            />
-          </div>
-
-          <div className="space-y-3">
+          <div className="grid gap-3 md:grid-cols-[auto_minmax(0,1fr)] md:items-start">
             <div className="space-y-1.5">
-              <Label htmlFor="schedule-interval">Minutes between matches</Label>
-              <Input
-                id="schedule-interval"
-                type="number"
-                min={MIN_MATCH_INTERVAL_MINUTES}
-                max={MAX_MATCH_INTERVAL_MINUTES}
-                step={5}
-                value={interval}
+              <Label>First start time</Label>
+              <StartTimeClockFields
+                idPrefix="schedule-start"
+                entry={entry}
                 disabled={busy}
-                onChange={(e) => {
-                  const next = Number(e.target.value);
-                  if (!Number.isFinite(next)) return;
-                  setInterval(next);
+                error={clockError}
+                onChange={(next) => {
+                  setClockError(null);
+                  setEntry(next);
                 }}
-                onBlur={() =>
-                  setInterval(clampMatchIntervalMinutes(interval))
-                }
               />
             </div>
-            <div className="flex items-center justify-between gap-3 rounded-lg border bg-background/60 px-3 py-2">
-              <Label htmlFor="schedule-overwrite" className="text-sm font-medium">
-                Overwrite existing times
-              </Label>
-              <Switch
-                id="schedule-overwrite"
-                checked={overwrite}
-                disabled={busy}
-                onCheckedChange={setOverwrite}
-              />
+
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="schedule-interval">Minutes between matches</Label>
+                <Input
+                  id="schedule-interval"
+                  type="number"
+                  min={MIN_MATCH_INTERVAL_MINUTES}
+                  max={MAX_MATCH_INTERVAL_MINUTES}
+                  step={5}
+                  value={interval}
+                  disabled={busy}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    if (!Number.isFinite(next)) return;
+                    setInterval(next);
+                  }}
+                  onBlur={() =>
+                    setInterval(clampMatchIntervalMinutes(interval))
+                  }
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-lg border bg-background/60 px-3 py-2 sm:self-end">
+                <Label
+                  htmlFor="schedule-overwrite"
+                  className="text-sm font-medium"
+                >
+                  Overwrite existing
+                </Label>
+                <Switch
+                  id="schedule-overwrite"
+                  checked={overwrite}
+                  disabled={busy}
+                  onCheckedChange={setOverwrite}
+                />
+              </div>
             </div>
           </div>
 
@@ -311,18 +323,21 @@ export function ScheduleMatchTimesSection({
             </p>
           )}
 
-          <div className="max-h-64 space-y-3 overflow-y-auto pr-1">
+          <div className="max-h-48 space-y-2 overflow-y-auto pr-1 md:max-h-56 md:columns-2 md:gap-x-6">
             {waves.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Enter a first start time to preview the schedule.
               </p>
             ) : (
               waves.map((wave) => (
-                <section key={wave.time} className="space-y-1.5">
+                <section
+                  key={wave.time}
+                  className="mb-2 break-inside-avoid space-y-1"
+                >
                   <h3 className="text-sm font-semibold tabular-nums">
                     {timeLabel(wave.time)}
                   </h3>
-                  <ul className="space-y-1">
+                  <ul className="space-y-0.5">
                     {wave.rows.map((row) => {
                       const note = rowNote(row);
                       return (
@@ -338,8 +353,9 @@ export function ScheduleMatchTimesSection({
                           <span className="text-muted-foreground"> · </span>
                           {row.label}
                           {note ? (
-                            <span className="block text-xs text-muted-foreground">
-                              {note}
+                            <span className="text-muted-foreground">
+                              {" "}
+                              ({note})
                             </span>
                           ) : null}
                         </li>
