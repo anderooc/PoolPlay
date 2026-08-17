@@ -344,8 +344,8 @@ function DateGroupSection({
 }
 
 /**
- * No-scroll date cycler on desktop. Mobile is a stacked date list so the
- * page can scroll without a side wheel stealing width.
+ * Date cycler with a side wheel on md+; stacked full-width wheel on mobile so
+ * nothing clips off the right edge of the dashboard pane.
  */
 function ChronologicalSchedule({
   tournaments,
@@ -530,9 +530,23 @@ function ChronologicalSchedule({
 
   return (
     <div
-      className="flex min-h-0 w-full min-w-0 max-w-full flex-1 gap-2 overflow-x-hidden sm:gap-4"
+      className="flex min-h-0 w-full min-w-0 max-w-full flex-1 flex-col gap-3 overflow-x-hidden md:flex-row md:gap-4"
       style={{ visibility: layoutReady ? "visible" : "hidden" }}
     >
+      <aside
+        aria-label="Date navigation"
+        className="flex w-full max-w-full shrink-0 touch-none flex-col overscroll-y-none md:w-[9.5rem] md:flex-none md:self-stretch"
+      >
+        <DateScrollWheel
+          className="w-full max-w-full flex-none md:flex-1"
+          dates={scheduleDates}
+          selectedDate={effectiveSelectedDate}
+          onSelect={onSelectedDateChange}
+          today={today}
+          activityKey={wheelActivity}
+        />
+      </aside>
+
       <div
         ref={containerRef}
         className="relative min-h-0 min-w-0 flex-1 select-none overflow-hidden outline-none"
@@ -542,20 +556,6 @@ function ChronologicalSchedule({
           <div className="space-y-3 pb-12 pt-2">{dateSections(true)}</div>
         </div>
       </div>
-
-      <aside
-        aria-label="Date navigation"
-        className="flex w-[7.25rem] shrink-0 flex-none touch-none flex-col self-stretch overscroll-y-none sm:w-[9.5rem]"
-      >
-        <DateScrollWheel
-          className="w-full"
-          dates={scheduleDates}
-          selectedDate={effectiveSelectedDate}
-          onSelect={onSelectedDateChange}
-          today={today}
-          activityKey={wheelActivity}
-        />
-      </aside>
     </div>
   );
 }
