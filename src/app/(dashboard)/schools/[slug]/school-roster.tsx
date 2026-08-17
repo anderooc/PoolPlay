@@ -323,9 +323,9 @@ function RosterRow({
         isBusy && "opacity-60"
       )}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-baseline gap-2">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-2">
             <p className="truncate text-sm font-medium leading-tight">
               {member.fullName}
             </p>
@@ -346,7 +346,7 @@ function RosterRow({
         </div>
 
         {showActions ? (
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0 sm:justify-end">
             {showRoleSelect ? (
               <Select
                 value={member.role}
@@ -360,7 +360,7 @@ function RosterRow({
                 <SelectTrigger
                   id={`role-${member.membershipId}`}
                   size="sm"
-                  className="h-7 w-[7.25rem]"
+                  className="h-8 w-full sm:h-7 sm:w-[7.25rem]"
                   aria-label={`Role for ${member.fullName}`}
                 >
                   <SelectValue placeholder="Role" />
@@ -376,7 +376,7 @@ function RosterRow({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-7 px-2"
+                className="h-8 px-2 sm:h-7"
                 disabled={isBusy}
                 onClick={() => onTransfer(member.membershipId)}
               >
@@ -389,7 +389,7 @@ function RosterRow({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-7 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                className="h-8 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive sm:h-7"
                 disabled={isBusy}
                 onClick={() => onRemove(member.membershipId)}
               >

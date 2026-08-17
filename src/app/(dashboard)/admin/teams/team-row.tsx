@@ -34,6 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AdminDialogContent } from "../admin-dialog-content";
+import { AdminRecordCard } from "../admin-record-card";
 import {
   ExternalLink,
   Loader2,
@@ -43,6 +44,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   adminApproveStandaloneTeam,
   adminDeleteTeam,
@@ -62,9 +64,10 @@ interface Props {
     verificationStatus: TeamVerificationStatus;
     memberCount: number;
   };
+  layout?: "table" | "card";
 }
 
-export function TeamRow({ team }: Props) {
+export function TeamRow({ team, layout = "table" }: Props) {
   const router = useRouter();
   const [name, setName] = useState(team.name);
   const [slug, setSlug] = useState(team.slug);
@@ -141,19 +144,107 @@ export function TeamRow({ team }: Props) {
     });
   }
 
+  const actions = (
+    <div className={cn("flex flex-wrap gap-1", layout === "card" ? "w-full" : "justify-end")}>
+      {isStandalone && team.verificationStatus !== "verified" && (
+        <Button
+          type="button"
+          size="sm"
+          className={layout === "card" ? "flex-1" : undefined}
+          onClick={approve}
+          disabled={pending}
+        >
+          Approve
+        </Button>
+      )}
+      {isStandalone && team.verificationStatus === "pending" && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={layout === "card" ? "flex-1" : undefined}
+          onClick={reject}
+          disabled={pending}
+        >
+          <X className="h-3.5 w-3.5" />
+          Reject
+        </Button>
+      )}
+      {isStandalone && team.verificationStatus !== "pending" && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={layout === "card" ? "flex-1" : undefined}
+          onClick={reopen}
+          disabled={pending}
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Reopen
+        </Button>
+      )}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          setDraft(name);
+          setRenameOpen(true);
+        }}
+      >
+        <Pencil className="h-3.5 w-3.5" />
+        {layout === "card" ? "Rename" : null}
+      </Button>
+      <Button
+        type="button"
+        variant="destructive"
+        size="sm"
+        onClick={() => setDeleteOpen(true)}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        {layout === "card" ? "Delete" : null}
+      </Button>
+    </div>
+  );
+
+  const nameLink = (
+    <Link
+      href={`/teams/${slug}`}
+      title={name}
+      className="flex min-w-0 max-w-full items-center gap-1 font-medium underline-offset-4 hover:underline"
+    >
+      <span className="truncate">{name}</span>
+      <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+    </Link>
+  );
+
   return (
     <>
+      {layout === "card" ? (
+        <AdminRecordCard>
+          <div className="min-w-0">
+            {nameLink}
+            <div
+              className="truncate text-sm text-muted-foreground"
+              title={team.university}
+            >
+              {team.university}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge
+              kind="verification"
+              status={team.verificationStatus}
+            />
+            <span className="text-sm text-muted-foreground tabular-nums">
+              {team.memberCount} member{team.memberCount === 1 ? "" : "s"}
+            </span>
+          </div>
+          {actions}
+        </AdminRecordCard>
+      ) : (
       <TableRow>
-        <TableCell className="min-w-0 overflow-hidden">
-          <Link
-            href={`/teams/${slug}`}
-            title={name}
-            className="flex min-w-0 max-w-full items-center gap-1 font-medium underline-offset-4 hover:underline"
-          >
-            <span className="truncate">{name}</span>
-            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
-          </Link>
-        </TableCell>
+        <TableCell className="min-w-0 overflow-hidden">{nameLink}</TableCell>
         <TableCell className="min-w-0 overflow-hidden text-muted-foreground">
           <div className="truncate" title={team.university}>
             {team.university}
@@ -168,64 +259,9 @@ export function TeamRow({ team }: Props) {
         <TableCell className="text-right tabular-nums">
           {team.memberCount}
         </TableCell>
-        <TableCell className="overflow-hidden text-right">
-          <div className="flex flex-wrap justify-end gap-1">
-            {isStandalone && team.verificationStatus !== "verified" && (
-              <Button
-                type="button"
-                size="sm"
-                onClick={approve}
-                disabled={pending}
-              >
-                Approve
-              </Button>
-            )}
-            {isStandalone && team.verificationStatus === "pending" && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={reject}
-                disabled={pending}
-              >
-                <X className="h-3.5 w-3.5" />
-                Reject
-              </Button>
-            )}
-            {isStandalone && team.verificationStatus !== "pending" && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={reopen}
-                disabled={pending}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Reopen
-              </Button>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setDraft(name);
-                setRenameOpen(true);
-              }}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              onClick={() => setDeleteOpen(true)}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </TableCell>
+        <TableCell className="overflow-hidden text-right">{actions}</TableCell>
       </TableRow>
+      )}
 
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
         <AdminDialogContent>

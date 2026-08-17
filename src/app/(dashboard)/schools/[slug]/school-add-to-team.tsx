@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ViewportSplit } from "@/components/layout/viewport-split";
 import { cn } from "@/lib/utils";
 import { SCHOOL_MEMBER_ROLE_LABELS } from "@/lib/constants/school";
 import { addTeamMember } from "@/app/(dashboard)/teams/actions";
@@ -171,6 +172,29 @@ export function SchoolAddToTeam({
     }
   }
 
+  function pickerFooter() {
+    return (
+      <div className="flex flex-col gap-3 border-t bg-muted/30 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-muted-foreground">
+          {addable.length} available for {selectedTeam.name}
+          {selected.size > 0 ? ` · ${selected.size} selected` : ""}
+        </p>
+        <Button
+          type="button"
+          disabled={loading || selected.size === 0}
+          onClick={handleAddSelected}
+          className="w-full sm:w-auto"
+        >
+          {loading
+            ? "Adding…"
+            : selected.size > 1
+              ? `Add ${selected.size} to ${selectedTeam.name}`
+              : `Add to ${selectedTeam.name}`}
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border bg-card p-4 sm:p-5">
       <div className="mb-4 space-y-1">
@@ -215,155 +239,250 @@ export function SchoolAddToTeam({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border">
-        <div className="max-h-[28rem] overflow-auto">
-          <Table>
-            <TableHeader className="sticky top-0 z-10">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="h-8 w-10 py-0">
-                  <Checkbox
-                    checked={allAddableSelected}
-                    indeterminate={someAddableSelected && !allAddableSelected}
-                    disabled={addable.length === 0}
-                    onCheckedChange={(checked) =>
-                      toggleAllAddable(checked === true)
-                    }
-                    aria-label="Select all available players"
-                  />
-                </TableHead>
-                <TableHead className="h-8 py-0">Name</TableHead>
-                <TableHead className="h-8 py-0">Email</TableHead>
-                <TableHead className="h-8 w-16 py-0">#</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+      <ViewportSplit
+        mobile={
+          <div className="overflow-hidden rounded-lg border">
+            <div className="flex items-center gap-2 border-b bg-muted/30 px-3 py-2">
+              <Checkbox
+                checked={allAddableSelected}
+                indeterminate={someAddableSelected && !allAddableSelected}
+                disabled={addable.length === 0}
+                onCheckedChange={(checked) =>
+                  toggleAllAddable(checked === true)
+                }
+                aria-label="Select all available players"
+              />
+              <span className="text-sm">Select available</span>
+            </div>
+            <div className="max-h-[28rem] space-y-3 overflow-auto p-2">
               {filtered.length === 0 ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell
-                    colSpan={4}
-                    className="h-12 text-center text-muted-foreground"
-                  >
-                    {members.length === 0
-                      ? "No one is on the school roster yet."
-                      : `No roster members match “${query.trim()}”.`}
-                  </TableCell>
-                </TableRow>
+                <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+                  {members.length === 0
+                    ? "No one is on the school roster yet."
+                    : `No roster members match “${query.trim()}”.`}
+                </p>
               ) : (
-                GROUPS.flatMap((group) => {
+                GROUPS.map((group) => {
                   const rows = filtered.filter((m) =>
                     group.roles.includes(m.role)
                   );
-                  if (rows.length === 0) return [];
-                  return [
-                    <TableRow
-                      key={`group-${group.id}`}
-                      className="hover:bg-transparent"
-                    >
-                      <TableCell
-                        colSpan={4}
-                        className="bg-muted/50 py-1.5 text-xs font-medium text-muted-foreground"
-                      >
+                  if (rows.length === 0) return null;
+                  return (
+                    <div key={group.id} className="space-y-2">
+                      <p className="px-1 text-xs font-medium text-muted-foreground">
                         {group.label} ({rows.length})
-                      </TableCell>
-                    </TableRow>,
-                    ...rows.map((member) => {
-                      const teamMembership = onTeam.get(member.userId);
-                      const alreadyOnTeam = Boolean(teamMembership);
-                      const isChecked = selected.has(member.email);
-                      return (
-                        <TableRow
-                          key={member.userId}
-                          data-state={isChecked ? "selected" : undefined}
-                          className={cn(
-                            !alreadyOnTeam && "cursor-pointer",
-                            isChecked && "bg-muted/40"
-                          )}
-                          onClick={() => {
-                            if (!alreadyOnTeam) {
-                              toggleEmail(member.email, !isChecked);
-                            }
-                          }}
-                        >
-                          <TableCell
-                            className="w-10 py-1.5"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Checkbox
-                              checked={isChecked}
-                              disabled={alreadyOnTeam}
-                              onCheckedChange={(checked) =>
-                                toggleEmail(member.email, checked === true)
-                              }
-                              aria-label={`Select ${member.fullName}`}
-                            />
-                          </TableCell>
-                          <TableCell className="max-w-[12rem] py-1.5 font-medium">
-                            <span className="block truncate text-sm leading-tight">
-                              {member.fullName}
-                            </span>
-                          </TableCell>
-                          <TableCell className="max-w-[14rem] py-1.5 text-muted-foreground">
-                            <span className="block truncate text-xs">
-                              {member.email}
-                            </span>
-                          </TableCell>
-                          <TableCell
-                            className="w-16 py-1.5"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {teamMembership ? (
-                              <JerseyNumberField
-                                key={`${teamMembership.id}-${teamMembership.jerseyNumber ?? "none"}`}
-                                memberId={teamMembership.id}
-                                jerseyNumber={teamMembership.jerseyNumber}
-                              />
-                            ) : (
-                              <Input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                maxLength={2}
-                                value={pendingJerseys[member.email] ?? ""}
-                                onChange={(e) =>
-                                  setPendingJerseys((prev) => ({
-                                    ...prev,
-                                    [member.email]: e.target.value,
-                                  }))
-                                }
-                                aria-label={`Jersey number for ${member.fullName}`}
-                                placeholder="—"
-                                className="h-7 w-11 px-1 text-center text-sm font-bold tabular-nums"
-                              />
+                      </p>
+                      {rows.map((member) => {
+                        const teamMembership = onTeam.get(member.userId);
+                        const alreadyOnTeam = Boolean(teamMembership);
+                        const isChecked = selected.has(member.email);
+                        return (
+                          <div
+                            key={member.userId}
+                            className={cn(
+                              "flex items-start gap-3 rounded-lg border p-3",
+                              !alreadyOnTeam && "cursor-pointer",
+                              isChecked && "bg-muted/40"
                             )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    }),
-                  ];
+                            onClick={() => {
+                              if (!alreadyOnTeam) {
+                                toggleEmail(member.email, !isChecked);
+                              }
+                            }}
+                          >
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={isChecked}
+                                disabled={alreadyOnTeam}
+                                onCheckedChange={(checked) =>
+                                  toggleEmail(member.email, checked === true)
+                                }
+                                aria-label={`Select ${member.fullName}`}
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium leading-tight">
+                                {member.fullName}
+                              </p>
+                              <p className="truncate text-xs text-muted-foreground">
+                                {member.email}
+                              </p>
+                            </div>
+                            <div
+                              className="shrink-0"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {teamMembership ? (
+                                <JerseyNumberField
+                                  key={`${teamMembership.id}-${teamMembership.jerseyNumber ?? "none"}`}
+                                  memberId={teamMembership.id}
+                                  jerseyNumber={teamMembership.jerseyNumber}
+                                />
+                              ) : (
+                                <Input
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  maxLength={2}
+                                  value={pendingJerseys[member.email] ?? ""}
+                                  onChange={(e) =>
+                                    setPendingJerseys((prev) => ({
+                                      ...prev,
+                                      [member.email]: e.target.value,
+                                    }))
+                                  }
+                                  aria-label={`Jersey number for ${member.fullName}`}
+                                  placeholder="—"
+                                  className="h-7 w-11 px-1 text-center text-sm font-bold tabular-nums"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
                 })
               )}
-            </TableBody>
-          </Table>
-        </div>
-        <div className="flex flex-col gap-3 border-t bg-muted/30 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-muted-foreground">
-            {addable.length} available for {selectedTeam.name}
-            {selected.size > 0 ? ` · ${selected.size} selected` : ""}
-          </p>
-          <Button
-            type="button"
-            disabled={loading || selected.size === 0}
-            onClick={handleAddSelected}
-            className="w-full sm:w-auto"
-          >
-            {loading
-              ? "Adding…"
-              : selected.size > 1
-                ? `Add ${selected.size} to ${selectedTeam.name}`
-                : `Add to ${selectedTeam.name}`}
-          </Button>
-        </div>
-      </div>
+            </div>
+            {pickerFooter()}
+          </div>
+        }
+        desktop={
+          <div className="overflow-hidden rounded-lg border">
+            <div className="max-h-[28rem] overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 z-10">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="h-8 w-10 py-0">
+                      <Checkbox
+                        checked={allAddableSelected}
+                        indeterminate={someAddableSelected && !allAddableSelected}
+                        disabled={addable.length === 0}
+                        onCheckedChange={(checked) =>
+                          toggleAllAddable(checked === true)
+                        }
+                        aria-label="Select all available players"
+                      />
+                    </TableHead>
+                    <TableHead className="h-8 py-0">Name</TableHead>
+                    <TableHead className="h-8 py-0">Email</TableHead>
+                    <TableHead className="h-8 w-16 py-0">#</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.length === 0 ? (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell
+                        colSpan={4}
+                        className="h-12 text-center text-muted-foreground"
+                      >
+                        {members.length === 0
+                          ? "No one is on the school roster yet."
+                          : `No roster members match “${query.trim()}”.`}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    GROUPS.flatMap((group) => {
+                      const rows = filtered.filter((m) =>
+                        group.roles.includes(m.role)
+                      );
+                      if (rows.length === 0) return [];
+                      return [
+                        <TableRow
+                          key={`group-${group.id}`}
+                          className="hover:bg-transparent"
+                        >
+                          <TableCell
+                            colSpan={4}
+                            className="bg-muted/50 py-1.5 text-xs font-medium text-muted-foreground"
+                          >
+                            {group.label} ({rows.length})
+                          </TableCell>
+                        </TableRow>,
+                        ...rows.map((member) => {
+                          const teamMembership = onTeam.get(member.userId);
+                          const alreadyOnTeam = Boolean(teamMembership);
+                          const isChecked = selected.has(member.email);
+                          return (
+                            <TableRow
+                              key={member.userId}
+                              data-state={isChecked ? "selected" : undefined}
+                              className={cn(
+                                !alreadyOnTeam && "cursor-pointer",
+                                isChecked && "bg-muted/40"
+                              )}
+                              onClick={() => {
+                                if (!alreadyOnTeam) {
+                                  toggleEmail(member.email, !isChecked);
+                                }
+                              }}
+                            >
+                              <TableCell
+                                className="w-10 py-1.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Checkbox
+                                  checked={isChecked}
+                                  disabled={alreadyOnTeam}
+                                  onCheckedChange={(checked) =>
+                                    toggleEmail(member.email, checked === true)
+                                  }
+                                  aria-label={`Select ${member.fullName}`}
+                                />
+                              </TableCell>
+                              <TableCell className="max-w-[12rem] py-1.5 font-medium">
+                                <span className="block truncate text-sm leading-tight">
+                                  {member.fullName}
+                                </span>
+                              </TableCell>
+                              <TableCell className="max-w-[14rem] py-1.5 text-muted-foreground">
+                                <span className="block truncate text-xs">
+                                  {member.email}
+                                </span>
+                              </TableCell>
+                              <TableCell
+                                className="w-16 py-1.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {teamMembership ? (
+                                  <JerseyNumberField
+                                    key={`${teamMembership.id}-${teamMembership.jerseyNumber ?? "none"}`}
+                                    memberId={teamMembership.id}
+                                    jerseyNumber={teamMembership.jerseyNumber}
+                                  />
+                                ) : (
+                                  <Input
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    maxLength={2}
+                                    value={pendingJerseys[member.email] ?? ""}
+                                    onChange={(e) =>
+                                      setPendingJerseys((prev) => ({
+                                        ...prev,
+                                        [member.email]: e.target.value,
+                                      }))
+                                    }
+                                    aria-label={`Jersey number for ${member.fullName}`}
+                                    placeholder="—"
+                                    className="h-7 w-11 px-1 text-center text-sm font-bold tabular-nums"
+                                  />
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }),
+                      ];
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            {pickerFooter()}
+          </div>
+        }
+      />
 
       {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
       {addedCount > 0 && !error ? (

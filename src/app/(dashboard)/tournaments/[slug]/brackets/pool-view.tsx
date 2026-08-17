@@ -42,6 +42,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { calculatePoolStandings } from "@/lib/utils/pool";
+import { ViewportSplit } from "@/components/layout/viewport-split";
 import { cn } from "@/lib/utils";
 import { updateMatchRef } from "./actions";
 
@@ -194,48 +195,76 @@ export function PoolView({
   );
 
   return (
-    <Card>
+    <Card className="min-w-0 overflow-hidden">
       <CardHeader>
         <CardTitle className="text-base">{pool.name}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>#</TableHead>
-              <TableHead>Team</TableHead>
-              <TableHead className="text-center" title="Match wins / losses">
-                W-L
-              </TableHead>
-              <TableHead className="text-center" title="Sets won / lost">
-                Sets
-              </TableHead>
-              <TableHead
-                className="text-center"
-                title="Point differential across all sets"
-              >
-                +/-
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {standings.map((s, i) => (
-              <TableRow key={s.teamId}>
-                <TableCell className="font-medium">{i + 1}</TableCell>
-                <TableCell>{teamNameMap.get(s.teamId) ?? "TBD"}</TableCell>
-                <TableCell className="text-center tabular-nums">
-                  {s.wins}-{s.losses}
-                </TableCell>
-                <TableCell className="text-center tabular-nums">
-                  {s.setsWon}-{s.setsLost}
-                </TableCell>
-                <TableCell className="text-center tabular-nums">
-                  {s.pointDiff > 0 ? `+${s.pointDiff}` : s.pointDiff}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <ViewportSplit
+          mobile={
+            <div className="space-y-2">
+              {standings.map((s, i) => (
+                <div
+                  key={s.teamId}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border/70 px-3 py-2"
+                >
+                  <p className="min-w-0 truncate text-sm font-medium">
+                    <span className="mr-2 tabular-nums text-muted-foreground">
+                      {i + 1}
+                    </span>
+                    {teamNameMap.get(s.teamId) ?? "TBD"}
+                  </p>
+                  <p className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {s.wins}-{s.losses}
+                    <span className="mx-1.5">·</span>
+                    {s.setsWon}-{s.setsLost}
+                    <span className="mx-1.5">·</span>
+                    {s.pointDiff > 0 ? `+${s.pointDiff}` : s.pointDiff}
+                  </p>
+                </div>
+              ))}
+            </div>
+          }
+          desktop={
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Team</TableHead>
+                  <TableHead className="text-center" title="Match wins / losses">
+                    W-L
+                  </TableHead>
+                  <TableHead className="text-center" title="Sets won / lost">
+                    Sets
+                  </TableHead>
+                  <TableHead
+                    className="text-center"
+                    title="Point differential across all sets"
+                  >
+                    +/-
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {standings.map((s, i) => (
+                  <TableRow key={s.teamId}>
+                    <TableCell className="font-medium">{i + 1}</TableCell>
+                    <TableCell>{teamNameMap.get(s.teamId) ?? "TBD"}</TableCell>
+                    <TableCell className="text-center tabular-nums">
+                      {s.wins}-{s.losses}
+                    </TableCell>
+                    <TableCell className="text-center tabular-nums">
+                      {s.setsWon}-{s.setsLost}
+                    </TableCell>
+                    <TableCell className="text-center tabular-nums">
+                      {s.pointDiff > 0 ? `+${s.pointDiff}` : s.pointDiff}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          }
+        />
 
         <div className="space-y-2">
           <h4 className="text-sm font-medium">Matches</h4>

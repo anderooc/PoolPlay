@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ViewportSplit } from "@/components/layout/viewport-split";
 import { cn } from "@/lib/utils";
 import { SCHOOL_MEMBER_ROLE_LABELS } from "@/lib/constants/school";
 import { addTeamMember } from "../actions";
@@ -323,108 +324,190 @@ function SchoolRosterAddForm({
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-lg border bg-background">
-            <div className="max-h-80 overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 z-10">
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="h-8 w-10 py-0">
-                      <Checkbox
-                        checked={allFilteredSelected}
-                        indeterminate={
-                          someFilteredSelected && !allFilteredSelected
-                        }
-                        onCheckedChange={(checked) =>
-                          toggleAllFiltered(checked === true)
-                        }
-                        aria-label="Select all visible players"
-                      />
-                    </TableHead>
-                    <TableHead className="h-8 py-0">Name</TableHead>
-                    <TableHead className="h-8 py-0">Email</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+          <ViewportSplit
+            mobile={
+              <div className="overflow-hidden rounded-lg border bg-background">
+                <div className="flex items-center gap-2 border-b bg-muted/30 px-3 py-2">
+                  <Checkbox
+                    checked={allFilteredSelected}
+                    indeterminate={
+                      someFilteredSelected && !allFilteredSelected
+                    }
+                    onCheckedChange={(checked) =>
+                      toggleAllFiltered(checked === true)
+                    }
+                    aria-label="Select all visible players"
+                  />
+                  <span className="text-sm">Select visible</span>
+                </div>
+                <div className="max-h-80 space-y-3 overflow-auto p-2">
                   {filtered.length === 0 ? (
-                    <TableRow className="hover:bg-transparent">
-                      <TableCell
-                        colSpan={3}
-                        className="h-12 text-center text-muted-foreground"
-                      >
-                        No roster members match “{query.trim()}”.
-                      </TableCell>
-                    </TableRow>
+                    <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+                      No roster members match “{query.trim()}”.
+                    </p>
                   ) : (
-                    GROUPS.flatMap((group) => {
+                    GROUPS.map((group) => {
                       const rows = filtered.filter((c) =>
                         group.roles.includes(c.role)
                       );
-                      if (rows.length === 0) return [];
-                      return [
-                        <TableRow
-                          key={`group-${group.id}`}
-                          className="hover:bg-transparent"
-                        >
-                          <TableCell
-                            colSpan={3}
-                            className="bg-muted/50 py-1.5 text-xs font-medium text-muted-foreground"
-                          >
+                      if (rows.length === 0) return null;
+                      return (
+                        <div key={group.id} className="space-y-2">
+                          <p className="px-1 text-xs font-medium text-muted-foreground">
                             {group.label} ({rows.length})
-                          </TableCell>
-                        </TableRow>,
-                        ...rows.map((candidate) => {
-                          const isChecked = selected.has(candidate.email);
-                          return (
-                            <TableRow
-                              key={candidate.userId}
-                              data-state={isChecked ? "selected" : undefined}
-                              className={cn(
-                                "cursor-pointer",
-                                isChecked && "bg-muted/40"
-                              )}
-                              onClick={() =>
-                                toggleEmail(candidate.email, !isChecked)
-                              }
-                            >
-                              <TableCell
-                                className="w-10 py-1.5"
-                                onClick={(e) => e.stopPropagation()}
+                          </p>
+                          {rows.map((candidate) => {
+                            const isChecked = selected.has(candidate.email);
+                            return (
+                              <div
+                                key={candidate.userId}
+                                className={cn(
+                                  "flex cursor-pointer items-start gap-3 rounded-lg border p-3",
+                                  isChecked && "bg-muted/40"
+                                )}
+                                onClick={() =>
+                                  toggleEmail(candidate.email, !isChecked)
+                                }
                               >
-                                <Checkbox
-                                  checked={isChecked}
-                                  onCheckedChange={(checked) =>
-                                    toggleEmail(
-                                      candidate.email,
-                                      checked === true
-                                    )
-                                  }
-                                  aria-label={`Select ${candidate.fullName}`}
-                                />
-                              </TableCell>
-                              <TableCell className="max-w-[12rem] py-1.5 font-medium">
-                                <span className="block truncate text-sm leading-tight">
-                                  {candidate.fullName}
-                                </span>
-                              </TableCell>
-                              <TableCell className="max-w-[14rem] py-1.5 text-muted-foreground">
-                                <span className="block truncate text-xs">
-                                  {candidate.email}
-                                </span>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        }),
-                      ];
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <Checkbox
+                                    checked={isChecked}
+                                    onCheckedChange={(checked) =>
+                                      toggleEmail(
+                                        candidate.email,
+                                        checked === true
+                                      )
+                                    }
+                                    aria-label={`Select ${candidate.fullName}`}
+                                  />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-medium leading-tight">
+                                    {candidate.fullName}
+                                  </p>
+                                  <p className="truncate text-xs text-muted-foreground">
+                                    {candidate.email}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
                     })
                   )}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="border-t bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-              {filtered.length} available
-              {selected.size > 0 ? ` · ${selected.size} selected` : ""}
-            </div>
-          </div>
+                </div>
+                <div className="border-t bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  {filtered.length} available
+                  {selected.size > 0 ? ` · ${selected.size} selected` : ""}
+                </div>
+              </div>
+            }
+            desktop={
+              <div className="overflow-hidden rounded-lg border bg-background">
+                <div className="max-h-80 overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 z-10">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="h-8 w-10 py-0">
+                          <Checkbox
+                            checked={allFilteredSelected}
+                            indeterminate={
+                              someFilteredSelected && !allFilteredSelected
+                            }
+                            onCheckedChange={(checked) =>
+                              toggleAllFiltered(checked === true)
+                            }
+                            aria-label="Select all visible players"
+                          />
+                        </TableHead>
+                        <TableHead className="h-8 py-0">Name</TableHead>
+                        <TableHead className="h-8 py-0">Email</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.length === 0 ? (
+                        <TableRow className="hover:bg-transparent">
+                          <TableCell
+                            colSpan={3}
+                            className="h-12 text-center text-muted-foreground"
+                          >
+                            No roster members match “{query.trim()}”.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        GROUPS.flatMap((group) => {
+                          const rows = filtered.filter((c) =>
+                            group.roles.includes(c.role)
+                          );
+                          if (rows.length === 0) return [];
+                          return [
+                            <TableRow
+                              key={`group-${group.id}`}
+                              className="hover:bg-transparent"
+                            >
+                              <TableCell
+                                colSpan={3}
+                                className="bg-muted/50 py-1.5 text-xs font-medium text-muted-foreground"
+                              >
+                                {group.label} ({rows.length})
+                              </TableCell>
+                            </TableRow>,
+                            ...rows.map((candidate) => {
+                              const isChecked = selected.has(candidate.email);
+                              return (
+                                <TableRow
+                                  key={candidate.userId}
+                                  data-state={isChecked ? "selected" : undefined}
+                                  className={cn(
+                                    "cursor-pointer",
+                                    isChecked && "bg-muted/40"
+                                  )}
+                                  onClick={() =>
+                                    toggleEmail(candidate.email, !isChecked)
+                                  }
+                                >
+                                  <TableCell
+                                    className="w-10 py-1.5"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Checkbox
+                                      checked={isChecked}
+                                      onCheckedChange={(checked) =>
+                                        toggleEmail(
+                                          candidate.email,
+                                          checked === true
+                                        )
+                                      }
+                                      aria-label={`Select ${candidate.fullName}`}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="max-w-[12rem] py-1.5 font-medium">
+                                    <span className="block truncate text-sm leading-tight">
+                                      {candidate.fullName}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="max-w-[14rem] py-1.5 text-muted-foreground">
+                                    <span className="block truncate text-xs">
+                                      {candidate.email}
+                                    </span>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            }),
+                          ];
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="border-t bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  {filtered.length} available
+                  {selected.size > 0 ? ` · ${selected.size} selected` : ""}
+                </div>
+              </div>
+            }
+          />
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-muted-foreground">

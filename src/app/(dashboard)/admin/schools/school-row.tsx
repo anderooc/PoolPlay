@@ -33,6 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AdminDialogContent } from "../admin-dialog-content";
+import { AdminRecordCard } from "../admin-record-card";
 import {
   CheckCircle2,
   ExternalLink,
@@ -42,6 +43,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   adminApproveSchool,
   adminDeleteSchool,
@@ -64,9 +66,10 @@ interface Props {
     officerCount: number;
     teamCount: number;
   };
+  layout?: "table" | "card";
 }
 
-export function SchoolRow({ school }: Props) {
+export function SchoolRow({ school, layout = "table" }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -111,32 +114,124 @@ export function SchoolRow({ school }: Props) {
     });
   }
 
+  const actions = (
+    <div
+      className={cn(
+        "flex flex-wrap gap-1",
+        layout === "card" ? "w-full" : "justify-end"
+      )}
+    >
+      {pending ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+      ) : null}
+      {school.verificationStatus !== "verified" && (
+        <Button
+          type="button"
+          size="sm"
+          variant="default"
+          className={layout === "card" ? "flex-1" : undefined}
+          disabled={pending}
+          onClick={approve}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Approve
+        </Button>
+      )}
+      {school.verificationStatus === "pending" && (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className={layout === "card" ? "flex-1" : undefined}
+          disabled={pending}
+          onClick={reject}
+        >
+          <X className="h-3.5 w-3.5" />
+          Reject
+        </Button>
+      )}
+      {school.verificationStatus !== "pending" && (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className={layout === "card" ? "flex-1" : undefined}
+          disabled={pending}
+          onClick={reopen}
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Reopen
+        </Button>
+      )}
+      <Button
+        type="button"
+        size="sm"
+        variant="destructive"
+        onClick={() => setDeleteOpen(true)}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        {layout === "card" ? "Delete" : "Delete"}
+      </Button>
+    </div>
+  );
+
+  const nameBlock = (
+    <>
+      <Link
+        href={`/schools/${school.slug}`}
+        title={school.name}
+        className="flex min-w-0 max-w-full items-center gap-1 font-medium underline-offset-4 hover:underline"
+      >
+        <span className="truncate">{school.name}</span>
+        <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+      </Link>
+      <div
+        className="truncate text-xs text-muted-foreground"
+        title={
+          school.domainHint
+            ? `${school.university} @${school.domainHint}`
+            : school.university
+        }
+      >
+        {school.university}
+        {school.domainHint && (
+          <span className="ml-2 font-mono">@{school.domainHint}</span>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <>
-      <TableRow>
-        <TableCell className="min-w-0 overflow-hidden">
-          <Link
-            href={`/schools/${school.slug}`}
-            title={school.name}
-            className="flex min-w-0 max-w-full items-center gap-1 font-medium underline-offset-4 hover:underline"
-          >
-            <span className="truncate">{school.name}</span>
-            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
-          </Link>
-          <div
-            className="truncate text-xs text-muted-foreground"
-            title={
-              school.domainHint
-                ? `${school.university} @${school.domainHint}`
-                : school.university
-            }
-          >
-            {school.university}
-            {school.domainHint && (
-              <span className="ml-2 font-mono">@{school.domainHint}</span>
+      {layout === "card" ? (
+        <AdminRecordCard>
+          <div className="min-w-0">{nameBlock}</div>
+          <p className="truncate text-sm text-muted-foreground">
+            President: {school.presidentName ?? "—"}
+            {school.presidentEmail ? ` · ${school.presidentEmail}` : null}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge
+              kind="verification"
+              status={school.verificationStatus}
+            />
+            {school.domainMatched && (
+              <Badge
+                variant="outline"
+                className="border-success/25 bg-success/10 text-success"
+              >
+                Domain match
+              </Badge>
             )}
+            <span className="text-sm text-muted-foreground tabular-nums">
+              {school.officerCount} officers · {school.teamCount} teams
+            </span>
           </div>
-        </TableCell>
+          {actions}
+        </AdminRecordCard>
+      ) : (
+      <TableRow>
+        <TableCell className="min-w-0 overflow-hidden">{nameBlock}</TableCell>
         <TableCell className="min-w-0 overflow-hidden text-muted-foreground">
           <div className="truncate" title={school.presidentName ?? undefined}>
             {school.presidentName ?? "—"}
@@ -169,66 +264,9 @@ export function SchoolRow({ school }: Props) {
             )}
           </div>
         </TableCell>
-        <TableCell className="overflow-hidden text-right">
-          <div className="flex w-full items-center justify-end gap-2">
-            <span
-              className="flex h-4 w-4 shrink-0 items-center justify-center"
-              aria-hidden={!pending}
-            >
-              {pending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-              ) : null}
-            </span>
-            <div className="flex shrink-0 flex-wrap justify-end gap-1">
-              {school.verificationStatus !== "verified" && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="default"
-                  disabled={pending}
-                  onClick={approve}
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Approve
-                </Button>
-              )}
-              {school.verificationStatus === "pending" && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={reject}
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Reject
-                </Button>
-              )}
-              {school.verificationStatus !== "pending" && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={reopen}
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Reopen
-                </Button>
-              )}
-              <Button
-                type="button"
-                size="sm"
-                variant="destructive"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Delete
-              </Button>
-            </div>
-          </div>
-        </TableCell>
+        <TableCell className="overflow-hidden text-right">{actions}</TableCell>
       </TableRow>
+      )}
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AdminDialogContent>

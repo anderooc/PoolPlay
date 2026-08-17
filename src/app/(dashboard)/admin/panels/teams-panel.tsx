@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ViewportSplit } from "@/components/layout/viewport-split";
 import { TeamRow } from "../teams/team-row";
 import { AdminTablePagination } from "../admin-table-pagination";
 import { ADMIN_TABLE_PAGE_SIZE } from "../constants";
@@ -86,46 +87,67 @@ export async function AdminTeamsPanel({ page }: { page: number }) {
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-md border border-border/80">
-        <Table className="table-fixed">
-          <colgroup>
-            <col />
-            <col />
-            <col className="w-[9rem]" />
-            <col className="w-20" />
-            <col className="w-56" />
-          </colgroup>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Team</TableHead>
-              <TableHead>University</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Members</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <ViewportSplit
+        mobile={
+          <div className="space-y-3">
             {rows.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="py-8 text-center text-muted-foreground"
-                >
-                  No standalone teams yet.
-                </TableCell>
-              </TableRow>
+              <p className="rounded-xl border border-border/80 px-4 py-8 text-center text-sm text-muted-foreground">
+                No standalone teams yet.
+              </p>
             ) : (
-              rows.map((t) => <TeamRow key={t.id} team={t} />)
+              rows.map((t) => <TeamRow key={t.id} team={t} layout="card" />)
             )}
-          </TableBody>
-        </Table>
-        <AdminTablePagination
-          tab="teams"
-          page={safePage}
-          pageSize={ADMIN_TABLE_PAGE_SIZE}
-          total={standaloneTotal}
-        />
-      </div>
+            <AdminTablePagination
+              tab="teams"
+              page={safePage}
+              pageSize={ADMIN_TABLE_PAGE_SIZE}
+              total={standaloneTotal}
+            />
+          </div>
+        }
+        desktop={
+          <div className="overflow-hidden rounded-md border border-border/80">
+            <Table className="table-fixed">
+              <colgroup>
+                <col />
+                <col />
+                <col className="w-[9rem]" />
+                <col className="w-20" />
+                <col className="w-56" />
+              </colgroup>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Team</TableHead>
+                  <TableHead>University</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Members</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="py-8 text-center text-muted-foreground"
+                    >
+                      No standalone teams yet.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  rows.map((t) => <TeamRow key={t.id} team={t} />)
+                )}
+              </TableBody>
+            </Table>
+            <AdminTablePagination
+              tab="teams"
+              page={safePage}
+              pageSize={ADMIN_TABLE_PAGE_SIZE}
+              total={standaloneTotal}
+            />
+          </div>
+        }
+      />
     </div>
   );
 }

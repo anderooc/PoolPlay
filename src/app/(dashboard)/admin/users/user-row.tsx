@@ -31,6 +31,7 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ADMIN_SELECT_SIDE_OFFSET } from "../constants";
+import { AdminRecordCard } from "../admin-record-card";
 import { setUserRole, adminDeleteUser } from "../actions";
 import type { UserRole } from "@/types";
 
@@ -51,9 +52,10 @@ interface Props {
     createdAt: string;
   };
   isSelf: boolean;
+  layout?: "table" | "card";
 }
 
-export function UserRow({ user, isSelf }: Props) {
+export function UserRow({ user, isSelf, layout = "table" }: Props) {
   const [role, setRole] = useState<UserRole>(user.role);
   const [savingRole, startRoleSave] = useTransition();
   const [deleting, startDelete] = useTransition();
@@ -93,6 +95,74 @@ export function UserRow({ user, isSelf }: Props) {
     });
   }
 
+  const roleSelect = (
+    <div className="flex min-w-0 items-center gap-2">
+      <Select value={role} onValueChange={onRoleChange} disabled={savingRole}>
+        <SelectTrigger
+          size="sm"
+          className={layout === "card" ? "w-full" : "w-[8.5rem]"}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent sideOffset={ADMIN_SELECT_SIDE_OFFSET}>
+          {ROLE_OPTIONS.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {savingRole && (
+        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
+      )}
+    </div>
+  );
+
+  const deleteButton = (
+    <Button
+      type="button"
+      variant={confirmDelete ? "destructive" : "outline"}
+      size="sm"
+      className={layout === "card" ? "w-full" : undefined}
+      disabled={isSelf || deleting}
+      onClick={onDelete}
+    >
+      {deleting ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <Trash2 className="h-3.5 w-3.5" />
+      )}
+      {confirmDelete ? "Confirm delete" : "Delete"}
+    </Button>
+  );
+
+  if (layout === "card") {
+    return (
+      <AdminRecordCard>
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="truncate font-medium" title={user.fullName}>
+              {user.fullName}
+            </p>
+            {isSelf && (
+              <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
+                you
+              </span>
+            )}
+          </div>
+          <p className="truncate text-sm text-muted-foreground" title={user.email}>
+            {user.email}
+          </p>
+          <p className="truncate text-sm text-muted-foreground">
+            {user.university ?? "—"}
+          </p>
+        </div>
+        {roleSelect}
+        {deleteButton}
+      </AdminRecordCard>
+    );
+  }
+
   return (
     <TableRow>
       <TableCell className="min-w-0 overflow-hidden font-medium">
@@ -117,41 +187,8 @@ export function UserRow({ user, isSelf }: Props) {
           {user.university ?? "—"}
         </div>
       </TableCell>
-      <TableCell className="overflow-hidden">
-        <div className="inline-flex items-center gap-2">
-          <Select value={role} onValueChange={onRoleChange} disabled={savingRole}>
-            <SelectTrigger size="sm" className="w-[8.5rem]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent sideOffset={ADMIN_SELECT_SIDE_OFFSET}>
-              {ROLE_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {savingRole && (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="overflow-hidden text-right">
-        <Button
-          type="button"
-          variant={confirmDelete ? "destructive" : "outline"}
-          size="sm"
-          disabled={isSelf || deleting}
-          onClick={onDelete}
-        >
-          {deleting ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Trash2 className="h-3.5 w-3.5" />
-          )}
-          {confirmDelete ? "Confirm delete" : "Delete"}
-        </Button>
-      </TableCell>
+      <TableCell className="overflow-hidden">{roleSelect}</TableCell>
+      <TableCell className="overflow-hidden text-right">{deleteButton}</TableCell>
     </TableRow>
   );
 }

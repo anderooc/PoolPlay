@@ -51,6 +51,7 @@ import {
   countActiveTournamentFilters,
 } from "@/components/tournament-list-filters";
 import { Calendar, MapPin, Search, Trophy } from "lucide-react";
+import { ViewportSplit } from "@/components/layout/viewport-split";
 import { cn } from "@/lib/utils";
 import { isTournamentArchived, todayISO } from "@/lib/tournament-status";
 import type { TeamGender, TeamRegion } from "@/types";
@@ -251,11 +252,101 @@ function TournamentRow({
   );
 }
 
+function DateGroupSection({
+  group,
+  today,
+  isSelected,
+  linkPrefix,
+  onSelectDate,
+  sectionRef,
+}: {
+  group: DateGroup;
+  today: string;
+  isSelected: boolean;
+  linkPrefix: string;
+  onSelectDate: (date: string) => void;
+  sectionRef?: (el: HTMLElement | null) => void;
+}) {
+  const isCalendarToday = group.date === today;
+  const isEmpty = group.tournaments.length === 0;
+  return (
+    <section
+      ref={sectionRef}
+      className={cn(
+        "min-w-0 transition-opacity duration-300",
+        isSelected ? "opacity-100" : "opacity-40"
+      )}
+    >
+      <h3
+        className={cn(
+          "flex min-h-9 min-w-0 items-center gap-2 truncate text-sm transition-colors duration-300",
+          isSelected
+            ? "font-semibold text-foreground"
+            : "font-medium text-muted-foreground"
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => onSelectDate(group.date)}
+          className="flex min-h-9 min-w-0 flex-1 items-center gap-2 truncate text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          aria-current={isSelected ? "date" : undefined}
+        >
+          {isCalendarToday && (
+            <span
+              className={cn(
+                "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors",
+                isSelected
+                  ? "bg-primary/15 text-primary"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              Today
+            </span>
+          )}
+          <span className="truncate">{formatDate(group.date)}</span>
+        </button>
+      </h3>
+      {isSelected && (
+        <div
+          className={cn(
+            "mt-2 w-full min-w-0 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200",
+            SELECTED_PANEL_MIN_H
+          )}
+        >
+          {isEmpty ? (
+            <p
+              className={cn(
+                "flex w-full items-center rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 px-4 text-sm text-muted-foreground",
+                SELECTED_PANEL_MIN_H
+              )}
+            >
+              No tournaments scheduled.
+            </p>
+          ) : (
+            <div
+              className={cn(
+                "list-stack w-full border-t border-border/70",
+                SELECTED_PANEL_MIN_H
+              )}
+            >
+              {group.tournaments.map((t) => (
+                <TournamentRow
+                  key={t.id ?? t.slug}
+                  tournament={t}
+                  linkPrefix={linkPrefix}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 /**
- * No-scroll date cycler. Today (or a synthesized empty today group) starts
- * pinned at the top of the container. Wheel and arrow Up/Down cycle through
- * dates one at a time on the schedule; the date wheel on the right is the
- * isolated touch surface so page scrolling and date changes stay separate.
+ * No-scroll date cycler on desktop. Mobile is a stacked date list so the
+ * page can scroll without a side wheel stealing width.
  */
 function ChronologicalSchedule({
   tournaments,
@@ -418,113 +509,62 @@ function ChronologicalSchedule({
 
   const scheduleDates = groups.map((g) => g.date);
 
-  return (
-    <div
-      className="flex min-h-0 w-full min-w-0 flex-1 gap-3 overflow-x-hidden sm:gap-4"
-      style={{ visibility: layoutReady ? "visible" : "hidden" }}
-    >
-      <div
-        ref={containerRef}
-        className="relative min-h-0 min-w-0 flex-1 select-none overflow-hidden outline-none"
-        aria-roledescription="date cycler"
-      >
-        <div ref={stackRef} className="will-change-transform">
-          <div className="space-y-3 pb-12 pt-2">
-          {groups.map((group) => {
-            const isSelected = group.date === effectiveSelectedDate;
-            const isCalendarToday = group.date === today;
-            const isEmpty = group.tournaments.length === 0;
-            return (
-              <section
-                key={group.date}
-                ref={(el) => {
-                  if (el) sectionRefs.current.set(group.date, el);
-                  else sectionRefs.current.delete(group.date);
-                }}
-                className={cn(
-                  "min-w-0 transition-opacity duration-300",
-                  isSelected ? "opacity-100" : "opacity-40"
-                )}
-              >
-                <h3
-                  className={cn(
-                    "flex min-h-9 min-w-0 items-center gap-2 truncate text-sm transition-colors duration-300",
-                    isSelected
-                      ? "font-semibold text-foreground"
-                      : "font-medium text-muted-foreground"
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => onSelectedDateChange(group.date)}
-                    className="flex min-h-9 min-w-0 flex-1 items-center gap-2 truncate text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                    aria-current={isSelected ? "date" : undefined}
-                  >
-                    {isCalendarToday && (
-                      <span
-                        className={cn(
-                          "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors",
-                          isSelected
-                            ? "bg-primary/15 text-primary"
-                            : "bg-muted text-muted-foreground"
-                        )}
-                      >
-                        Today
-                      </span>
-                    )}
-                    <span className="truncate">{formatDate(group.date)}</span>
-                  </button>
-                </h3>
-                {isSelected && (
-                  <div
-                    className={cn(
-                      "mt-2 w-full min-w-0 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200",
-                      SELECTED_PANEL_MIN_H
-                    )}
-                  >
-                    {isEmpty ? (
-                      <p
-                        className={cn(
-                          "flex w-full items-center rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 px-4 text-sm text-muted-foreground",
-                          SELECTED_PANEL_MIN_H
-                        )}
-                      >
-                        No tournaments scheduled.
-                      </p>
-                    ) : (
-                      <div className={cn("list-stack w-full border-t border-border/70", SELECTED_PANEL_MIN_H)}>
-                        {group.tournaments.map((t) => (
-                          <TournamentRow
-                            key={t.id ?? t.slug}
-                            tournament={t}
-                            linkPrefix={linkPrefix}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </section>
-            );
-          })}
-          </div>
-        </div>
-      </div>
+  const dateSections = (withRefs: boolean) =>
+    groups.map((group) => (
+      <DateGroupSection
+        key={group.date}
+        group={group}
+        today={today}
+        isSelected={group.date === effectiveSelectedDate}
+        linkPrefix={linkPrefix}
+        onSelectDate={onSelectedDateChange}
+        sectionRef={
+          withRefs
+            ? (el) => {
+                if (el) sectionRefs.current.set(group.date, el);
+                else sectionRefs.current.delete(group.date);
+              }
+            : undefined
+        }
+      />
+    ));
 
-      <aside
-        aria-label="Date navigation"
-        className="flex w-[9.5rem] shrink-0 flex-none touch-none flex-col self-stretch overscroll-y-none"
-      >
-        <DateScrollWheel
-          className="w-full"
-          dates={scheduleDates}
-          selectedDate={effectiveSelectedDate}
-          onSelect={onSelectedDateChange}
-          today={today}
-          activityKey={wheelActivity}
-        />
-      </aside>
-    </div>
+  return (
+    <ViewportSplit
+      mobile={
+        <div className="min-w-0 space-y-4">{dateSections(false)}</div>
+      }
+      desktop={
+        <div
+          className="flex min-h-0 w-full min-w-0 flex-1 gap-3 overflow-x-hidden sm:gap-4"
+          style={{ visibility: layoutReady ? "visible" : "hidden" }}
+        >
+          <div
+            ref={containerRef}
+            className="relative min-h-0 min-w-0 flex-1 select-none overflow-hidden outline-none"
+            aria-roledescription="date cycler"
+          >
+            <div ref={stackRef} className="will-change-transform">
+              <div className="space-y-3 pb-12 pt-2">{dateSections(true)}</div>
+            </div>
+          </div>
+
+          <aside
+            aria-label="Date navigation"
+            className="flex w-[9.5rem] shrink-0 flex-none touch-none flex-col self-stretch overscroll-y-none"
+          >
+            <DateScrollWheel
+              className="w-full"
+              dates={scheduleDates}
+              selectedDate={effectiveSelectedDate}
+              onSelect={onSelectedDateChange}
+              today={today}
+              activityKey={wheelActivity}
+            />
+          </aside>
+        </div>
+      }
+    />
   );
 }
 
@@ -649,8 +689,8 @@ export function TournamentGrid({
   }
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-6">
-      <div className="flex items-center gap-3">
+    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-1 flex-col gap-6">
+      <div className="flex min-w-0 items-center gap-3">
         <div className="relative min-w-0 flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input

@@ -132,7 +132,10 @@ export function TournamentListFilters({
           </Button>
         }
       />
-      <PopoverContent className="w-80 p-4" align="end">
+      <PopoverContent
+        className="w-[min(20rem,calc(100vw-2rem))] p-4"
+        align="end"
+      >
         <div className="space-y-3">
           <div className="flex h-7 items-center justify-between gap-2">
             <p className="text-sm font-medium">Filters</p>

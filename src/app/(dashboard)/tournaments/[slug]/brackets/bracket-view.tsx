@@ -134,7 +134,7 @@ export function BracketView({
   const championY = bracketHeight / 2;
 
   return (
-    <section className="rounded-xl border border-border/70 bg-card/40 shadow-[inset_0_1px_0_0_oklch(1_0_0/0.5)] dark:shadow-[inset_0_1px_0_0_oklch(1_0_0/0.06)]">
+    <section className="overflow-hidden rounded-xl border border-border/70 bg-card/40 shadow-[inset_0_1px_0_0_oklch(1_0_0/0.5)] dark:shadow-[inset_0_1px_0_0_oklch(1_0_0/0.06)]">
       <header className="border-b border-border/60 px-4 py-3 text-center sm:px-6">
         <h3 className="font-heading text-base font-semibold tracking-tight sm:text-lg">
           {title}
@@ -160,15 +160,19 @@ export function BracketView({
         </p>
       </header>
 
-      <div className="overflow-x-auto">
-        <div
-          className="mx-auto w-max px-4 py-6 sm:px-8 sm:py-8"
-          style={{
-            display: "grid",
-            gridTemplateColumns: `${[...sortedRounds.map(() => `${MATCH_WIDTH}px`), `${CHAMPION_WIDTH}px`].join(" ")}`,
-            minHeight: bracketHeight + 48,
-          }}
-        >
+      <p className="border-b border-border/40 px-4 py-2 text-xs text-muted-foreground md:hidden">
+        Swipe sideways to see later rounds
+      </p>
+      <div className="relative min-w-0">
+        <div className="overflow-x-auto overscroll-x-contain [scrollbar-width:thin]">
+          <div
+            className="mx-auto w-max px-4 py-6 sm:px-8 sm:py-8"
+            style={{
+              display: "grid",
+              gridTemplateColumns: `${[...sortedRounds.map(() => `${MATCH_WIDTH}px`), `${CHAMPION_WIDTH}px`].join(" ")}`,
+              minHeight: bracketHeight + 48,
+            }}
+          >
           {sortedRounds.map(([round], roundIndex) => (
             <div
               key={`label-${round}`}
@@ -268,7 +272,12 @@ export function BracketView({
               />
             </div>
           </div>
+          </div>
         </div>
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-card to-transparent md:hidden"
+          aria-hidden
+        />
       </div>
     </section>
   );

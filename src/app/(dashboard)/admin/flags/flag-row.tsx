@@ -21,6 +21,7 @@
 import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { AdminRecordCard } from "../admin-record-card";
 import { Check, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { adminDeleteFlag, adminResolveFlag } from "../actions";
@@ -36,6 +37,7 @@ interface Props {
     userEmail: string | null;
     userName: string | null;
   };
+  layout?: "table" | "card";
 }
 
 function relativeTime(iso: string): string {
@@ -50,7 +52,7 @@ function relativeTime(iso: string): string {
   return `${d}d ago`;
 }
 
-export function FlagRow({ flag }: Props) {
+export function FlagRow({ flag, layout = "table" }: Props) {
   const [resolving, startResolve] = useTransition();
   const [deleting, startDelete] = useTransition();
 
@@ -74,6 +76,64 @@ export function FlagRow({ flag }: Props) {
         toast.error("Could not delete flag");
       }
     });
+  }
+
+  const actions = (
+    <div className={layout === "card" ? "flex w-full gap-1" : "inline-flex gap-1"}>
+      {!flag.resolvedAt && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={layout === "card" ? "flex-1" : undefined}
+          onClick={onResolve}
+          disabled={resolving}
+        >
+          {resolving ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Check className="h-3.5 w-3.5" />
+          )}
+          Resolve
+        </Button>
+      )}
+      <Button
+        type="button"
+        variant="destructive"
+        size="sm"
+        className={layout === "card" ? "flex-1" : undefined}
+        onClick={onDelete}
+        disabled={deleting}
+      >
+        {deleting ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Trash2 className="h-3.5 w-3.5" />
+        )}
+        Delete
+      </Button>
+    </div>
+  );
+
+  if (layout === "card") {
+    return (
+      <AdminRecordCard className={flag.resolvedAt ? "opacity-60" : undefined}>
+        <div className="min-w-0 space-y-1">
+          <p className="text-xs text-muted-foreground">
+            {relativeTime(flag.createdAt)}
+            {flag.userName ? ` · ${flag.userName}` : ""}
+          </p>
+          <p className="truncate text-xs font-mono text-muted-foreground">
+            {flag.area}
+          </p>
+          <span className="inline-block max-w-full truncate rounded bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive">
+            {flag.blockedWord}
+          </span>
+          <p className="text-sm break-words">{flag.text}</p>
+        </div>
+        {actions}
+      </AdminRecordCard>
+    );
   }
 
   return (
@@ -116,40 +176,7 @@ export function FlagRow({ flag }: Props) {
           {flag.text}
         </p>
       </TableCell>
-      <TableCell className="overflow-hidden text-right">
-        <div className="inline-flex gap-1">
-          {!flag.resolvedAt && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onResolve}
-              disabled={resolving}
-            >
-              {resolving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Check className="h-3.5 w-3.5" />
-              )}
-              Resolve
-            </Button>
-          )}
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={onDelete}
-            disabled={deleting}
-          >
-            {deleting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Trash2 className="h-3.5 w-3.5" />
-            )}
-            Delete
-          </Button>
-        </div>
-      </TableCell>
+      <TableCell className="overflow-hidden text-right">{actions}</TableCell>
     </TableRow>
   );
 }

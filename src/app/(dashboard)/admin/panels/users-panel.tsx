@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ViewportSplit } from "@/components/layout/viewport-split";
 import { UserRow } from "../users/user-row";
 import { AdminTablePagination } from "../admin-table-pagination";
 import { ADMIN_TABLE_PAGE_SIZE } from "../constants";
@@ -69,25 +70,9 @@ export async function AdminUsersPanel({ page }: { page: number }) {
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-md border border-border/80">
-        <Table className="table-fixed">
-          <colgroup>
-            <col className="w-[22%]" />
-            <col className="w-[28%]" />
-            <col className="w-[20%]" />
-            <col className="w-[10rem]" />
-            <col className="w-[8.5rem]" />
-          </colgroup>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>University</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <ViewportSplit
+        mobile={
+          <div className="space-y-3">
             {rows.map((u) => (
               <UserRow
                 key={u.id}
@@ -96,17 +81,58 @@ export async function AdminUsersPanel({ page }: { page: number }) {
                   createdAt: u.createdAt.toISOString(),
                 }}
                 isSelf={u.id === currentUser?.id}
+                layout="card"
               />
             ))}
-          </TableBody>
-        </Table>
-        <AdminTablePagination
-          tab="users"
-          page={safePage}
-          pageSize={ADMIN_TABLE_PAGE_SIZE}
-          total={total}
-        />
-      </div>
+            <AdminTablePagination
+              tab="users"
+              page={safePage}
+              pageSize={ADMIN_TABLE_PAGE_SIZE}
+              total={total}
+            />
+          </div>
+        }
+        desktop={
+          <div className="overflow-hidden rounded-md border border-border/80">
+            <Table className="table-fixed">
+              <colgroup>
+                <col className="w-[22%]" />
+                <col className="w-[28%]" />
+                <col className="w-[20%]" />
+                <col className="w-[10rem]" />
+                <col className="w-[8.5rem]" />
+              </colgroup>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>University</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((u) => (
+                  <UserRow
+                    key={u.id}
+                    user={{
+                      ...u,
+                      createdAt: u.createdAt.toISOString(),
+                    }}
+                    isSelf={u.id === currentUser?.id}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+            <AdminTablePagination
+              tab="users"
+              page={safePage}
+              pageSize={ADMIN_TABLE_PAGE_SIZE}
+              total={total}
+            />
+          </div>
+        }
+      />
     </div>
   );
 }
