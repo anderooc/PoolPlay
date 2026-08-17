@@ -50,7 +50,7 @@ export default async function TournamentsPage() {
   );
 
   return (
-    <div className="flex h-full min-w-0 flex-col gap-6 overflow-x-hidden">
+    <div className="flex min-w-0 flex-col gap-6 overflow-x-hidden md:h-full md:min-h-0">
       <PageHeader
         title="Tournaments"
         description="Browse and manage volleyball tournaments."

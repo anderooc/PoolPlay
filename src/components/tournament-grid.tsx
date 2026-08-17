@@ -51,7 +51,6 @@ import {
   countActiveTournamentFilters,
 } from "@/components/tournament-list-filters";
 import { Calendar, MapPin, Search, Trophy } from "lucide-react";
-import { ViewportSplit } from "@/components/layout/viewport-split";
 import { cn } from "@/lib/utils";
 import { isTournamentArchived, todayISO } from "@/lib/tournament-status";
 import type { TeamGender, TeamRegion } from "@/types";
@@ -530,41 +529,34 @@ function ChronologicalSchedule({
     ));
 
   return (
-    <ViewportSplit
-      mobile={
-        <div className="min-w-0 space-y-4">{dateSections(false)}</div>
-      }
-      desktop={
-        <div
-          className="flex min-h-0 w-full min-w-0 flex-1 gap-3 overflow-x-hidden sm:gap-4"
-          style={{ visibility: layoutReady ? "visible" : "hidden" }}
-        >
-          <div
-            ref={containerRef}
-            className="relative min-h-0 min-w-0 flex-1 select-none overflow-hidden outline-none"
-            aria-roledescription="date cycler"
-          >
-            <div ref={stackRef} className="will-change-transform">
-              <div className="space-y-3 pb-12 pt-2">{dateSections(true)}</div>
-            </div>
-          </div>
-
-          <aside
-            aria-label="Date navigation"
-            className="flex w-[9.5rem] shrink-0 flex-none touch-none flex-col self-stretch overscroll-y-none"
-          >
-            <DateScrollWheel
-              className="w-full"
-              dates={scheduleDates}
-              selectedDate={effectiveSelectedDate}
-              onSelect={onSelectedDateChange}
-              today={today}
-              activityKey={wheelActivity}
-            />
-          </aside>
+    <div
+      className="flex min-h-0 w-full min-w-0 max-w-full flex-1 gap-2 overflow-x-hidden sm:gap-4"
+      style={{ visibility: layoutReady ? "visible" : "hidden" }}
+    >
+      <div
+        ref={containerRef}
+        className="relative min-h-0 min-w-0 flex-1 select-none overflow-hidden outline-none"
+        aria-roledescription="date cycler"
+      >
+        <div ref={stackRef} className="will-change-transform">
+          <div className="space-y-3 pb-12 pt-2">{dateSections(true)}</div>
         </div>
-      }
-    />
+      </div>
+
+      <aside
+        aria-label="Date navigation"
+        className="flex w-[7.25rem] shrink-0 flex-none touch-none flex-col self-stretch overscroll-y-none sm:w-[9.5rem]"
+      >
+        <DateScrollWheel
+          className="w-full"
+          dates={scheduleDates}
+          selectedDate={effectiveSelectedDate}
+          onSelect={onSelectedDateChange}
+          today={today}
+          activityKey={wheelActivity}
+        />
+      </aside>
+    </div>
   );
 }
 
@@ -689,7 +681,7 @@ export function TournamentGrid({
   }
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-1 flex-col gap-6">
+    <div className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col gap-6 md:h-full">
       <div className="flex min-w-0 items-center gap-3">
         <div className="relative min-w-0 flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
