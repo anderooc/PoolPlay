@@ -53,7 +53,7 @@ export function RosterRow({
 
   return (
     <div className="rounded-lg border bg-card px-3 py-2">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div className="flex min-w-0 items-center gap-3">
           {isCaptain ? (
             <JerseyNumberField
@@ -80,7 +80,7 @@ export function RosterRow({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-auto">
           <Badge
             variant={member.role === "captain" ? "default" : "secondary"}
             className="capitalize"

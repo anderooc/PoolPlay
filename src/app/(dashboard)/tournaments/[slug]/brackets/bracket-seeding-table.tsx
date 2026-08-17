@@ -30,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ViewportSplit } from "@/components/layout/viewport-split";
 import { cn } from "@/lib/utils";
 import {
   CROSS_POOL_SEEDING_RULES,
@@ -90,79 +91,115 @@ export function BracketSeedingTable({
             )}
           </div>
         </CardHeader>
-        <CardContent className="overflow-x-auto pt-0">
-          <DataTable>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">#</TableHead>
-                <TableHead>Team</TableHead>
-                <TableHead>Pool</TableHead>
-                <TableHead className="text-center" title="Finish within pool">
-                  Pool
-                </TableHead>
-                <TableHead className="text-center" title="Original pool seed">
-                  Seed
-                </TableHead>
-                <TableHead className="text-center">W-L</TableHead>
-                <TableHead className="text-center">Sets</TableHead>
-                <TableHead className="text-center">+/-</TableHead>
-                {showTiers && (
-                  <>
-                    <TableHead>Bracket</TableHead>
-                    <TableHead
-                      className="text-center"
-                      title="Seed within bracket"
-                    >
-                      Br. seed
-                    </TableHead>
-                  </>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {report.rows.map((row) => (
-                <TableRow key={row.teamId}>
-                  <TableCell className="font-medium tabular-nums">
-                    {row.overallRank}
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium">{row.teamName}</span>
-                    {row.university && (
-                      <span className="ml-1 text-xs text-muted-foreground">
-                        ({row.university})
+        <CardContent className="pt-0">
+          <ViewportSplit
+            mobile={
+              <div className="space-y-2">
+                {report.rows.map((row) => (
+                  <div
+                    key={row.teamId}
+                    className="rounded-lg border border-border/70 px-3 py-2"
+                  >
+                    <p className="min-w-0 truncate text-sm font-medium">
+                      <span className="mr-2 tabular-nums text-muted-foreground">
+                        {row.overallRank}
                       </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {row.poolName}
-                  </TableCell>
-                  <TableCell className="text-center tabular-nums">
-                    {ordinal(row.poolPlace)}
-                  </TableCell>
-                  <TableCell className="text-center tabular-nums">
-                    {row.poolSeed ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-center tabular-nums">
-                    {row.wins}-{row.losses}
-                  </TableCell>
-                  <TableCell className="text-center tabular-nums">
-                    {row.setsWon}-{row.setsLost}
-                  </TableCell>
-                  <TableCell className="text-center tabular-nums">
-                    {row.pointDiff > 0 ? `+${row.pointDiff}` : row.pointDiff}
-                  </TableCell>
-                  {showTiers && (
-                    <>
-                      <TableCell>{row.bracketTier ?? "—"}</TableCell>
-                      <TableCell className="text-center tabular-nums">
-                        {row.bracketSeed ?? "—"}
-                      </TableCell>
-                    </>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </DataTable>
+                      {row.teamName}
+                    </p>
+                    <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                      {row.poolName} · {ordinal(row.poolPlace)}
+                      {row.poolSeed != null ? ` · seed ${row.poolSeed}` : ""}
+                      <span className="mx-1.5">·</span>
+                      {row.wins}-{row.losses}
+                      <span className="mx-1.5">·</span>
+                      {row.setsWon}-{row.setsLost}
+                      <span className="mx-1.5">·</span>
+                      {row.pointDiff > 0 ? `+${row.pointDiff}` : row.pointDiff}
+                      {showTiers && row.bracketTier
+                        ? ` · ${row.bracketTier} #${row.bracketSeed ?? "—"}`
+                        : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            }
+            desktop={
+              <div className="overflow-x-auto">
+                <DataTable>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">#</TableHead>
+                      <TableHead>Team</TableHead>
+                      <TableHead>Pool</TableHead>
+                      <TableHead className="text-center" title="Finish within pool">
+                        Pool
+                      </TableHead>
+                      <TableHead className="text-center" title="Original pool seed">
+                        Seed
+                      </TableHead>
+                      <TableHead className="text-center">W-L</TableHead>
+                      <TableHead className="text-center">Sets</TableHead>
+                      <TableHead className="text-center">+/-</TableHead>
+                      {showTiers && (
+                        <>
+                          <TableHead>Bracket</TableHead>
+                          <TableHead
+                            className="text-center"
+                            title="Seed within bracket"
+                          >
+                            Br. seed
+                          </TableHead>
+                        </>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {report.rows.map((row) => (
+                      <TableRow key={row.teamId}>
+                        <TableCell className="font-medium tabular-nums">
+                          {row.overallRank}
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-medium">{row.teamName}</span>
+                          {row.university && (
+                            <span className="ml-1 text-xs text-muted-foreground">
+                              ({row.university})
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {row.poolName}
+                        </TableCell>
+                        <TableCell className="text-center tabular-nums">
+                          {ordinal(row.poolPlace)}
+                        </TableCell>
+                        <TableCell className="text-center tabular-nums">
+                          {row.poolSeed ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-center tabular-nums">
+                          {row.wins}-{row.losses}
+                        </TableCell>
+                        <TableCell className="text-center tabular-nums">
+                          {row.setsWon}-{row.setsLost}
+                        </TableCell>
+                        <TableCell className="text-center tabular-nums">
+                          {row.pointDiff > 0 ? `+${row.pointDiff}` : row.pointDiff}
+                        </TableCell>
+                        {showTiers && (
+                          <>
+                            <TableCell>{row.bracketTier ?? "—"}</TableCell>
+                            <TableCell className="text-center tabular-nums">
+                              {row.bracketSeed ?? "—"}
+                            </TableCell>
+                          </>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </DataTable>
+              </div>
+            }
+          />
         </CardContent>
       </Card>
     </div>

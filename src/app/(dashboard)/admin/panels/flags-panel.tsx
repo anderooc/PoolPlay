@@ -26,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ViewportSplit } from "@/components/layout/viewport-split";
 import { FlagRow } from "../flags/flag-row";
 import { AdminTablePagination } from "../admin-table-pagination";
 import { ADMIN_TABLE_PAGE_SIZE } from "../constants";
@@ -76,30 +77,13 @@ export async function AdminFlagsPanel({ page }: { page: number }) {
           No flagged content yet.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-md border border-border/80">
-          <Table className="table-fixed">
-            <colgroup>
-              <col className="w-[5.5rem]" />
-              <col className="w-[18%]" />
-              <col className="w-[14%]" />
-              <col className="w-[12%]" />
-              <col />
-              <col className="w-44" />
-            </colgroup>
-            <TableHeader>
-              <TableRow>
-                <TableHead>When</TableHead>
-                <TableHead>User</TableHead>
-                <TableHead>Where</TableHead>
-                <TableHead>Triggered</TableHead>
-                <TableHead>Text</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <ViewportSplit
+          mobile={
+            <div className="space-y-3">
               {rows.map((row) => (
                 <FlagRow
                   key={row.id}
+                  layout="card"
                   flag={{
                     id: row.id,
                     area: row.area,
@@ -114,15 +98,64 @@ export async function AdminFlagsPanel({ page }: { page: number }) {
                   }}
                 />
               ))}
-            </TableBody>
-          </Table>
-          <AdminTablePagination
-            tab="flags"
-            page={safePage}
-            pageSize={ADMIN_TABLE_PAGE_SIZE}
-            total={total}
-          />
-        </div>
+              <AdminTablePagination
+                tab="flags"
+                page={safePage}
+                pageSize={ADMIN_TABLE_PAGE_SIZE}
+                total={total}
+              />
+            </div>
+          }
+          desktop={
+            <div className="overflow-hidden rounded-md border border-border/80">
+              <Table className="table-fixed">
+                <colgroup>
+                  <col className="w-[5.5rem]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[12%]" />
+                  <col />
+                  <col className="w-44" />
+                </colgroup>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>When</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Where</TableHead>
+                    <TableHead>Triggered</TableHead>
+                    <TableHead>Text</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((row) => (
+                    <FlagRow
+                      key={row.id}
+                      flag={{
+                        id: row.id,
+                        area: row.area,
+                        text: row.text,
+                        blockedWord: row.blockedWord,
+                        resolvedAt: row.resolvedAt
+                          ? row.resolvedAt.toISOString()
+                          : null,
+                        createdAt: row.createdAt.toISOString(),
+                        userEmail: row.userEmail,
+                        userName: row.userName,
+                      }}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+              <AdminTablePagination
+                tab="flags"
+                page={safePage}
+                pageSize={ADMIN_TABLE_PAGE_SIZE}
+                total={total}
+              />
+            </div>
+          }
+        />
       )}
     </div>
   );

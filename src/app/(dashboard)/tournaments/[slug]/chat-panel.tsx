@@ -45,6 +45,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ViewportSplit } from "@/components/layout/viewport-split";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { ChatMessageRow } from "@/lib/tournaments/chat-unread";
@@ -334,7 +335,7 @@ export function TournamentChatPanel({
     : MessageSquare;
 
   return (
-    <Card className="overflow-hidden py-0">
+    <Card className="min-w-0 overflow-hidden py-0">
       <CardHeader className="border-b bg-muted/20 px-4 py-4 sm:px-6">
         <CardTitle className="flex items-center gap-2 text-base">
           <MessageSquare className="h-4 w-4" />
@@ -346,53 +347,84 @@ export function TournamentChatPanel({
       </CardHeader>
 
       <CardContent className="p-0">
-        <div className="flex min-h-[min(32rem,72vh)] flex-col md:flex-row">
-          <nav
-            className="flex shrink-0 gap-1 overflow-x-auto border-b p-2 md:w-72 md:flex-col md:overflow-x-visible md:border-b-0 md:border-r md:p-3"
-            aria-label="Chat channels"
-          >
-            {channels.map((channel) => {
-              const Icon = CHANNEL_ICONS[channel.kind];
-              const isActive = channel.id === activeChannelId;
-              return (
-                <button
-                  key={channel.id}
-                  type="button"
-                  onClick={() => setActiveChannelId(channel.id)}
-                  aria-current={isActive ? "true" : undefined}
-                  className={cn(
-                    "flex min-w-[10rem] shrink-0 items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors md:min-w-0 md:w-full",
-                    isActive
-                      ? "bg-primary/10 text-foreground ring-1 ring-primary/20"
-                      : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                  )}
+        <div className="flex min-h-[min(32rem,72vh)] min-w-0 flex-col md:flex-row">
+          <ViewportSplit
+            mobile={
+              <div className="border-b p-2">
+                <Select
+                  value={activeChannelId}
+                  onValueChange={(value) => {
+                    if (typeof value === "string") setActiveChannelId(value);
+                  }}
                 >
-                  <Icon
-                    className={cn(
-                      "mt-0.5 h-4 w-4 shrink-0",
-                      isActive ? "text-primary" : "text-muted-foreground"
-                    )}
-                    aria-hidden
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium">
+                  <SelectTrigger
+                    className="h-11 w-full"
+                    aria-label="Chat channel"
+                  >
+                    <SelectValue placeholder="Choose a channel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {channels.map((channel) => (
+                      <SelectItem key={channel.id} value={channel.id}>
                         {channel.label}
-                      </span>
-                      {channel.unreadCount > 0 && !isActive ? (
-                        <span className="rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-primary-foreground tabular-nums">
-                          {channel.unreadCount}
+                        {channel.unreadCount > 0
+                          ? ` (${channel.unreadCount})`
+                          : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            }
+            desktop={
+              <nav
+                className="flex w-72 shrink-0 flex-col gap-1 border-r p-3"
+                aria-label="Chat channels"
+              >
+                {channels.map((channel) => {
+                  const Icon = CHANNEL_ICONS[channel.kind];
+                  const isActive = channel.id === activeChannelId;
+                  return (
+                    <button
+                      key={channel.id}
+                      type="button"
+                      onClick={() => setActiveChannelId(channel.id)}
+                      aria-current={isActive ? "true" : undefined}
+                      className={cn(
+                        "flex w-full min-w-0 items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
+                        isActive
+                          ? "bg-primary/10 text-foreground ring-1 ring-primary/20"
+                          : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                      )}
+                    >
+                      <Icon
+                        className={cn(
+                          "mt-0.5 h-4 w-4 shrink-0",
+                          isActive ? "text-primary" : "text-muted-foreground"
+                        )}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <span className="truncate text-sm font-medium">
+                            {channel.label}
+                          </span>
+                          {channel.unreadCount > 0 && !isActive ? (
+                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-primary-foreground tabular-nums">
+                              {channel.unreadCount}
+                            </span>
+                          ) : null}
                         </span>
-                      ) : null}
-                    </span>
-                    <span className="mt-0.5 hidden text-xs leading-relaxed text-pretty text-muted-foreground md:block">
-                      {channel.description}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </nav>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-pretty text-muted-foreground">
+                          {channel.description}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </nav>
+            }
+          />
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             {activeChannel ? (
@@ -484,8 +516,8 @@ export function TournamentChatPanel({
                       aria-label="Message"
                       className="block w-full resize-none rounded-t-xl border-0 bg-transparent px-3.5 pt-3 pb-2 text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60"
                     />
-                    <div className="flex items-center justify-between gap-2 border-t border-border/60 px-2.5 py-2">
-                      <p className="px-1 text-xs text-muted-foreground">
+                    <div className="flex items-center justify-end gap-2 border-t border-border/60 px-2.5 py-2 sm:justify-between">
+                      <p className="hidden px-1 text-xs text-muted-foreground sm:block">
                         Enter to send · Shift+Enter for new line
                       </p>
                       <Button

@@ -26,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ViewportSplit } from "@/components/layout/viewport-split";
 import { SchoolRow } from "../schools/school-row";
 import { AdminTablePagination } from "../admin-table-pagination";
 import { ADMIN_TABLE_PAGE_SIZE } from "../constants";
@@ -99,39 +100,56 @@ export async function AdminSchoolsPanel({ page }: { page: number }) {
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-md border border-border/80">
-        <Table className="table-fixed">
-          <colgroup>
-            <col className="w-[28%]" />
-            <col className="w-[22%]" />
-            <col className="w-20" />
-            <col className="w-20" />
-            <col className="w-[11rem]" />
-            <col className="w-72" />
-          </colgroup>
-          <TableHeader>
-            <TableRow>
-              <TableHead>School</TableHead>
-              <TableHead>President</TableHead>
-              <TableHead className="text-right">Officers</TableHead>
-              <TableHead className="text-right">Teams</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <ViewportSplit
+        mobile={
+          <div className="space-y-3">
             {rows.map((s) => (
-              <SchoolRow key={s.id} school={s} />
+              <SchoolRow key={s.id} school={s} layout="card" />
             ))}
-          </TableBody>
-        </Table>
-        <AdminTablePagination
-          tab="schools"
-          page={safePage}
-          pageSize={ADMIN_TABLE_PAGE_SIZE}
-          total={total}
-        />
-      </div>
+            <AdminTablePagination
+              tab="schools"
+              page={safePage}
+              pageSize={ADMIN_TABLE_PAGE_SIZE}
+              total={total}
+            />
+          </div>
+        }
+        desktop={
+          <div className="overflow-hidden rounded-md border border-border/80">
+            <Table className="table-fixed">
+              <colgroup>
+                <col className="w-[28%]" />
+                <col className="w-[22%]" />
+                <col className="w-20" />
+                <col className="w-20" />
+                <col className="w-[11rem]" />
+                <col className="w-72" />
+              </colgroup>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>School</TableHead>
+                  <TableHead>President</TableHead>
+                  <TableHead className="text-right">Officers</TableHead>
+                  <TableHead className="text-right">Teams</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((s) => (
+                  <SchoolRow key={s.id} school={s} />
+                ))}
+              </TableBody>
+            </Table>
+            <AdminTablePagination
+              tab="schools"
+              page={safePage}
+              pageSize={ADMIN_TABLE_PAGE_SIZE}
+              total={total}
+            />
+          </div>
+        }
+      />
     </div>
   );
 }

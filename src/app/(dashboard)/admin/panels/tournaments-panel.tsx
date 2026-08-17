@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ViewportSplit } from "@/components/layout/viewport-split";
 import { TournamentRow } from "../tournaments/tournament-row";
 import { AdminTablePagination } from "../admin-table-pagination";
 import { ADMIN_TABLE_PAGE_SIZE } from "../constants";
@@ -71,46 +72,69 @@ export async function AdminTournamentsPanel({ page }: { page: number }) {
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-md border border-border/80">
-        <Table className="table-fixed">
-          <colgroup>
-            <col />
-            <col className="w-[7.5rem]" />
-            <col />
-            <col className="w-[13.5rem]" />
-            <col className="w-48" />
-          </colgroup>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tournament</TableHead>
-              <TableHead>Dates</TableHead>
-              <TableHead>Organizer</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <ViewportSplit
+        mobile={
+          <div className="space-y-3">
             {rows.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="py-8 text-center text-muted-foreground"
-                >
-                  No tournaments yet.
-                </TableCell>
-              </TableRow>
+              <p className="rounded-xl border border-border/80 px-4 py-8 text-center text-sm text-muted-foreground">
+                No tournaments yet.
+              </p>
             ) : (
-              rows.map((t) => <TournamentRow key={t.id} tournament={t} />)
+              rows.map((t) => (
+                <TournamentRow key={t.id} tournament={t} layout="card" />
+              ))
             )}
-          </TableBody>
-        </Table>
-        <AdminTablePagination
-          tab="tournaments"
-          page={safePage}
-          pageSize={ADMIN_TABLE_PAGE_SIZE}
-          total={total}
-        />
-      </div>
+            <AdminTablePagination
+              tab="tournaments"
+              page={safePage}
+              pageSize={ADMIN_TABLE_PAGE_SIZE}
+              total={total}
+            />
+          </div>
+        }
+        desktop={
+          <div className="overflow-hidden rounded-md border border-border/80">
+            <Table className="table-fixed">
+              <colgroup>
+                <col />
+                <col className="w-[7.5rem]" />
+                <col />
+                <col className="w-[13.5rem]" />
+                <col className="w-48" />
+              </colgroup>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tournament</TableHead>
+                  <TableHead>Dates</TableHead>
+                  <TableHead>Organizer</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="py-8 text-center text-muted-foreground"
+                    >
+                      No tournaments yet.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  rows.map((t) => <TournamentRow key={t.id} tournament={t} />)
+                )}
+              </TableBody>
+            </Table>
+            <AdminTablePagination
+              tab="tournaments"
+              page={safePage}
+              pageSize={ADMIN_TABLE_PAGE_SIZE}
+              total={total}
+            />
+          </div>
+        }
+      />
     </div>
   );
 }

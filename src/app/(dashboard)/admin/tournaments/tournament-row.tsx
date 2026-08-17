@@ -39,6 +39,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AdminDialogContent } from "../admin-dialog-content";
+import { AdminRecordCard } from "../admin-record-card";
 import { ADMIN_SELECT_SIDE_OFFSET } from "../constants";
 import { ExternalLink, Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -68,9 +69,10 @@ interface Props {
     organizerName: string | null;
     organizerEmail: string | null;
   };
+  layout?: "table" | "card";
 }
 
-export function TournamentRow({ tournament }: Props) {
+export function TournamentRow({ tournament, layout = "table" }: Props) {
   const router = useRouter();
   const [name, setName] = useState(tournament.name);
   const [slug, setSlug] = useState(tournament.slug);
@@ -135,25 +137,97 @@ export function TournamentRow({ tournament }: Props) {
     });
   }
 
+  const statusSelect = (
+    <div className="flex min-w-0 items-center gap-2">
+      <Select
+        value={status}
+        onValueChange={onStatusChange}
+        disabled={savingStatus}
+      >
+        <SelectTrigger
+          size="sm"
+          className={layout === "card" ? "w-full" : "w-[12rem]"}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent sideOffset={ADMIN_SELECT_SIDE_OFFSET}>
+          {STATUS_OPTIONS.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {savingStatus && (
+        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
+      )}
+    </div>
+  );
+
+  const actions = (
+    <div className={layout === "card" ? "flex w-full gap-1" : "inline-flex gap-1"}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className={layout === "card" ? "flex-1" : undefined}
+        onClick={() => {
+          setDraftName(name);
+          setRenameOpen(true);
+        }}
+      >
+        <Pencil className="h-3.5 w-3.5" />
+        Rename
+      </Button>
+      <Button
+        type="button"
+        variant="destructive"
+        size="sm"
+        className={layout === "card" ? "flex-1" : undefined}
+        onClick={() => setDeleteOpen(true)}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        Delete
+      </Button>
+    </div>
+  );
+
+  const nameBlock = (
+    <>
+      <Link
+        href={`/tournaments/${slug}`}
+        title={name}
+        className="flex min-w-0 max-w-full items-center gap-1 font-medium underline-offset-4 hover:underline"
+      >
+        <span className="truncate">{name}</span>
+        <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+      </Link>
+      <div
+        className="truncate text-xs text-muted-foreground"
+        title={tournament.location}
+      >
+        {tournament.location}
+      </div>
+    </>
+  );
+
   return (
     <>
+      {layout === "card" ? (
+        <AdminRecordCard>
+          <div className="min-w-0">{nameBlock}</div>
+          <p className="text-sm text-muted-foreground">
+            {tournament.date}
+            {tournament.organizerName
+              ? ` · ${tournament.organizerName}`
+              : ""}
+          </p>
+          {statusSelect}
+          {actions}
+        </AdminRecordCard>
+      ) : (
       <TableRow>
-        <TableCell className="min-w-0 overflow-hidden">
-          <Link
-            href={`/tournaments/${slug}`}
-            title={name}
-            className="flex min-w-0 max-w-full items-center gap-1 font-medium underline-offset-4 hover:underline"
-          >
-            <span className="truncate">{name}</span>
-            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
-          </Link>
-          <div
-            className="truncate text-xs text-muted-foreground"
-            title={tournament.location}
-          >
-            {tournament.location}
-          </div>
-        </TableCell>
+        <TableCell className="min-w-0 overflow-hidden">{nameBlock}</TableCell>
         <TableCell className="whitespace-nowrap text-muted-foreground">
           {tournament.date}
         </TableCell>
@@ -170,55 +244,10 @@ export function TournamentRow({ tournament }: Props) {
             </div>
           )}
         </TableCell>
-        <TableCell className="overflow-hidden">
-          <div className="inline-flex items-center gap-2">
-            <Select
-              value={status}
-              onValueChange={onStatusChange}
-              disabled={savingStatus}
-            >
-              <SelectTrigger size="sm" className="w-[12rem]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent sideOffset={ADMIN_SELECT_SIDE_OFFSET}>
-                {STATUS_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {savingStatus && (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-            )}
-          </div>
-        </TableCell>
-        <TableCell className="overflow-hidden text-right">
-          <div className="inline-flex gap-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setDraftName(name);
-                setRenameOpen(true);
-              }}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              Rename
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              onClick={() => setDeleteOpen(true)}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete
-            </Button>
-          </div>
-        </TableCell>
+        <TableCell className="overflow-hidden">{statusSelect}</TableCell>
+        <TableCell className="overflow-hidden text-right">{actions}</TableCell>
       </TableRow>
+      )}
 
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
         <AdminDialogContent>

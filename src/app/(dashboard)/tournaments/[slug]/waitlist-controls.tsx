@@ -23,6 +23,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ViewportSplit } from "@/components/layout/viewport-split";
+import { cn } from "@/lib/utils";
 import {
   promoteNextWaitlistedTeam,
   removeWaitlistedTeam,
@@ -317,27 +319,12 @@ export function WaitlistTable({
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground">No teams are waiting.</p>;
   }
-  return <div className="overflow-x-auto">
-      <table className="w-full min-w-[44rem] text-left text-sm">
-        <thead className="border-b text-xs uppercase text-muted-foreground">
-          <tr>
-            {[
-              "Position",
-              "Team",
-              "School",
-              "Requested",
-              "Eligibility",
-              "Action",
-            ].map((label) => (
-              <th key={label} className="px-2 py-2 font-medium last:text-right">
-                {label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y">
+  return (
+    <ViewportSplit
+      mobile={
+        <div className="space-y-2">
           {rows.map((row) => (
-            <WaitlistTableRow
+            <WaitlistCard
               key={row.id}
               row={row}
               canManage={canManage}
@@ -346,9 +333,100 @@ export function WaitlistTable({
               remove={remove}
             />
           ))}
-        </tbody>
-      </table>
-    </div>;
+        </div>
+      }
+      desktop={
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[44rem] text-left text-sm">
+            <thead className="border-b text-xs uppercase text-muted-foreground">
+              <tr>
+                {[
+                  "Position",
+                  "Team",
+                  "School",
+                  "Requested",
+                  "Eligibility",
+                  "Action",
+                ].map((label) => (
+                  <th
+                    key={label}
+                    className="px-2 py-2 font-medium last:text-right"
+                  >
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {rows.map((row) => (
+                <WaitlistTableRow
+                  key={row.id}
+                  row={row}
+                  canManage={canManage}
+                  busy={busy}
+                  removing={removingId === row.id}
+                  remove={remove}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      }
+    />
+  );
+}
+
+function WaitlistCard({
+  row,
+  canManage,
+  busy,
+  removing,
+  remove,
+}: {
+  row: OrganizerWaitlistRow;
+  canManage: boolean;
+  busy: boolean;
+  removing: boolean;
+  remove: (entryId: string) => Promise<void>;
+}) {
+  return (
+    <article className="space-y-3 rounded-xl border bg-card p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-medium">
+            #{row.queueRank} {row.teamName}
+          </p>
+          <p className="truncate text-sm text-muted-foreground">
+            {row.schoolName}
+          </p>
+        </div>
+        <span
+          className={cn(
+            "shrink-0 text-xs",
+            row.eligible ? "text-success" : "text-muted-foreground"
+          )}
+        >
+          {row.eligible ? "Eligible" : "Not eligible"}
+        </span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Requested{" "}
+        <time dateTime={row.requestedAt}>
+          {utcDisplay(row.requestedAt)} UTC
+        </time>
+      </p>
+      <Button
+        type="button"
+        size="sm"
+        variant="destructive"
+        className="w-full"
+        onClick={() => remove(row.id)}
+        disabled={!canManage || busy}
+      >
+        {removing ? "Removing..." : "Remove"}
+      </Button>
+    </article>
+  );
 }
 
 function WaitlistTableRow({
