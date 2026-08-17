@@ -1,4 +1,4 @@
--- PoolPlay security hardening.
+-- brackt security hardening.
 -- Application writes use the trusted server-side Postgres connection.
 -- Browser roles must not mutate identities or sensitive operational records.
 
