@@ -42,7 +42,7 @@ export default async function DashboardLayout({
   const schoolsHref = mySchool ? `/schools/${mySchool.slug}` : undefined;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="flex min-h-dvh flex-col md:h-dvh md:max-h-dvh md:overflow-hidden">
       <Header
         isAdmin={admin}
         schoolsHref={schoolsHref}
@@ -62,7 +62,7 @@ export default async function DashboardLayout({
           <main
             id="main-content"
             tabIndex={-1}
-            className="flex-1 overflow-y-scroll overflow-x-hidden p-4 [scrollbar-gutter:stable] md:p-6"
+            className="flex-1 overflow-x-clip p-4 md:min-h-0 md:overflow-y-auto md:overscroll-y-contain md:p-6 md:[scrollbar-gutter:stable]"
           >
             <RouteFade>{children}</RouteFade>
           </main>
