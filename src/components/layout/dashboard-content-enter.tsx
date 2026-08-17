@@ -53,7 +53,7 @@ export function DashboardContentEnter({ children }: { children: ReactNode }) {
   return (
     <div
       className={cn(
-        "flex min-h-0 flex-1 overflow-hidden",
+        "flex flex-1 md:min-h-0 md:overflow-hidden",
         welcome &&
           "motion-safe:origin-top motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-[0.97] motion-safe:duration-700 motion-safe:ease-out"
       )}

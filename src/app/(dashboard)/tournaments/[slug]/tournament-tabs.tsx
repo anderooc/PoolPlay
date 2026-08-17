@@ -252,7 +252,7 @@ export function TournamentTabs({
       </div>
 
       <aside className="hidden w-56 shrink-0 lg:block lg:border-r lg:border-border/80 lg:pr-6">
-        <div className="sticky top-0 max-h-[calc(100vh-5.5rem)] overflow-y-auto rounded-xl bg-muted/45 p-2 ring-1 ring-border/50 [scrollbar-width:thin] dark:bg-muted/30">
+        <div className="sticky top-0 max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-y-contain rounded-xl bg-muted/45 p-2 ring-1 ring-border/50 [scrollbar-width:thin] dark:bg-muted/30">
           <SectionNav slug={slug} groups={groups} activeTab={activeTab} />
         </div>
       </aside>

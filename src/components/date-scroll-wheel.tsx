@@ -29,15 +29,26 @@ const FADE_IDLE_MS = 1100;
 const DRAG_STEP_PX = 36;
 const CLICK_SLOP_PX = 6;
 
-function subscribeReducedMotion(onStoreChange: () => void) {
-  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-  mq.addEventListener("change", onStoreChange);
-  return () => mq.removeEventListener("change", onStoreChange);
+function subscribeMediaQuery(query: string) {
+  return (onStoreChange: () => void) => {
+    const mq = window.matchMedia(query);
+    mq.addEventListener("change", onStoreChange);
+    return () => mq.removeEventListener("change", onStoreChange);
+  };
 }
 
-function getReducedMotionSnapshot() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+function getMediaQuerySnapshot(query: string) {
+  return () => window.matchMedia(query).matches;
 }
+
+const subscribeReducedMotion = subscribeMediaQuery(
+  "(prefers-reduced-motion: reduce)"
+);
+const getReducedMotionSnapshot = getMediaQuerySnapshot(
+  "(prefers-reduced-motion: reduce)"
+);
+const subscribeCoarsePointer = subscribeMediaQuery("(pointer: coarse)");
+const getCoarsePointerSnapshot = getMediaQuerySnapshot("(pointer: coarse)");
 
 function formatWheelLine(iso: string, today: string) {
   const d = parseISODate(iso);
@@ -90,6 +101,11 @@ export function DateScrollWheel({
     getReducedMotionSnapshot,
     () => false
   );
+  const isCoarsePointer = useSyncExternalStore(
+    subscribeCoarsePointer,
+    getCoarsePointerSnapshot,
+    () => false
+  );
   const [isDragging, setIsDragging] = useState(false);
 
   const selectedIndex = dates.indexOf(selectedDate);
@@ -104,13 +120,13 @@ export function DateScrollWheel({
 
   const show = useCallback(() => {
     setVisible(true);
-    if (reduceMotion) return;
+    if (reduceMotion || isCoarsePointer) return;
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     hideTimerRef.current = setTimeout(() => {
       setVisible(false);
       hideTimerRef.current = null;
     }, FADE_IDLE_MS);
-  }, [reduceMotion]);
+  }, [isCoarsePointer, reduceMotion]);
 
   const advance = useCallback(
     (delta: number) => {
@@ -157,10 +173,16 @@ export function DateScrollWheel({
       }
     }
 
+    function onTouchMove(e: TouchEvent) {
+      e.preventDefault();
+    }
+
     el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
 
     return () => {
       el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchmove", onTouchMove);
     };
   }, [advance]);
 
@@ -194,24 +216,20 @@ export function DateScrollWheel({
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
         "[data-date]"
       );
-      if (!btn) return;
-
-      const iso = btn.dataset.date;
-      if (!iso) return;
 
       show();
       dragRef.current = {
         pointerId: e.pointerId,
         startY: e.clientY,
         lastY: e.clientY,
-        startDate: iso,
+        startDate: btn?.dataset.date ?? selectedDate,
         dragged: false,
       };
       stepAccumulatorRef.current = 0;
       rootRef.current?.setPointerCapture(e.pointerId);
       e.preventDefault();
     },
-    [show]
+    [selectedDate, show]
   );
 
   const handlePointerMove = useCallback(
@@ -254,7 +272,7 @@ export function DateScrollWheel({
 
   if (visibleDates.length === 0) return null;
 
-  const isShown = reduceMotion || visible;
+  const isShown = reduceMotion || isCoarsePointer || visible;
 
   return (
     <div
@@ -264,12 +282,10 @@ export function DateScrollWheel({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       className={cn(
-        "flex w-full flex-none touch-none select-none flex-col justify-center self-center overflow-hidden",
+        "flex w-full min-h-0 flex-1 touch-none select-none flex-col justify-center overflow-hidden overscroll-y-none",
         "transition-opacity duration-300 ease-out",
         isDragging ? "cursor-grabbing" : "cursor-grab",
-        isShown
-          ? "pointer-events-auto opacity-100"
-          : "pointer-events-none opacity-0",
+        isShown ? "opacity-100" : "opacity-0",
         className
       )}
       aria-label="Date selector"

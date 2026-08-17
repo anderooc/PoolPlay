@@ -60,6 +60,7 @@ export function DatePickerCalendar({
   className,
   autoFocus,
 }: DatePickerCalendarProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const { startMonth, endMonth, today } = useMemo(
     () => getCalendarMonthBounds(rangeFromDates),
     [rangeFromDates]
@@ -76,30 +77,54 @@ export function DatePickerCalendar({
     queueMicrotask(() => setInternalMonth(selected));
   }, [selected, monthProp]);
 
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+
+    function onWheel(e: WheelEvent) {
+      e.stopPropagation();
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("select")) return;
+      e.preventDefault();
+    }
+
+    el.addEventListener("wheel", onWheel, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchmove", onTouchMove);
+    };
+  }, []);
+
   return (
-    <Calendar
-      mode="single"
-      showOutsideDays={false}
-      captionLayout="dropdown"
-      navLayout="after"
-      hideNavigation
-      reverseYears
-      startMonth={startMonth}
-      endMonth={endMonth}
-      month={month}
-      onMonthChange={setMonth}
-      selected={selected}
-      onSelect={onSelect}
-      modifiers={
-        markedDates?.length ? { marked: markedDates } : undefined
-      }
-      modifiersClassNames={{
-        marked:
-          "relative after:absolute after:bottom-0.5 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-primary",
-      }}
-      className={cn(COMPACT_CALENDAR_CLASS, className)}
-      autoFocus={autoFocus}
-    />
+    <div ref={rootRef} className="overscroll-contain">
+      <Calendar
+        mode="single"
+        showOutsideDays={false}
+        captionLayout="dropdown"
+        navLayout="after"
+        hideNavigation
+        reverseYears
+        startMonth={startMonth}
+        endMonth={endMonth}
+        month={month}
+        onMonthChange={setMonth}
+        selected={selected}
+        onSelect={onSelect}
+        modifiers={
+          markedDates?.length ? { marked: markedDates } : undefined
+        }
+        modifiersClassNames={{
+          marked:
+            "relative after:absolute after:bottom-0.5 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-primary",
+        }}
+        className={cn(COMPACT_CALENDAR_CLASS, className)}
+        autoFocus={autoFocus}
+      />
+    </div>
   );
 }
 

@@ -103,9 +103,6 @@ const SELECTED_PANEL_MIN_H =
  */
 const WHEEL_DELTA_PER_DATE = 120;
 
-/** Vertical pixels of touch movement before a swipe advances the date. */
-const SWIPE_THRESHOLD_PX = 56;
-
 interface Tournament {
   id?: string;
   slug: string;
@@ -256,11 +253,9 @@ function TournamentRow({
 
 /**
  * No-scroll date cycler. Today (or a synthesized empty today group) starts
- * pinned at the top of the container. Wheel, touch, and arrow Up/Down cycle
- * through dates one at a time — there is no actual scrollbar or free
- * scrolling. The selected day's heading scales up and its tournament cards
- * expand into view; non-selected days collapse to just their heading and
- * dim, so the eye is always on the current selection.
+ * pinned at the top of the container. Wheel and arrow Up/Down cycle through
+ * dates one at a time on the schedule; the date wheel on the right is the
+ * isolated touch surface so page scrolling and date changes stay separate.
  */
 function ChronologicalSchedule({
   tournaments,
@@ -339,8 +334,8 @@ function ChronologicalSchedule({
     }
   }, [effectiveSelectedDate, groups, selectedGroupTournamentCount]);
 
-  // Wheel + touch cycle through dates. The container does not scroll —
-  // wheel events are intercepted and turned into one-step date advances.
+  // Mouse/trackpad wheel cycles dates. Touch scrolling is left to the page;
+  // the date wheel beside this list is the isolated gesture surface.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -374,40 +369,10 @@ function ChronologicalSchedule({
       }
     }
 
-    let touchY = 0;
-    let touchAccumulator = 0;
-    function onTouchStart(e: TouchEvent) {
-      if (e.touches.length === 1) {
-        touchY = e.touches[0].clientY;
-        touchAccumulator = 0;
-      }
-    }
-    function onTouchMove(e: TouchEvent) {
-      if (e.touches.length !== 1) return;
-      const y = e.touches[0].clientY;
-      touchAccumulator += touchY - y;
-      touchY = y;
-
-      while (touchAccumulator >= SWIPE_THRESHOLD_PX) {
-        e.preventDefault();
-        advance(1);
-        touchAccumulator -= SWIPE_THRESHOLD_PX;
-      }
-      while (touchAccumulator <= -SWIPE_THRESHOLD_PX) {
-        e.preventDefault();
-        advance(-1);
-        touchAccumulator += SWIPE_THRESHOLD_PX;
-      }
-    }
-
     el.addEventListener("wheel", onWheel, { passive: false });
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
 
     return () => {
       el.removeEventListener("wheel", onWheel);
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
     };
   }, [groups, today, selectedDate, onSelectedDateChange, registerWheelActivity]);
 
@@ -489,19 +454,26 @@ function ChronologicalSchedule({
                       : "font-medium text-muted-foreground"
                   )}
                 >
-                  {isCalendarToday && (
-                    <span
-                      className={cn(
-                        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors",
-                        isSelected
-                          ? "bg-primary/15 text-primary"
-                          : "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      Today
-                    </span>
-                  )}
-                  <span className="truncate">{formatDate(group.date)}</span>
+                  <button
+                    type="button"
+                    onClick={() => onSelectedDateChange(group.date)}
+                    className="flex min-h-9 min-w-0 flex-1 items-center gap-2 truncate text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    aria-current={isSelected ? "date" : undefined}
+                  >
+                    {isCalendarToday && (
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors",
+                          isSelected
+                            ? "bg-primary/15 text-primary"
+                            : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        Today
+                      </span>
+                    )}
+                    <span className="truncate">{formatDate(group.date)}</span>
+                  </button>
                 </h3>
                 {isSelected && (
                   <div
@@ -541,10 +513,10 @@ function ChronologicalSchedule({
 
       <aside
         aria-label="Date navigation"
-        className="flex w-[9.5rem] shrink-0 flex-none flex-col justify-center self-stretch"
+        className="flex w-[9.5rem] shrink-0 flex-none touch-none flex-col self-stretch overscroll-y-none"
       >
         <DateScrollWheel
-          className="w-full -translate-y-6"
+          className="w-full"
           dates={scheduleDates}
           selectedDate={effectiveSelectedDate}
           onSelect={onSelectedDateChange}
