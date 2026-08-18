@@ -11,14 +11,23 @@ const supabaseOrigin = (() => {
 })();
 
 const supabaseRealtimeOrigin = supabaseOrigin.replace(/^http/, "ws");
+
+/** Vercel injects a live feedback toolbar on preview deployments. */
+const isVercelPreview = process.env.VERCEL_ENV === "preview";
+const vercelLiveScriptSrc = isVercelPreview ? " https://vercel.live" : "";
+const vercelLiveConnectSrc = isVercelPreview
+  ? " https://vercel.live wss://vercel.live"
+  : "";
+const vercelLiveFrameSrc = isVercelPreview ? " https://vercel.live" : "";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}${vercelLiveScriptSrc}`,
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' blob: data: ${supabaseOrigin}`.trim(),
   "font-src 'self' data:",
-  `connect-src 'self' ${supabaseOrigin} ${supabaseRealtimeOrigin}`.trim(),
-  "frame-src https://www.google.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com",
+  `connect-src 'self' ${supabaseOrigin} ${supabaseRealtimeOrigin}${vercelLiveConnectSrc}`.trim(),
+  `frame-src https://www.google.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com${vercelLiveFrameSrc}`,
   "media-src 'self' blob: https:",
   "object-src 'none'",
   "base-uri 'self'",

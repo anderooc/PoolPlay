@@ -54,16 +54,6 @@ const S = StyleSheet.create({
     lineHeight: 1.5,
     color: INK,
   },
-  // The fixed header on continuation pages — provides top breathing room
-  continuationBand: {
-    height: 18,
-    marginBottom: 14,
-  },
-  headerBand: {
-    paddingHorizontal: 40,
-    paddingTop: 0,
-    paddingBottom: 0,
-  },
   // Top portion: large date + tournament name
   headerTop: {
     paddingTop: 28,
@@ -572,50 +562,56 @@ function ScheduleSection({ data }: { data: PacketData }) {
 export function TournamentPacketDocument({ data }: { data: PacketData }) {
   const accent = data.accentColor;
 
-  // Slightly darkened version of accent for the meta strip
-  const metaStripStyle = { backgroundColor: accent, opacity: 0.85 };
-
   return (
     <Document title={`${data.name} — Tournament Packet`} author="brackt">
       <Page size="LETTER" style={S.page} wrap>
-        {/* ---- Fixed colored band on every continuation page ---- */}
+        {/* Top accent band on continuation pages only */}
         <View
-          style={[S.continuationBand, { backgroundColor: accent }]}
           fixed
           render={({ pageNumber }) =>
-            pageNumber === 1 ? null : <View style={{ height: 18 }} />
+            pageNumber > 1 ? (
+              <View
+                style={{ height: 18, backgroundColor: accent, width: "100%" }}
+              />
+            ) : null
           }
         />
 
-        {/* ---- Cover header (first page only) ---- */}
-        <View style={{ backgroundColor: accent }} render={({ pageNumber }) =>
-          pageNumber === 1 ? (
-            <>
-              <View style={S.headerTop}>
-                <Text style={S.headerDate}>{data.dateDisplay}</Text>
-                <Text style={S.headerTitle}>{data.name}</Text>
+        {/* Cover header (first page only) */}
+        <View
+          fixed
+          render={({ pageNumber }) =>
+            pageNumber === 1 ? (
+              <View style={{ backgroundColor: accent, width: "100%" }}>
+                <View style={S.headerTop}>
+                  <Text style={S.headerDate}>{data.dateDisplay}</Text>
+                  <Text style={S.headerTitle}>{data.name}</Text>
+                </View>
+                <View
+                  style={[
+                    S.headerBottom,
+                    { backgroundColor: "#000000", opacity: 0.18 },
+                  ]}
+                >
+                  <Text style={S.headerMeta}>
+                    <Text style={S.headerMetaStrong}>Organizer: </Text>
+                    {data.organizerName}
+                    {data.hostSchoolName
+                      ? ` · Hosted by ${data.hostSchoolName}`
+                      : ""}
+                  </Text>
+                  <Text style={S.headerMeta}>
+                    <Text style={S.headerMetaStrong}>Live event: </Text>
+                    {data.liveUrl}
+                  </Text>
+                </View>
               </View>
-              <View
-                style={[
-                  S.headerBottom,
-                  { backgroundColor: "rgba(0,0,0,0.18)" },
-                ]}
-              >
-                <Text style={S.headerMeta}>
-                  <Text style={S.headerMetaStrong}>Organizer: </Text>
-                  {data.organizerName}
-                  {data.hostSchoolName
-                    ? ` · Hosted by ${data.hostSchoolName}`
-                    : ""}
-                </Text>
-                <Text style={S.headerMeta}>
-                  <Text style={S.headerMetaStrong}>Live event: </Text>
-                  {data.liveUrl}
-                </Text>
-              </View>
-            </>
-          ) : null
-        } />
+            ) : null
+          }
+        />
+
+        {/* Reserve space below the fixed first-page header */}
+        <View style={{ height: 130 }} />
 
         <View style={S.body}>
           <LocationSection data={data} />
