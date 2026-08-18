@@ -18,7 +18,10 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { buildLocationMapQuery } from "@/lib/tournaments/packet-map-image";
+import {
+  buildLocationMapQuery,
+  geocodeQueryVariants,
+} from "@/lib/tournaments/packet-map-image";
 
 describe("buildLocationMapQuery", () => {
   it("joins location and address like the web map preview", () => {
@@ -35,5 +38,29 @@ describe("buildLocationMapQuery", () => {
 
   it("uses address alone when location is missing", () => {
     assert.equal(buildLocationMapQuery("123 Main St"), "123 Main St");
+  });
+});
+
+describe("geocodeQueryVariants", () => {
+  it("returns deduped candidates most specific first", () => {
+    assert.deepEqual(
+      geocodeQueryVariants("123 Main St, Berkeley, CA", "Rec Center"),
+      [
+        "Rec Center, 123 Main St, Berkeley, CA",
+        "123 Main St, Berkeley, CA",
+        "123 Main St, Berkeley, CA, Rec Center",
+        "Rec Center",
+      ]
+    );
+  });
+
+  it("drops address-only queries shorter than four characters", () => {
+    assert.deepEqual(geocodeQueryVariants("123", "Rec Center"), [
+      "Rec Center, 123",
+      "123, Rec Center",
+      "Rec Center",
+    ]);
+    assert.deepEqual(geocodeQueryVariants("12", "Rec"), ["Rec, 12", "12, Rec"]);
+    assert.deepEqual(geocodeQueryVariants("", ""), []);
   });
 });

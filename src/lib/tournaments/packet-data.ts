@@ -54,6 +54,10 @@ import {
   lookupPoolMatchRound,
   lookupTeamSeed,
 } from "@/lib/tournaments/packet-pool-schedule";
+import {
+  buildPacketBracketStructures,
+  type PacketBracketStructure,
+} from "@/lib/tournaments/packet-bracket-tree";
 import { format } from "date-fns";
 
 export type PacketRegisteredTeam = {
@@ -118,6 +122,7 @@ export type PacketData = {
   poolSeedings: PacketPoolSeeding[];
   poolSchedule: PacketPoolScheduleRow[];
   bracketSchedule: PacketBracketScheduleRow[];
+  bracketStructures: PacketBracketStructure[];
   accentColor: string;
 };
 
@@ -227,6 +232,41 @@ export async function gatherPacketData(
 
   const allPoolIds = allPoolRows.map((p) => p.id);
 
+  const allBracketRows =
+    divisionIds.length > 0
+      ? await db
+          .select({
+            id: brackets.id,
+            name: brackets.name,
+            tier: brackets.tier,
+          })
+          .from(brackets)
+          .where(inArray(brackets.divisionId, divisionIds))
+          .orderBy(asc(brackets.tier), asc(brackets.name))
+      : [];
+
+  const allBracketIds = allBracketRows.map((b) => b.id);
+
+  const allBracketMatchRows =
+    allBracketIds.length > 0
+      ? await db
+          .select({
+            bracketId: matches.bracketId,
+            bracketRound: matches.bracketRound,
+            bracketPosition: matches.bracketPosition,
+            teamAId: matches.teamAId,
+            teamBId: matches.teamBId,
+          })
+          .from(matches)
+          .where(
+            and(
+              eq(matches.tournamentId, tournamentId),
+              inArray(matches.bracketId, allBracketIds)
+            )
+          )
+          .orderBy(asc(matches.bracketRound), asc(matches.bracketPosition))
+      : [];
+
   const allPoolMemberRows =
     allPoolIds.length > 0
       ? await db
@@ -244,9 +284,10 @@ export async function gatherPacketData(
 
   const teamIds = [
     ...new Set(
-      scheduledMatchRows
-        .flatMap((m) => [m.teamAId, m.teamBId])
-        .filter((id): id is string => Boolean(id))
+      [
+        ...scheduledMatchRows.flatMap((m) => [m.teamAId, m.teamBId]),
+        ...allBracketMatchRows.flatMap((m) => [m.teamAId, m.teamBId]),
+      ].filter((id): id is string => Boolean(id))
     ),
   ];
   const courtIds = [
@@ -369,6 +410,12 @@ export async function gatherPacketData(
   const poolSchedule: PacketPoolScheduleRow[] = [];
   const bracketSchedule: PacketBracketScheduleRow[] = [];
 
+  const bracketStructures = buildPacketBracketStructures({
+    brackets: allBracketRows,
+    matches: allBracketMatchRows,
+    teamNameById,
+  });
+
   for (const m of scheduledMatchRows) {
     if (!m.scheduledTime) continue;
 
@@ -469,6 +516,7 @@ export async function gatherPacketData(
     poolSeedings,
     poolSchedule,
     bracketSchedule,
+    bracketStructures,
     accentColor: tournament.packetAccentColor ?? "#C93D2E",
   };
 }

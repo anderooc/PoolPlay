@@ -34,6 +34,7 @@ import {
   formatPacketGeneratedAt,
   formatPacketTime,
 } from "@/lib/tournaments/packet-data";
+import { BracketStructureSection } from "@/lib/tournaments/packet-bracket-pdf";
 
 const INK = "#1E293B";
 const MUTED = "#64748B";
@@ -659,6 +660,16 @@ export function TournamentPacketDocument({ data }: { data: PacketData }) {
           ) : null}
 
           <PoolSeedingsSection data={data} />
+
+          {data.bracketStructures.length > 0 ? (
+            <Section title="Bracket structure" accent={accent}>
+              <BracketStructureSection
+                brackets={data.bracketStructures}
+                accent={accent}
+              />
+            </Section>
+          ) : null}
+
           <ScheduleSection data={data} />
         </View>
 
