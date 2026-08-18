@@ -43,8 +43,11 @@ import {
   paymentInstructionsText,
   paymentSettingsFromTournament,
 } from "@/lib/tournaments/payment-settings";
-import { warmupMinutesForFormat } from "@/lib/labels/warmup-format";
 import { bracketDisplayName } from "@/lib/tournaments/bracket-tiers";
+import {
+  fetchPacketMapImage,
+  type PacketMapImage,
+} from "@/lib/tournaments/packet-map-image";
 import { format } from "date-fns";
 
 export type PacketRegisteredTeam = {
@@ -53,7 +56,6 @@ export type PacketRegisteredTeam = {
 
 export type PacketScheduleRow = {
   scheduledTime: Date;
-  warmupTime: Date | null;
   courtName: string | null;
   teamAName: string;
   teamBName: string;
@@ -68,6 +70,7 @@ export type PacketData = {
   dateDisplay: string;
   location: string;
   address: string | null;
+  mapImage: PacketMapImage | null;
   description: string | null;
   packetNotes: string | null;
   paymentInstructions: string | null;
@@ -140,7 +143,7 @@ export async function gatherPacketData(
 
   if (!tournament) return null;
 
-  const [organizer, hostSchool, registrationRows, scheduledMatchRows] =
+  const [organizer, hostSchool, registrationRows, scheduledMatchRows, mapImage] =
     await Promise.all([
       db
         .select({ fullName: users.fullName })
@@ -180,6 +183,7 @@ export async function gatherPacketData(
           )
         )
         .orderBy(asc(matches.scheduledTime)),
+      fetchPacketMapImage(tournament.address, tournament.location),
     ]);
 
   const teamIds = [
@@ -273,8 +277,6 @@ export async function gatherPacketData(
     }
   }
 
-  const warmupMinutes = warmupMinutesForFormat(tournament.warmupFormat);
-
   const schedule: PacketScheduleRow[] = scheduledMatchRows
     .filter((m): m is typeof m & { scheduledTime: Date } =>
       Boolean(m.scheduledTime)
@@ -296,16 +298,8 @@ export async function gatherPacketData(
         ? (teamNameById.get(m.teamBId) ?? "TBD")
         : "TBD";
 
-      const warmupTime =
-        warmupMinutes > 0
-          ? new Date(
-              m.scheduledTime.getTime() - warmupMinutes * 60 * 1000
-            )
-          : null;
-
       return {
         scheduledTime: m.scheduledTime,
-        warmupTime,
         courtName: m.courtId
           ? (courtNameById.get(m.courtId) ?? null)
           : null,
@@ -333,6 +327,7 @@ export async function gatherPacketData(
     dateDisplay: formatTournamentDateDisplay(tournament.date),
     location: tournament.location,
     address: tournament.address,
+    mapImage,
     description: tournament.description,
     packetNotes: tournament.packetNotes,
     paymentInstructions: paymentInstructionsText(
