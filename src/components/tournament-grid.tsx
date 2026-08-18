@@ -218,35 +218,76 @@ function groupByDate(list: Tournament[]): DateGroup[] {
 function TournamentRow({
   tournament: t,
   linkPrefix,
+  compact = false,
 }: {
   tournament: Tournament;
   linkPrefix: string;
+  /** Narrow column beside the date wheel — stack and truncate instead of widening. */
+  compact?: boolean;
 }) {
   return (
-    <div className="min-w-0 max-w-full px-1 py-3.5 transition-colors duration-150 hover:bg-muted/40">
-      <Link href={`${linkPrefix}/${t.slug}`} className="block min-w-0">
-        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-          <span className="min-w-0 truncate font-medium leading-tight">
+    <div
+      className={cn(
+        "min-w-0 max-w-full overflow-hidden px-1 py-3.5 transition-colors duration-150 hover:bg-muted/40",
+        compact && "w-full"
+      )}
+    >
+      <Link
+        href={`${linkPrefix}/${t.slug}`}
+        className="block min-w-0 max-w-full overflow-hidden"
+      >
+        <div
+          className={cn(
+            "flex gap-1.5",
+            compact
+              ? "flex-col items-start"
+              : "flex-col sm:flex-row sm:items-start sm:justify-between sm:gap-3"
+          )}
+        >
+          <span className="min-w-0 w-full truncate font-medium leading-tight">
             {t.name}
           </span>
           <StatusBadge
             kind="tournament"
             status={t.status}
             date={t.date}
-            className="self-start shrink-0"
+            className="shrink-0 self-start"
           />
         </div>
-        <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-          <span className="flex min-w-0 items-center gap-1">
+        <div
+          className={cn(
+            "mt-1.5 min-w-0 text-sm text-muted-foreground",
+            compact
+              ? "flex flex-col gap-1"
+              : "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1"
+          )}
+        >
+          <span className="flex min-w-0 max-w-full items-center gap-1">
             <MapPin className="h-3 w-3 shrink-0" />
             <span className="truncate">{t.location}</span>
           </span>
-          <span>{registrationAvailabilityLabel(t.registrationAvailability)}</span>
+          <span className={cn(compact && "truncate")}>
+            {registrationAvailabilityLabel(t.registrationAvailability)}
+          </span>
         </div>
       </Link>
-      <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
-        <TeamAttributesBadges gender={t.gender} region={t.region} />
-        <TournamentHostSchoolLink school={t.hostSchool} />
+      <div
+        className={cn(
+          "mt-1.5 min-w-0 max-w-full",
+          compact
+            ? "flex flex-col items-start gap-1.5"
+            : "flex min-w-0 flex-wrap items-center gap-1.5"
+        )}
+      >
+        <TeamAttributesBadges
+          gender={t.gender}
+          region={t.region}
+          className={compact ? "w-full" : undefined}
+        />
+        <TournamentHostSchoolLink
+          school={t.hostSchool}
+          className={compact ? "w-full max-w-full" : undefined}
+        />
       </div>
     </div>
   );
@@ -255,13 +296,15 @@ function TournamentRow({
 function SelectedDayPanel({
   group,
   linkPrefix,
+  compact = false,
 }: {
   group: DateGroup;
   linkPrefix: string;
+  compact?: boolean;
 }) {
   const isEmpty = group.tournaments.length === 0;
   return (
-    <div className={cn("w-full min-w-0", SELECTED_PANEL_MIN_H)}>
+    <div className={cn("w-full min-w-0 overflow-hidden", SELECTED_PANEL_MIN_H)}>
       {isEmpty ? (
         <p
           className={cn(
@@ -274,7 +317,7 @@ function SelectedDayPanel({
       ) : (
         <div
           className={cn(
-            "list-stack w-full border-t border-border/70",
+            "list-stack w-full min-w-0 overflow-hidden border-t border-border/70",
             SELECTED_PANEL_MIN_H
           )}
         >
@@ -283,6 +326,7 @@ function SelectedDayPanel({
               key={t.id ?? t.slug}
               tournament={t}
               linkPrefix={linkPrefix}
+              compact={compact}
             />
           ))}
         </div>
@@ -567,15 +611,19 @@ function ChronologicalSchedule({
   return (
     <ViewportSplit
       mobile={
-        <div className="flex min-w-0 max-w-full items-start gap-2">
-          <div className="min-w-0 flex-1">
+        <div className="grid w-full max-w-full grid-cols-[minmax(0,1fr)_6.75rem] items-start gap-2 overflow-x-hidden">
+          <div className="min-w-0 overflow-hidden">
             <p className="sr-only">
               Tournaments on {formatDate(selectedGroup.date)}
             </p>
-            <SelectedDayPanel group={selectedGroup} linkPrefix={linkPrefix} />
+            <SelectedDayPanel
+              group={selectedGroup}
+              linkPrefix={linkPrefix}
+              compact
+            />
           </div>
           {dateWheel(
-            "flex w-[6.75rem] shrink-0 touch-none flex-col self-start overscroll-y-none"
+            "col-start-2 row-start-1 flex w-full max-w-[6.75rem] shrink-0 touch-none flex-col self-start overscroll-y-none"
           )}
         </div>
       }
