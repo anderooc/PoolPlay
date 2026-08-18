@@ -26,6 +26,26 @@ export const COPYRIGHT_YEAR = 2026;
 export const APP_DEFAULT_DESCRIPTION =
   "Organize tournaments, manage teams, run pools and brackets, schedule courts, and track live scores for college club volleyball.";
 
+function normalizeAppBaseUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+
+  // new URL() requires a scheme; env vars are sometimes set to a host only
+  // (e.g. "pool-play-one.vercel.app").
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+
+  if (
+    trimmed.startsWith("localhost:") ||
+    trimmed.startsWith("127.0.0.1:") ||
+    trimmed === "localhost" ||
+    trimmed === "127.0.0.1"
+  ) {
+    return `http://${trimmed}`;
+  }
+
+  return `https://${trimmed}`;
+}
+
 export function appBaseUrl(): URL {
   const configured =
     process.env.NEXT_PUBLIC_APP_URL ??
@@ -35,7 +55,7 @@ export function appBaseUrl(): URL {
         ? `https://${process.env.VERCEL_URL}`
         : "http://localhost:3000");
 
-  return new URL(configured);
+  return new URL(normalizeAppBaseUrl(configured));
 }
 
 /** Join title segments; root layout appends the app name via the title template. */
