@@ -22,7 +22,6 @@ import {
   Page,
   Text,
   View,
-  Image,
   StyleSheet,
 } from "@react-pdf/renderer";
 import type {
@@ -34,7 +33,7 @@ import {
   formatPacketGeneratedAt,
   formatPacketTime,
 } from "@/lib/tournaments/packet-data";
-import { BracketStructureSection } from "@/lib/tournaments/packet-bracket-pdf";
+import { BracketStructurePages } from "@/lib/tournaments/packet-bracket-pdf";
 
 const INK = "#1E293B";
 const MUTED = "#64748B";
@@ -102,14 +101,8 @@ const S = StyleSheet.create({
   body: {
     paddingHorizontal: 40,
   },
-  locationRow: {
-    flexDirection: "row",
-    gap: 18,
+  locationBlock: {
     marginBottom: 22,
-    alignItems: "flex-start",
-  },
-  locationDetails: {
-    flex: 1,
   },
   locationLabel: {
     fontSize: 7.5,
@@ -127,26 +120,6 @@ const S = StyleSheet.create({
   locationAddress: {
     fontSize: 10,
     color: MUTED,
-  },
-  mapWrap: {
-    width: 170,
-    borderRadius: 5,
-    overflow: "hidden",
-    borderWidth: 0.5,
-    borderColor: BORDER,
-  },
-  mapImage: {
-    width: 170,
-    height: 90,
-  },
-  mapCaption: {
-    fontSize: 6,
-    color: MUTED,
-    backgroundColor: SURFACE,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderTopWidth: 0.5,
-    borderTopColor: BORDER,
   },
   section: {
     marginBottom: 22,
@@ -309,22 +282,12 @@ function Bullet({ accent, children }: { accent: string; children: ReactNode }) {
 }
 
 function LocationSection({ data }: { data: PacketData }) {
-  const hasMap = data.mapImage != null;
-
   return (
-    <View style={S.locationRow}>
-      <View style={S.locationDetails}>
-        <Text style={S.locationLabel}>Venue</Text>
-        <Text style={S.locationName}>{data.location}</Text>
-        {data.address ? (
-          <Text style={S.locationAddress}>{data.address}</Text>
-        ) : null}
-      </View>
-      {hasMap ? (
-        <View style={S.mapWrap}>
-          <Image src={data.mapImage!.dataUri} style={S.mapImage} />
-          <Text style={S.mapCaption}>{data.mapImage!.attribution}</Text>
-        </View>
+    <View style={S.locationBlock}>
+      <Text style={S.locationLabel}>Venue</Text>
+      <Text style={S.locationName}>{data.location}</Text>
+      {data.address ? (
+        <Text style={S.locationAddress}>{data.address}</Text>
       ) : null}
     </View>
   );
@@ -660,16 +623,6 @@ export function TournamentPacketDocument({ data }: { data: PacketData }) {
           ) : null}
 
           <PoolSeedingsSection data={data} />
-
-          {data.bracketStructures.length > 0 ? (
-            <Section title="Bracket structure" accent={accent}>
-              <BracketStructureSection
-                brackets={data.bracketStructures}
-                accent={accent}
-              />
-            </Section>
-          ) : null}
-
           <ScheduleSection data={data} />
         </View>
 
@@ -684,6 +637,12 @@ export function TournamentPacketDocument({ data }: { data: PacketData }) {
           <Text>{data.liveUrl}</Text>
         </View>
       </Page>
+
+      <BracketStructurePages
+        brackets={data.bracketStructures}
+        accent={accent}
+        tournamentName={data.name}
+      />
     </Document>
   );
 }

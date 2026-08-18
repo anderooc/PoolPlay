@@ -45,10 +45,6 @@ import {
 } from "@/lib/tournaments/payment-settings";
 import { bracketDisplayName } from "@/lib/tournaments/bracket-tiers";
 import {
-  fetchPacketMapImage,
-  type PacketMapImage,
-} from "@/lib/tournaments/packet-map-image";
-import {
   buildPoolScheduleContext,
   formatSeedMatchup,
   lookupPoolMatchRound,
@@ -98,7 +94,6 @@ export type PacketData = {
   dateDisplay: string;
   location: string;
   address: string | null;
-  mapImage: PacketMapImage | null;
   description: string | null;
   packetNotes: string | null;
   paymentInstructions: string | null;
@@ -173,7 +168,6 @@ export async function gatherPacketData(
     hostSchool,
     registrationRows,
     scheduledMatchRows,
-    mapImage,
     divisionRows,
   ] = await Promise.all([
     db
@@ -212,7 +206,6 @@ export async function gatherPacketData(
         )
       )
       .orderBy(asc(matches.scheduledTime)),
-    fetchPacketMapImage(tournament.address, tournament.location),
     db
       .select({ id: divisions.id })
       .from(divisions)
@@ -484,7 +477,6 @@ export async function gatherPacketData(
     dateDisplay: formatTournamentDateDisplay(tournament.date),
     location: tournament.location,
     address: tournament.address,
-    mapImage,
     description: tournament.description,
     packetNotes: tournament.packetNotes,
     paymentInstructions: paymentInstructionsText(
