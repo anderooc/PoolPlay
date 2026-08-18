@@ -60,7 +60,7 @@ export function SiteHeader({ user }: { user?: SiteHeaderUser | null }) {
                   href="/login"
                   className={cn(
                     buttonVariants({ variant: "ghost", size: "sm" }),
-                    "hidden md:inline-flex"
+                    "h-8 px-2.5 text-xs sm:px-3 sm:text-sm"
                   )}
                 >
                   Sign In

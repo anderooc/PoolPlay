@@ -31,7 +31,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { BracktMark } from "@/components/layout/brackt-mark";
 import { requestPasswordReset } from "../actions";
 
 export default function ForgotPasswordPage() {
@@ -57,15 +56,12 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+    <div className="relative min-h-[calc(100dvh-3.5rem)] overflow-x-hidden px-4 py-8 sm:py-10">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 text-foreground/[0.06] bg-dot-grid [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,black,transparent)]"
       />
-      <div className="relative z-[1] w-full max-w-md">
-        <div className="mb-6 text-center">
-          <BracktMark href="/" wordmarkClassName="text-2xl" />
-        </div>
+      <div className="relative z-[1] mx-auto w-full max-w-md">
         <Card className="shadow-xl shadow-primary/5">
           <CardHeader className="text-center">
             <CardTitle as="h1" className="text-2xl font-bold">

@@ -9,6 +9,7 @@
  */
 
 import type { Metadata } from "next";
+import { AuthTopBar } from "@/components/layout/auth-top-bar";
 
 export const metadata: Metadata = {
   robots: {
@@ -23,5 +24,10 @@ export default function AuthLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      <AuthTopBar />
+      {children}
+    </>
+  );
 }
