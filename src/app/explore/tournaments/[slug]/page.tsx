@@ -128,12 +128,12 @@ export default async function ExploreTournamentPage({ params }: Props) {
               date={tournament.date}
               organizerName={organizer?.fullName ?? "Unknown organizer"}
             />
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <div className="flex min-w-0 max-w-full items-center gap-1.5 max-md:overflow-x-auto max-md:pb-0.5 max-md:[scrollbar-width:none]">
               <TeamAttributesBadges
                 gender={tournament.gender}
                 region={tournament.region}
               />
-              <TournamentHostSchoolLink school={hostSchool} />
+              <TournamentHostSchoolLink school={hostSchool} className="shrink-0" />
             </div>
             {tournament.description && (
               <p className="max-w-2xl whitespace-pre-wrap text-pretty text-sm text-muted-foreground">

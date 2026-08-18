@@ -371,12 +371,12 @@ export default async function TournamentDetailPage({
                 date={tournament.date}
                 organizerName={organizer?.fullName ?? "Unknown organizer"}
               />
-              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <div className="flex min-w-0 max-w-full items-center gap-1.5 max-md:overflow-x-auto max-md:pb-0.5 max-md:[scrollbar-width:none]">
                 <TeamAttributesBadges
                   gender={tournament.gender}
                   region={tournament.region}
                 />
-                <TournamentHostSchoolLink school={hostSchool} />
+                <TournamentHostSchoolLink school={hostSchool} className="shrink-0" />
               </div>
             </div>
             {tournament.description && (
@@ -386,33 +386,35 @@ export default async function TournamentDetailPage({
             )}
           </div>
 
-          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 border-t border-border/50 pt-3 sm:justify-end lg:w-auto lg:border-0 lg:pt-0">
-            {canDownloadPacket && !isOrganizer && (
-              <Link
-                href={`/tournaments/${tournament.slug}/packet`}
-                className={buttonVariants({
-                  variant: "outline",
-                  className: "inline-flex items-center gap-2",
-                })}
-              >
-                <Download className="h-4 w-4" />
-                Tournament packet
-              </Link>
-            )}
+          <div className="flex w-full min-w-0 flex-col gap-2.5 border-t border-border/50 pt-3 max-lg:rounded-lg max-lg:bg-muted/15 max-lg:p-3 lg:w-auto lg:border-0 lg:bg-transparent lg:p-0 lg:pt-0">
             {showRegisterLink && (
               <Link
                 href={`/tournaments/${tournament.slug}/register`}
-                className={buttonVariants({ className: "w-full sm:w-auto" })}
+                className={buttonVariants({ className: "w-full sm:w-auto sm:self-end" })}
               >
                 Register Team
               </Link>
             )}
-            <Link
-              href={`/tournaments/${tournament.slug}/scoring`}
-              className={buttonVariants({ variant: "outline" })}
-            >
-              Live Scoring
-            </Link>
+            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
+              {canDownloadPacket && !isOrganizer && (
+                <Link
+                  href={`/tournaments/${tournament.slug}/packet`}
+                  className={buttonVariants({
+                    variant: "outline",
+                    className: "inline-flex items-center gap-2",
+                  })}
+                >
+                  <Download className="h-4 w-4" />
+                  Tournament packet
+                </Link>
+              )}
+              <Link
+                href={`/tournaments/${tournament.slug}/scoring`}
+                className={buttonVariants({ variant: "outline" })}
+              >
+                Live Scoring
+              </Link>
+            </div>
           </div>
         </div>
       )}

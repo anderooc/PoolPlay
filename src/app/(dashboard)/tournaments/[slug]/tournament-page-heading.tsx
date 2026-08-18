@@ -416,9 +416,9 @@ export function TournamentPageHeading({
             organizerName={organizerName}
             compact={compact}
           />
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <div className="flex min-w-0 max-w-full items-center gap-1.5 max-md:overflow-x-auto max-md:pb-0.5 max-md:[scrollbar-width:none]">
             <TeamAttributesBadges gender={gender} region={region} />
-            <TournamentHostSchoolLink school={hostSchool} />
+            <TournamentHostSchoolLink school={hostSchool} className="shrink-0" />
           </div>
         </div>
         {listingDescription ? (
@@ -446,30 +446,33 @@ export function TournamentPageHeading({
 
       <div
         className={cn(
-          "flex w-full min-w-0 flex-wrap items-center gap-2 border-t border-border/50 pt-3 sm:justify-end lg:w-auto lg:border-0 lg:pt-0",
-          compact ? "gap-1.5" : "gap-2"
+          "flex w-full min-w-0 flex-col gap-2.5 border-t border-border/50 pt-3 max-lg:rounded-lg max-lg:bg-muted/15 max-lg:p-3 lg:w-auto lg:border-0 lg:bg-transparent lg:p-0 lg:pt-0",
+          compact ? "gap-2" : "gap-2.5"
         )}
       >
-        {resolvedChecklistSteps.length > 0 ? (
-          <TournamentHostChecklist steps={resolvedChecklistSteps} />
-        ) : null}
         {showRegisterLink && (
           <Link
             href={`/tournaments/${slug}/register`}
             className={buttonVariants({
               size: compact ? "sm" : "default",
-              className: "w-full sm:w-auto",
+              className: "w-full sm:w-auto sm:self-end",
             })}
           >
             Add / register teams
           </Link>
         )}
-        <StatusControls
-          tournamentId={tournamentId}
-          currentStatus={status}
-          archived={archived}
-        />
-        <div className="relative flex items-center">
+        <div className="flex min-w-0 items-center justify-between gap-2 sm:justify-end">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {resolvedChecklistSteps.length > 0 ? (
+              <TournamentHostChecklist steps={resolvedChecklistSteps} />
+            ) : null}
+            <StatusControls
+              tournamentId={tournamentId}
+              currentStatus={status}
+              archived={archived}
+            />
+          </div>
+          <div className="relative flex shrink-0 items-center">
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -551,6 +554,7 @@ export function TournamentPageHeading({
               {copyHint}
             </span>
           )}
+          </div>
         </div>
       </div>
 
