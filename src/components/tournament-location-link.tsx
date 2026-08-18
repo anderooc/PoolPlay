@@ -40,24 +40,20 @@ export function TournamentLocationLink({
   showExternalIcon?: boolean;
 }) {
   const trimmedAddress = address?.trim() || null;
+  const displayText = trimmedAddress
+    ? `${location} · ${trimmedAddress}`
+    : location;
   const ariaLabel = trimmedAddress
     ? `${location}, ${trimmedAddress}`
     : location;
 
   const body = (
     <>
-      <MapPin className={cn("mt-0.5 shrink-0", iconClassName)} aria-hidden />
-      <span className="min-w-0">
-        <span className="text-pretty">{location}</span>
-        {trimmedAddress ? (
-          <span className="mt-0.5 block text-pretty leading-snug">
-            {trimmedAddress}
-          </span>
-        ) : null}
-      </span>
+      <MapPin className={cn("shrink-0", iconClassName)} aria-hidden />
+      <span className="min-w-0 truncate">{displayText}</span>
       {showExternalIcon && trimmedAddress ? (
         <ExternalLink
-          className={cn("mt-0.5 shrink-0 opacity-60", iconClassName)}
+          className={cn("shrink-0 opacity-60", iconClassName)}
           aria-hidden
         />
       ) : null}
@@ -67,7 +63,10 @@ export function TournamentLocationLink({
   if (!trimmedAddress) {
     return (
       <span
-        className={cn("inline-flex max-w-full items-start gap-1.5", className)}
+        className={cn(
+          "inline-flex max-w-full min-w-0 items-center gap-1.5",
+          className
+        )}
       >
         {body}
       </span>
@@ -85,7 +84,7 @@ export function TournamentLocationLink({
       rel="noopener noreferrer"
       aria-label={`Open ${ariaLabel} in Google Maps`}
       className={cn(
-        "inline-flex max-w-full items-start gap-1.5 rounded-sm underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-sm underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className
       )}
     >
