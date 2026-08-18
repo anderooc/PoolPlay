@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function TournamentsLoading() {
   return (
-    <div className="flex min-w-0 flex-col gap-6 md:h-full md:min-h-0">
+    <div className="flex min-h-0 min-w-0 flex-col gap-6 max-md:h-[calc(100dvh-5.5rem)] max-md:overflow-hidden md:h-full">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
           <Skeleton className="h-8 w-44" />
