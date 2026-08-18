@@ -99,6 +99,13 @@ const SELECTED_PANEL_MIN_H =
   "min-h-[5.5rem] min-w-0 w-full max-w-full";
 
 /**
+ * Remaining viewport below the sticky header, page title, and search on
+ * phones. Caps the selected-day list so extra tournaments scroll inside
+ * that pane instead of stretching the page and fighting the date wheel.
+ */
+const MOBILE_LIST_MAX_H = "max-h-[calc(100dvh-18rem)]";
+
+/**
  * Accumulated wheel deltaY (px) required before moving to the next/previous
  * date. Higher = more scrolling per date, easier to land on adjacent days.
  */
@@ -403,7 +410,8 @@ function DateGroupSection({
 
 /**
  * Desktop: date cycler with headings plus a side wheel. Mobile: wheel only
- * (no heading stack) beside the selected day's tournaments.
+ * (no heading stack) beside a scrollable selected-day list so extra
+ * tournaments stay in that pane instead of stretching the page.
  */
 function ChronologicalSchedule({
   tournaments,
@@ -610,9 +618,16 @@ function ChronologicalSchedule({
 
   return (
     <ViewportSplit
+      mobileClassName="flex min-h-0 flex-1 flex-col"
       mobile={
-        <div className="grid w-full max-w-full grid-cols-[minmax(0,1fr)_6.75rem] items-start gap-2 overflow-x-hidden">
-          <div className="min-w-0 overflow-hidden">
+        <div className="grid min-h-0 w-full max-w-full flex-1 grid-cols-[minmax(0,1fr)_6.75rem] items-stretch gap-2 overflow-x-hidden">
+          <div
+            key={selectedGroup.date}
+            className={cn(
+              "h-full min-h-0 min-w-0 overflow-y-auto overscroll-y-contain touch-pan-y [scrollbar-width:thin]",
+              MOBILE_LIST_MAX_H
+            )}
+          >
             <p className="sr-only">
               Tournaments on {formatDate(selectedGroup.date)}
             </p>
@@ -623,7 +638,7 @@ function ChronologicalSchedule({
             />
           </div>
           {dateWheel(
-            "col-start-2 row-start-1 flex w-full max-w-[6.75rem] shrink-0 touch-none flex-col self-start overscroll-y-none"
+            "col-start-2 row-start-1 flex h-full w-full max-w-[6.75rem] shrink-0 touch-none flex-col overscroll-y-none"
           )}
         </div>
       }
@@ -773,7 +788,7 @@ export function TournamentGrid({
 
   return (
     <div className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col gap-6 md:h-full">
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex shrink-0 min-w-0 items-center gap-3">
         <div className="relative min-w-0 flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input

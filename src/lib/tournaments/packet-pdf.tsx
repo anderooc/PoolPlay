@@ -378,6 +378,24 @@ function groupPoolScheduleByTime(
   });
 }
 
+type IndexedPoolScheduleGroup = TimeSlotGroup & {
+  indexedRows: { row: PacketPoolScheduleRow; index: number }[];
+};
+
+function attachGlobalRowIndices(
+  groups: TimeSlotGroup[]
+): IndexedPoolScheduleGroup[] {
+  return groups.reduce<IndexedPoolScheduleGroup[]>((acc, group) => {
+    const offset =
+      acc.length === 0 ? 0 : acc[acc.length - 1].indexedRows.at(-1)!.index + 1;
+    acc.push({
+      ...group,
+      indexedRows: group.rows.map((row, i) => ({ row, index: offset + i })),
+    });
+    return acc;
+  }, []);
+}
+
 function PoolScheduleTable({
   rows,
   accent,
@@ -385,8 +403,7 @@ function PoolScheduleTable({
   rows: PacketPoolScheduleRow[];
   accent: string;
 }) {
-  const groups = groupPoolScheduleByTime(rows);
-  let rowIndex = 0;
+  const groups = attachGlobalRowIndices(groupPoolScheduleByTime(rows));
 
   return (
     <View style={S.table}>
@@ -406,27 +423,23 @@ function PoolScheduleTable({
               <Text style={S.colMatch}>Matchup</Text>
             </View>
           ) : null}
-          {group.rows.map((row) => {
-            const alt = rowIndex % 2 === 1;
-            rowIndex += 1;
-            return (
-              <View
-                key={`${row.poolName}-${row.matchupLabel}-${row.scheduledTime.toISOString()}`}
-                style={[S.tableRow, alt ? S.tableRowAlt : {}]}
-              >
-                <Text style={S.colTime}>
-                  {group.showTimePerRow
-                    ? formatPacketTime(row.scheduledTime)
-                    : ""}
-                </Text>
-                <Text style={S.colCourt}>{row.courtName ?? "—"}</Text>
-                <Text style={S.colRound}>
-                  {row.roundNumber > 0 ? `Round ${row.roundNumber}` : "—"}
-                </Text>
-                <Text style={S.colMatch}>{row.matchupLabel}</Text>
-              </View>
-            );
-          })}
+          {group.indexedRows.map(({ row, index }) => (
+            <View
+              key={`${row.poolName}-${row.matchupLabel}-${row.scheduledTime.toISOString()}`}
+              style={[S.tableRow, index % 2 === 1 ? S.tableRowAlt : {}]}
+            >
+              <Text style={S.colTime}>
+                {group.showTimePerRow
+                  ? formatPacketTime(row.scheduledTime)
+                  : ""}
+              </Text>
+              <Text style={S.colCourt}>{row.courtName ?? "—"}</Text>
+              <Text style={S.colRound}>
+                {row.roundNumber > 0 ? `Round ${row.roundNumber}` : "—"}
+              </Text>
+              <Text style={S.colMatch}>{row.matchupLabel}</Text>
+            </View>
+          ))}
         </View>
       ))}
     </View>
