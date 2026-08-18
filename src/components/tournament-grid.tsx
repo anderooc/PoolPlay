@@ -51,6 +51,7 @@ import {
   countActiveTournamentFilters,
 } from "@/components/tournament-list-filters";
 import { Calendar, MapPin, Search, Trophy } from "lucide-react";
+import { ViewportSplit } from "@/components/layout/viewport-split";
 import { cn } from "@/lib/utils";
 import { isTournamentArchived, todayISO } from "@/lib/tournament-status";
 import type { TeamGender, TeamRegion } from "@/types";
@@ -251,6 +252,45 @@ function TournamentRow({
   );
 }
 
+function SelectedDayPanel({
+  group,
+  linkPrefix,
+}: {
+  group: DateGroup;
+  linkPrefix: string;
+}) {
+  const isEmpty = group.tournaments.length === 0;
+  return (
+    <div className={cn("w-full min-w-0", SELECTED_PANEL_MIN_H)}>
+      {isEmpty ? (
+        <p
+          className={cn(
+            "flex w-full items-center rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 px-4 text-sm text-muted-foreground",
+            SELECTED_PANEL_MIN_H
+          )}
+        >
+          No tournaments scheduled.
+        </p>
+      ) : (
+        <div
+          className={cn(
+            "list-stack w-full border-t border-border/70",
+            SELECTED_PANEL_MIN_H
+          )}
+        >
+          {group.tournaments.map((t) => (
+            <TournamentRow
+              key={t.id ?? t.slug}
+              tournament={t}
+              linkPrefix={linkPrefix}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DateGroupSection({
   group,
   today,
@@ -267,7 +307,6 @@ function DateGroupSection({
   sectionRef?: (el: HTMLElement | null) => void;
 }) {
   const isCalendarToday = group.date === today;
-  const isEmpty = group.tournaments.length === 0;
   return (
     <section
       ref={sectionRef}
@@ -308,35 +347,10 @@ function DateGroupSection({
       {isSelected && (
         <div
           className={cn(
-            "mt-2 w-full min-w-0 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200",
-            SELECTED_PANEL_MIN_H
+            "mt-2 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
           )}
         >
-          {isEmpty ? (
-            <p
-              className={cn(
-                "flex w-full items-center rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 px-4 text-sm text-muted-foreground",
-                SELECTED_PANEL_MIN_H
-              )}
-            >
-              No tournaments scheduled.
-            </p>
-          ) : (
-            <div
-              className={cn(
-                "list-stack w-full border-t border-border/70",
-                SELECTED_PANEL_MIN_H
-              )}
-            >
-              {group.tournaments.map((t) => (
-                <TournamentRow
-                  key={t.id ?? t.slug}
-                  tournament={t}
-                  linkPrefix={linkPrefix}
-                />
-              ))}
-            </div>
-          )}
+          <SelectedDayPanel group={group} linkPrefix={linkPrefix} />
         </div>
       )}
     </section>
@@ -344,8 +358,8 @@ function DateGroupSection({
 }
 
 /**
- * Date cycler with a side wheel on md+; stacked full-width wheel on mobile so
- * nothing clips off the right edge of the dashboard pane.
+ * Desktop: date cycler with headings plus a side wheel. Mobile: wheel only
+ * (no heading stack) beside the selected day's tournaments.
  */
 function ChronologicalSchedule({
   tournaments,
@@ -528,35 +542,64 @@ function ChronologicalSchedule({
       />
     ));
 
-  return (
-    <div
-      className="flex min-h-0 w-full min-w-0 max-w-full flex-1 flex-col gap-3 overflow-x-hidden md:flex-row md:gap-4"
-      style={{ visibility: layoutReady ? "visible" : "hidden" }}
-    >
-      <aside
-        aria-label="Date navigation"
-        className="flex w-full max-w-full shrink-0 touch-none flex-col overscroll-y-none md:w-[9.5rem] md:flex-none md:self-stretch"
-      >
-        <DateScrollWheel
-          className="w-full max-w-full flex-none md:flex-1"
-          dates={scheduleDates}
-          selectedDate={effectiveSelectedDate}
-          onSelect={onSelectedDateChange}
-          today={today}
-          activityKey={wheelActivity}
-        />
-      </aside>
+  const selectedGroup =
+    groups.find((g) => g.date === effectiveSelectedDate) ?? {
+      date: effectiveSelectedDate,
+      tournaments: [] as Tournament[],
+    };
 
-      <div
-        ref={containerRef}
-        className="relative min-h-0 min-w-0 flex-1 select-none overflow-hidden outline-none"
-        aria-roledescription="date cycler"
-      >
-        <div ref={stackRef} className="will-change-transform">
-          <div className="space-y-3 pb-12 pt-2">{dateSections(true)}</div>
+  const dateWheel = (asideClassName: string) => (
+    <aside
+      aria-label="Date navigation"
+      className={asideClassName}
+    >
+      <DateScrollWheel
+        className="w-full max-w-full flex-none md:flex-1"
+        dates={scheduleDates}
+        selectedDate={effectiveSelectedDate}
+        onSelect={onSelectedDateChange}
+        today={today}
+        activityKey={wheelActivity}
+      />
+    </aside>
+  );
+
+  return (
+    <ViewportSplit
+      mobile={
+        <div className="flex min-w-0 max-w-full items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="sr-only">
+              Tournaments on {formatDate(selectedGroup.date)}
+            </p>
+            <SelectedDayPanel group={selectedGroup} linkPrefix={linkPrefix} />
+          </div>
+          {dateWheel(
+            "flex w-[6.75rem] shrink-0 touch-none flex-col self-start overscroll-y-none"
+          )}
         </div>
-      </div>
-    </div>
+      }
+      desktop={
+        <div
+          className="flex min-h-0 w-full min-w-0 max-w-full flex-1 gap-4 overflow-x-hidden"
+          style={{ visibility: layoutReady ? "visible" : "hidden" }}
+        >
+          {dateWheel(
+            "flex w-[9.5rem] shrink-0 touch-none flex-col self-stretch overscroll-y-none md:flex-none"
+          )}
+
+          <div
+            ref={containerRef}
+            className="relative min-h-0 min-w-0 flex-1 select-none overflow-hidden outline-none"
+            aria-roledescription="date cycler"
+          >
+            <div ref={stackRef} className="will-change-transform">
+              <div className="space-y-3 pb-12 pt-2">{dateSections(true)}</div>
+            </div>
+          </div>
+        </div>
+      }
+    />
   );
 }
 
