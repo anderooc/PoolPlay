@@ -20,7 +20,7 @@
 
 import { useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
@@ -31,7 +31,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { BracktMark } from "@/components/layout/brackt-mark";
+import { cn } from "@/lib/utils";
 import { signup } from "../actions";
 
 export default function SignupPage() {
@@ -55,7 +55,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+    <div className="relative min-h-[calc(100dvh-3.5rem)] overflow-x-hidden px-4 py-8 sm:py-10">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 text-foreground/[0.06] bg-dot-grid [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,black,transparent)]"
@@ -80,94 +80,93 @@ export default function SignupPage() {
           </p>
         </div>
       )}
-      <div className="relative z-[1] w-full max-w-md">
-        <div className="mb-6 text-center">
-          <BracktMark href="/" wordmarkClassName="text-2xl" />
-        </div>
+      <div className="relative z-[1] mx-auto w-full max-w-md">
         <Card className="shadow-xl shadow-primary/5">
-        <CardHeader className="text-center">
-          <CardTitle as="h1" className="text-2xl font-bold">
-            Create account
-          </CardTitle>
-          <CardDescription>
-            Create your brackt account with a school or institutional email.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="space-y-4" aria-busy={isPending}>
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input
-                id="fullName"
-                name="fullName"
-                placeholder="Jane Smith"
-                required
-                disabled={isPending}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">School email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@university.edu"
-                required
-                disabled={isPending}
-              />
-              <p className="text-xs text-muted-foreground">
-                Must be an institutional address (i.e. edu).
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="university">University</Label>
-              <Input
-                id="university"
-                name="university"
-                placeholder="State University"
-                disabled={isPending}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                minLength={8}
-                required
-                disabled={isPending}
-                autoComplete="new-password"
-              />
-            </div>
-            {error && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            )}
-            <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner size={16} variant="onPrimary" className="mr-2" />
-                  Creating account…
-                </>
-              ) : (
-                "Create Account"
+          <CardHeader className="text-center">
+            <CardTitle as="h1" className="text-2xl font-bold">
+              Create account
+            </CardTitle>
+            <CardDescription>
+              Create your brackt account with a school or institutional email.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onSubmit} className="space-y-4" aria-busy={isPending}>
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  name="fullName"
+                  placeholder="Jane Smith"
+                  required
+                  disabled={isPending}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">School email</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@university.edu"
+                  required
+                  disabled={isPending}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Must be an institutional address (i.e. edu).
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="university">University</Label>
+                <Input
+                  id="university"
+                  name="university"
+                  placeholder="State University"
+                  disabled={isPending}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  minLength={8}
+                  required
+                  disabled={isPending}
+                  autoComplete="new-password"
+                />
+              </div>
+              {error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
               )}
-            </Button>
-          </form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link
-              href="/login"
-              className="font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Sign in
-            </Link>
-          </p>
-        </CardContent>
+              <Button type="submit" className="w-full" disabled={isPending}>
+                {isPending ? (
+                  <>
+                    <Spinner size={16} variant="onPrimary" className="mr-2" />
+                    Creating account…
+                  </>
+                ) : (
+                  "Create Account"
+                )}
+              </Button>
+            </form>
+            <div className="mt-4 space-y-3">
+              <p className="text-center text-sm text-muted-foreground">
+                Already have an account?
+              </p>
+              <Link
+                href="/login"
+                className={cn(buttonVariants({ variant: "outline" }), "h-11 w-full")}
+              >
+                Sign in
+              </Link>
+            </div>
+          </CardContent>
         </Card>
       </div>
     </div>
