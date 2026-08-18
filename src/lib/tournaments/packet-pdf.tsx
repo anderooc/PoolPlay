@@ -25,67 +25,73 @@ import {
   Image,
   StyleSheet,
 } from "@react-pdf/renderer";
-import type { PacketData, PacketScheduleRow } from "@/lib/tournaments/packet-data";
+import type {
+  PacketData,
+  PacketPoolScheduleRow,
+  PacketBracketScheduleRow,
+} from "@/lib/tournaments/packet-data";
 import {
   formatPacketGeneratedAt,
   formatPacketTime,
 } from "@/lib/tournaments/packet-data";
 
-// ---------------------------------------------------------------------------
-// Color constants (accent = data.accentColor at runtime — passed as props)
-// ---------------------------------------------------------------------------
 const INK = "#1E293B";
 const MUTED = "#64748B";
 const BORDER = "#E2E8F0";
 const SURFACE = "#F8FAFC";
 const SURFACE_ALT = "#F1F5F9";
 const WHITE = "#FFFFFF";
+const CONTINUATION_TOP = 32;
 
-// ---------------------------------------------------------------------------
-// Static styles (accent-independent)
-// ---------------------------------------------------------------------------
 const S = StyleSheet.create({
   page: {
     paddingTop: 0,
-    paddingBottom: 56,
+    paddingBottom: 60,
     paddingHorizontal: 0,
     fontSize: 10,
     fontFamily: "Helvetica",
     lineHeight: 1.5,
     color: INK,
   },
-  // Top portion: large date + tournament name
-  headerTop: {
-    paddingTop: 28,
-    paddingBottom: 20,
+  header: {
+    paddingTop: 32,
+    paddingBottom: 24,
     paddingHorizontal: 40,
+    marginBottom: 24,
   },
   headerDate: {
-    fontSize: 13,
+    fontSize: 15,
     fontFamily: "Helvetica-Bold",
     color: WHITE,
-    opacity: 0.9,
-    marginBottom: 5,
-    letterSpacing: 0.2,
+    marginBottom: 6,
+    letterSpacing: 0.3,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 28,
     fontFamily: "Helvetica-Bold",
     color: WHITE,
     letterSpacing: -0.5,
-    lineHeight: 1.2,
+    lineHeight: 1.15,
+    marginBottom: 8,
   },
-  // Bottom strip of header: organizer + link on a slightly darker tint
-  headerBottom: {
-    paddingHorizontal: 40,
-    paddingTop: 10,
+  headerSchool: {
+    fontSize: 12,
+    color: WHITE,
+    opacity: 0.92,
+    marginBottom: 14,
+  },
+  headerMetaStrip: {
+    paddingTop: 12,
     paddingBottom: 12,
+    paddingHorizontal: 40,
+    marginHorizontal: -40,
+    marginBottom: -24,
   },
   headerMeta: {
     fontSize: 9,
     color: WHITE,
-    opacity: 0.8,
-    marginBottom: 1,
+    opacity: 0.88,
+    marginBottom: 2,
   },
   headerMetaStrong: {
     fontFamily: "Helvetica-Bold",
@@ -95,11 +101,10 @@ const S = StyleSheet.create({
   body: {
     paddingHorizontal: 40,
   },
-  // Venue row: details left, map right
   locationRow: {
     flexDirection: "row",
-    gap: 16,
-    marginBottom: 18,
+    gap: 18,
+    marginBottom: 22,
     alignItems: "flex-start",
   },
   locationDetails: {
@@ -111,32 +116,16 @@ const S = StyleSheet.create({
     color: MUTED,
     textTransform: "uppercase",
     letterSpacing: 0.7,
-    marginBottom: 4,
+    marginBottom: 5,
   },
   locationName: {
     fontSize: 12,
     fontFamily: "Helvetica-Bold",
-    marginBottom: 3,
+    marginBottom: 4,
   },
   locationAddress: {
     fontSize: 10,
     color: MUTED,
-    marginBottom: 8,
-  },
-  metaPills: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 5,
-  },
-  metaPill: {
-    fontSize: 8,
-    color: INK,
-    backgroundColor: SURFACE,
-    borderWidth: 0.5,
-    borderColor: BORDER,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
   },
   mapWrap: {
     width: 170,
@@ -145,15 +134,9 @@ const S = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: BORDER,
   },
-  mapGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+  mapImage: {
     width: 170,
-    height: 170,
-  },
-  mapTile: {
-    width: 85,
-    height: 85,
+    height: 90,
   },
   mapCaption: {
     fontSize: 6,
@@ -165,15 +148,22 @@ const S = StyleSheet.create({
     borderTopColor: BORDER,
   },
   section: {
-    marginBottom: 16,
+    marginBottom: 22,
   },
   sectionTitle: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontFamily: "Helvetica-Bold",
     color: INK,
-    marginBottom: 7,
-    paddingBottom: 4,
+    marginBottom: 10,
+    paddingBottom: 5,
     borderBottomWidth: 1.5,
+  },
+  subsectionTitle: {
+    fontSize: 9.5,
+    fontFamily: "Helvetica-Bold",
+    color: INK,
+    marginBottom: 8,
+    marginTop: 4,
   },
   paragraph: {
     marginBottom: 4,
@@ -186,12 +176,12 @@ const S = StyleSheet.create({
     lineHeight: 1.55,
   },
   bulletList: {
-    gap: 3,
+    gap: 4,
   },
   bullet: {
     flexDirection: "row",
     gap: 6,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   bulletDot: {
     width: 10,
@@ -211,7 +201,7 @@ const S = StyleSheet.create({
   },
   teamRow: {
     fontSize: 9.5,
-    marginBottom: 3,
+    marginBottom: 4,
     paddingLeft: 8,
     borderLeftWidth: 2,
     borderLeftColor: BORDER,
@@ -221,6 +211,7 @@ const S = StyleSheet.create({
     borderColor: BORDER,
     borderRadius: 4,
     overflow: "hidden",
+    marginBottom: 12,
   },
   tableSubheader: {
     flexDirection: "row",
@@ -252,10 +243,12 @@ const S = StyleSheet.create({
   tableRowAlt: {
     backgroundColor: SURFACE_ALT,
   },
+  colSeed: { width: "12%" },
+  colTeam: { width: "88%" },
   colTime: { width: "14%" },
   colCourt: { width: "12%" },
-  colRound: { width: "24%" },
-  colMatch: { width: "50%" },
+  colRound: { width: "16%" },
+  colMatch: { width: "58%" },
   emptyState: {
     fontSize: 9.5,
     color: MUTED,
@@ -268,7 +261,7 @@ const S = StyleSheet.create({
   },
   footer: {
     position: "absolute",
-    bottom: 22,
+    bottom: 24,
     left: 40,
     right: 40,
     flexDirection: "row",
@@ -286,10 +279,6 @@ const S = StyleSheet.create({
   },
 });
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function Section({
   title,
   accent,
@@ -301,7 +290,9 @@ function Section({
 }) {
   return (
     <View style={S.section}>
-      <Text style={[S.sectionTitle, { borderBottomColor: accent }]}>{title}</Text>
+      <Text style={[S.sectionTitle, { borderBottomColor: accent }]}>
+        {title}
+      </Text>
       {children}
     </View>
   );
@@ -317,7 +308,7 @@ function Bullet({ accent, children }: { accent: string; children: ReactNode }) {
 }
 
 function LocationSection({ data }: { data: PacketData }) {
-  const hasMap = data.mapImage != null && data.mapImage.tileDataUris.length === 4;
+  const hasMap = data.mapImage != null;
 
   return (
     <View style={S.locationRow}>
@@ -327,19 +318,10 @@ function LocationSection({ data }: { data: PacketData }) {
         {data.address ? (
           <Text style={S.locationAddress}>{data.address}</Text>
         ) : null}
-        <View style={S.metaPills}>
-          {data.hostSchoolName ? (
-            <Text style={S.metaPill}>Hosted by {data.hostSchoolName}</Text>
-          ) : null}
-        </View>
       </View>
       {hasMap ? (
         <View style={S.mapWrap}>
-          <View style={S.mapGrid}>
-            {data.mapImage!.tileDataUris.map((uri, index) => (
-              <Image key={index} src={uri} style={S.mapTile} />
-            ))}
-          </View>
+          <Image src={data.mapImage!.dataUri} style={S.mapImage} />
           <Text style={S.mapCaption}>{data.mapImage!.attribution}</Text>
         </View>
       ) : null}
@@ -366,27 +348,53 @@ function RegisteredTeams({ teams }: { teams: PacketData["registeredTeams"] }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Schedule table — pool play section
-// ---------------------------------------------------------------------------
+function SeedingTableHeader({ accent }: { accent: string }) {
+  return (
+    <View style={[S.tableHeader, { backgroundColor: accent }]}>
+      <Text style={S.colSeed}>Seed</Text>
+      <Text style={S.colTeam}>Team</Text>
+    </View>
+  );
+}
 
-type SlotGroup = {
-  /** null means all matches in this slot start at the same time — only show once */
+function PoolSeedingsSection({ data }: { data: PacketData }) {
+  if (data.poolSeedings.length === 0) return null;
+
+  const accent = data.accentColor;
+
+  return (
+    <Section title="Pool seedings" accent={accent}>
+      {data.poolSeedings.map((pool) => (
+        <View key={pool.poolName} style={{ marginBottom: 14 }}>
+          <Text style={S.subsectionTitle}>{pool.poolName}</Text>
+          <View style={S.table}>
+            <SeedingTableHeader accent={accent} />
+            {pool.teams.map((team, i) => (
+              <View
+                key={`${pool.poolName}-${team.seed}`}
+                style={[S.tableRow, i % 2 === 1 ? S.tableRowAlt : {}]}
+              >
+                <Text style={S.colSeed}>{team.seed}</Text>
+                <Text style={S.colTeam}>{team.teamName}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ))}
+    </Section>
+  );
+}
+
+type TimeSlotGroup = {
   timeLabel: string | null;
-  rows: PacketScheduleRow[];
+  rows: PacketPoolScheduleRow[];
   showTimePerRow: boolean;
 };
 
-/**
- * Group pool-play rows into time slots. If all courts in a slot start at the
- * same minute, show the time once in a slot header. If any differ, fall back
- * to per-row display.
- */
-function groupPoolRows(rows: PacketScheduleRow[]): SlotGroup[] {
-  if (rows.length === 0) return [];
-
-  // Key by minute bucket
-  const slotMap = new Map<string, PacketScheduleRow[]>();
+function groupPoolScheduleByTime(
+  rows: PacketPoolScheduleRow[]
+): TimeSlotGroup[] {
+  const slotMap = new Map<string, PacketPoolScheduleRow[]>();
   for (const row of rows) {
     const key = formatPacketTime(row.scheduledTime);
     const bucket = slotMap.get(key) ?? [];
@@ -395,45 +403,38 @@ function groupPoolRows(rows: PacketScheduleRow[]): SlotGroup[] {
   }
 
   return Array.from(slotMap.entries()).map(([timeLabel, slotRows]) => {
-    // If every row in the slot has the same time, condense to one header
-    const times = new Set(slotRows.map((r) => formatPacketTime(r.scheduledTime)));
-    const showOnce = times.size === 1;
+    const times = new Set(
+      slotRows.map((r) => formatPacketTime(r.scheduledTime))
+    );
     return {
-      timeLabel: showOnce ? timeLabel : null,
+      timeLabel: times.size === 1 ? timeLabel : null,
       rows: slotRows,
-      showTimePerRow: !showOnce,
+      showTimePerRow: times.size !== 1,
     };
   });
-}
-
-function ScheduleTableHeader({ accent }: { accent: string }) {
-  return (
-    <View style={[S.tableHeader, { backgroundColor: accent }]}>
-      <Text style={S.colTime}>Time</Text>
-      <Text style={S.colCourt}>Court</Text>
-      <Text style={S.colRound}>Round</Text>
-      <Text style={S.colMatch}>Matchup</Text>
-    </View>
-  );
 }
 
 function PoolScheduleTable({
   rows,
   accent,
 }: {
-  rows: PacketScheduleRow[];
+  rows: PacketPoolScheduleRow[];
   accent: string;
 }) {
-  const groups = groupPoolRows(rows);
+  const groups = groupPoolScheduleByTime(rows);
   let rowIndex = 0;
 
   return (
     <View style={S.table}>
-      <ScheduleTableHeader accent={accent} />
+      <View style={[S.tableHeader, { backgroundColor: accent }]}>
+        <Text style={S.colTime}>Time</Text>
+        <Text style={S.colCourt}>Court</Text>
+        <Text style={S.colRound}>Round</Text>
+        <Text style={S.colMatch}>Matchup</Text>
+      </View>
       {groups.map((group, gi) => (
         <View key={gi}>
           {group.timeLabel ? (
-            // Condensed time-slot header row
             <View style={S.tableSubheader}>
               <Text style={S.colTime}>{group.timeLabel}</Text>
               <Text style={S.colCourt}>Court</Text>
@@ -446,17 +447,19 @@ function PoolScheduleTable({
             rowIndex += 1;
             return (
               <View
-                key={`${row.teamAName}-${row.teamBName}-${row.scheduledTime.toISOString()}`}
+                key={`${row.poolName}-${row.matchupLabel}-${row.scheduledTime.toISOString()}`}
                 style={[S.tableRow, alt ? S.tableRowAlt : {}]}
               >
                 <Text style={S.colTime}>
-                  {group.showTimePerRow ? formatPacketTime(row.scheduledTime) : ""}
+                  {group.showTimePerRow
+                    ? formatPacketTime(row.scheduledTime)
+                    : ""}
                 </Text>
                 <Text style={S.colCourt}>{row.courtName ?? "—"}</Text>
-                <Text style={S.colRound}>{row.roundLabel}</Text>
-                <Text style={S.colMatch}>
-                  {row.teamAName} vs {row.teamBName}
+                <Text style={S.colRound}>
+                  {row.roundNumber > 0 ? `Round ${row.roundNumber}` : "—"}
                 </Text>
+                <Text style={S.colMatch}>{row.matchupLabel}</Text>
               </View>
             );
           })}
@@ -470,12 +473,17 @@ function BracketScheduleTable({
   rows,
   accent,
 }: {
-  rows: PacketScheduleRow[];
+  rows: PacketBracketScheduleRow[];
   accent: string;
 }) {
   return (
     <View style={S.table}>
-      <ScheduleTableHeader accent={accent} />
+      <View style={[S.tableHeader, { backgroundColor: accent }]}>
+        <Text style={S.colTime}>Time</Text>
+        <Text style={S.colCourt}>Court</Text>
+        <Text style={S.colRound}>Round</Text>
+        <Text style={S.colMatch}>Matchup</Text>
+      </View>
       {rows.map((row, i) => (
         <View
           key={`${row.teamAName}-${row.teamBName}-${row.scheduledTime.toISOString()}`}
@@ -494,11 +502,11 @@ function BracketScheduleTable({
 }
 
 function ScheduleSection({ data }: { data: PacketData }) {
-  const poolRows = data.schedule.filter((r) => r.isPool);
-  const bracketRows = data.schedule.filter((r) => !r.isPool);
   const accent = data.accentColor;
+  const hasPool = data.poolSchedule.length > 0;
+  const hasBracket = data.bracketSchedule.length > 0;
 
-  if (data.schedule.length === 0) {
+  if (!hasPool && !hasBracket) {
     return (
       <Section title="Match schedule" accent={accent}>
         <Text style={S.emptyState}>
@@ -509,55 +517,42 @@ function ScheduleSection({ data }: { data: PacketData }) {
     );
   }
 
-  const hasBothPhases = poolRows.length > 0 && bracketRows.length > 0;
+  const poolNames = [...new Set(data.poolSchedule.map((r) => r.poolName))];
 
   return (
     <Section title="Match schedule" accent={accent}>
-      {poolRows.length > 0 ? (
-        <View style={{ marginBottom: hasBothPhases ? 12 : 0 }}>
-          {hasBothPhases ? (
-            <Text
-              style={{
-                fontSize: 9,
-                fontFamily: "Helvetica-Bold",
-                color: MUTED,
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-                marginBottom: 5,
-              }}
-            >
-              Pool play
-            </Text>
-          ) : null}
-          <PoolScheduleTable rows={poolRows} accent={accent} />
+      {hasPool ? (
+        <View style={{ marginBottom: hasBracket ? 16 : 0 }}>
+          <Text style={S.subsectionTitle}>Pool play</Text>
+          {poolNames.map((poolName) => {
+            const rows = data.poolSchedule.filter((r) => r.poolName === poolName);
+            return (
+              <View key={poolName} style={{ marginBottom: 12 }}>
+                <Text
+                  style={{
+                    fontSize: 9,
+                    fontFamily: "Helvetica-Bold",
+                    color: MUTED,
+                    marginBottom: 6,
+                  }}
+                >
+                  {poolName}
+                </Text>
+                <PoolScheduleTable rows={rows} accent={accent} />
+              </View>
+            );
+          })}
         </View>
       ) : null}
-      {bracketRows.length > 0 ? (
+      {hasBracket ? (
         <View>
-          {hasBothPhases ? (
-            <Text
-              style={{
-                fontSize: 9,
-                fontFamily: "Helvetica-Bold",
-                color: MUTED,
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-                marginBottom: 5,
-              }}
-            >
-              Bracket play
-            </Text>
-          ) : null}
-          <BracketScheduleTable rows={bracketRows} accent={accent} />
+          <Text style={S.subsectionTitle}>Bracket play</Text>
+          <BracketScheduleTable rows={data.bracketSchedule} accent={accent} />
         </View>
       ) : null}
     </Section>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Document
-// ---------------------------------------------------------------------------
 
 export function TournamentPacketDocument({ data }: { data: PacketData }) {
   const accent = data.accentColor;
@@ -565,53 +560,32 @@ export function TournamentPacketDocument({ data }: { data: PacketData }) {
   return (
     <Document title={`${data.name} — Tournament Packet`} author="brackt">
       <Page size="LETTER" style={S.page} wrap>
-        {/* Top accent band on continuation pages only */}
         <View
           fixed
           render={({ pageNumber }) =>
             pageNumber > 1 ? (
-              <View
-                style={{ height: 18, backgroundColor: accent, width: "100%" }}
-              />
+              <View style={{ height: CONTINUATION_TOP, width: "100%" }} />
             ) : null
           }
         />
 
-        {/* Cover header (first page only) */}
-        <View
-          fixed
-          render={({ pageNumber }) =>
-            pageNumber === 1 ? (
-              <View style={{ backgroundColor: accent, width: "100%" }}>
-                <View style={S.headerTop}>
-                  <Text style={S.headerDate}>{data.dateDisplay}</Text>
-                  <Text style={S.headerTitle}>{data.name}</Text>
-                </View>
-                <View
-                  style={[
-                    S.headerBottom,
-                    { backgroundColor: "#000000", opacity: 0.18 },
-                  ]}
-                >
-                  <Text style={S.headerMeta}>
-                    <Text style={S.headerMetaStrong}>Organizer: </Text>
-                    {data.organizerName}
-                    {data.hostSchoolName
-                      ? ` · Hosted by ${data.hostSchoolName}`
-                      : ""}
-                  </Text>
-                  <Text style={S.headerMeta}>
-                    <Text style={S.headerMetaStrong}>Live event: </Text>
-                    {data.liveUrl}
-                  </Text>
-                </View>
-              </View>
-            ) : null
-          }
-        />
-
-        {/* Reserve space below the fixed first-page header */}
-        <View style={{ height: 130 }} />
+        <View style={[S.header, { backgroundColor: accent }]}>
+          <Text style={S.headerDate}>{data.dateDisplay}</Text>
+          <Text style={S.headerTitle}>{data.name}</Text>
+          {data.hostSchoolName ? (
+            <Text style={S.headerSchool}>{data.hostSchoolName}</Text>
+          ) : null}
+          <View style={[S.headerMetaStrip, { backgroundColor: INK, opacity: 0.22 }]}>
+            <Text style={S.headerMeta}>
+              <Text style={S.headerMetaStrong}>Organizer: </Text>
+              {data.organizerName}
+            </Text>
+            <Text style={S.headerMeta}>
+              <Text style={S.headerMetaStrong}>Live event: </Text>
+              {data.liveUrl}
+            </Text>
+          </View>
+        </View>
 
         <View style={S.body}>
           <LocationSection data={data} />
@@ -662,7 +636,7 @@ export function TournamentPacketDocument({ data }: { data: PacketData }) {
               </Bullet>
             </View>
             {data.poolRules.tiebreakCriteria.length > 0 ? (
-              <Text style={[S.paragraph, { marginTop: 6, fontSize: 9.5 }]}>
+              <Text style={[S.paragraph, { marginTop: 8, fontSize: 9.5 }]}>
                 Pool standings tiebreaks (in order):{" "}
                 {data.poolRules.tiebreakCriteria.join(" → ")}
               </Text>
@@ -672,7 +646,7 @@ export function TournamentPacketDocument({ data }: { data: PacketData }) {
           {data.bracketRules ? (
             <Section title="Competition rules — bracket play" accent={accent}>
               <Text style={S.paragraph}>{data.bracketRules.summary}</Text>
-              <View style={[S.bulletList, { marginTop: 6 }]}>
+              <View style={[S.bulletList, { marginTop: 8 }]}>
                 <Bullet accent={accent}>
                   Match format: {data.poolRules.matchFormatLabel} (same as pool
                   play)
@@ -684,6 +658,7 @@ export function TournamentPacketDocument({ data }: { data: PacketData }) {
             </Section>
           ) : null}
 
+          <PoolSeedingsSection data={data} />
           <ScheduleSection data={data} />
         </View>
 

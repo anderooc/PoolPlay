@@ -32,10 +32,7 @@ type GeocodeResult = {
   lon: number;
 };
 
-const NOMINATIM_USER_AGENT = "brackt/1.0 (tournament packet PDF; contact@brackt.app)";
-const MAP_ZOOM = 15;
-const TILE_SIZE = 256;
-const MAP_TILE_GRID = 2;
+const MAP_USER_AGENT = "brackt/1.0 (tournament packet PDF; contact@brackt.app)";
 
 async function geocodeAddress(query: string): Promise<GeocodeResult | null> {
   const url = new URL("https://nominatim.openstreetmap.org/search");
@@ -44,7 +41,7 @@ async function geocodeAddress(query: string): Promise<GeocodeResult | null> {
   url.searchParams.set("limit", "1");
 
   const response = await fetch(url, {
-    headers: { "User-Agent": NOMINATIM_USER_AGENT },
+    headers: { "User-Agent": MAP_USER_AGENT },
     signal: AbortSignal.timeout(8_000),
   });
 
@@ -61,34 +58,33 @@ async function geocodeAddress(query: string): Promise<GeocodeResult | null> {
   return { lat, lon };
 }
 
-function lonToTileX(lon: number, zoom: number): number {
-  return Math.floor(((lon + 180) / 360) * 2 ** zoom);
-}
+async function fetchStaticMapDataUri(
+  lat: number,
+  lon: number
+): Promise<string | null> {
+  // Single static PNG — more reliable in react-pdf than stitching OSM tiles.
+  const url =
+    `https://static-maps.yandex.ru/1.x/?lang=en-US&ll=${lon},${lat}` +
+    `&z=15&l=map&size=340,180&pt=${lon},${lat},pm2rdm`;
 
-function latToTileY(lat: number, zoom: number): number {
-  const latRad = (lat * Math.PI) / 180;
-  return Math.floor(
-    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) *
-      2 ** zoom
-  );
-}
-
-async function fetchTileDataUri(x: number, y: number, zoom: number): Promise<string | null> {
-  const url = `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
   const response = await fetch(url, {
-    headers: { "User-Agent": NOMINATIM_USER_AGENT },
+    headers: { "User-Agent": MAP_USER_AGENT },
     signal: AbortSignal.timeout(8_000),
   });
 
   if (!response.ok) return null;
 
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("image")) return null;
+
   const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length < 100) return null;
+
   return `data:image/png;base64,${bytes.toString("base64")}`;
 }
 
 export type PacketMapImage = {
-  /** 2×2 grid of OSM tile images, row-major. */
-  tileDataUris: string[];
+  dataUri: string;
   width: number;
   height: number;
   attribution: string;
@@ -96,7 +92,6 @@ export type PacketMapImage = {
 
 /**
  * Fetch a static map preview for embedding in the tournament packet PDF.
- * Uses Nominatim geocoding and OpenStreetMap raster tiles (no API key).
  */
 export async function fetchPacketMapImage(
   address: string | null,
@@ -110,30 +105,13 @@ export async function fetchPacketMapImage(
   const coords = await geocodeAddress(query);
   if (!coords) return null;
 
-  const centerX = lonToTileX(coords.lon, MAP_ZOOM);
-  const centerY = latToTileY(coords.lat, MAP_ZOOM);
-  // For a 2×2 grid the top-left origin is one tile back from the center tile
-  // so the four tiles are: (cx-1,cy-1), (cx,cy-1), (cx-1,cy), (cx,cy).
-  const originX = centerX - 1;
-  const originY = centerY - 1;
-
-  const tileCoords: Array<{ x: number; y: number }> = [];
-  for (let row = 0; row < MAP_TILE_GRID; row += 1) {
-    for (let col = 0; col < MAP_TILE_GRID; col += 1) {
-      tileCoords.push({ x: originX + col, y: originY + row });
-    }
-  }
-
-  const tileDataUris = await Promise.all(
-    tileCoords.map(({ x, y }) => fetchTileDataUri(x, y, MAP_ZOOM))
-  );
-
-  if (tileDataUris.some((uri) => uri == null)) return null;
+  const dataUri = await fetchStaticMapDataUri(coords.lat, coords.lon);
+  if (!dataUri) return null;
 
   return {
-    tileDataUris: tileDataUris as string[],
-    width: TILE_SIZE * MAP_TILE_GRID,
-    height: TILE_SIZE * MAP_TILE_GRID,
-    attribution: "© OpenStreetMap contributors",
+    dataUri,
+    width: 340,
+    height: 180,
+    attribution: "Map data © OpenStreetMap contributors",
   };
 }

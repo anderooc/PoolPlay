@@ -1,17 +1,17 @@
 /*
  * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -22,6 +22,7 @@ import {
   courts,
   divisions,
   matches,
+  poolTeams,
   pools,
   registrations,
   teams,
@@ -29,7 +30,6 @@ import {
   users,
 } from "@/lib/db/schema";
 import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
-import { TEAM_GENDER_LABELS, TEAM_REGION_LABELS } from "@/lib/constants/team";
 import { formatMatchFormatLabel } from "@/lib/labels/match-format";
 import { formatPlayFormatLabel } from "@/lib/labels/play-format";
 import {
@@ -48,20 +48,42 @@ import {
   fetchPacketMapImage,
   type PacketMapImage,
 } from "@/lib/tournaments/packet-map-image";
+import {
+  buildPoolScheduleContext,
+  formatSeedMatchup,
+  lookupPoolMatchRound,
+  lookupTeamSeed,
+} from "@/lib/tournaments/packet-pool-schedule";
 import { format } from "date-fns";
 
 export type PacketRegisteredTeam = {
   name: string;
 };
 
-export type PacketScheduleRow = {
+export type PacketPoolSeedRow = {
+  seed: number;
+  teamName: string;
+};
+
+export type PacketPoolSeeding = {
+  poolName: string;
+  teams: PacketPoolSeedRow[];
+};
+
+export type PacketPoolScheduleRow = {
   scheduledTime: Date;
   courtName: string | null;
+  poolName: string;
+  roundNumber: number;
+  matchupLabel: string;
+};
+
+export type PacketBracketScheduleRow = {
+  scheduledTime: Date;
+  courtName: string | null;
+  roundLabel: string;
   teamAName: string;
   teamBName: string;
-  roundLabel: string;
-  /** true = pool-play match, false = bracket match */
-  isPool: boolean;
 };
 
 export type PacketData = {
@@ -76,8 +98,6 @@ export type PacketData = {
   description: string | null;
   packetNotes: string | null;
   paymentInstructions: string | null;
-  genderLabel: string;
-  regionLabel: string;
   hostSchoolName: string | null;
   organizerName: string;
   registeredTeams: PacketRegisteredTeam[];
@@ -95,8 +115,9 @@ export type PacketData = {
     summary: string;
     bracketCount: number;
   } | null;
-  schedule: PacketScheduleRow[];
-  /** Hex accent color for the PDF header, e.g. "#1A3F7D". */
+  poolSeedings: PacketPoolSeeding[];
+  poolSchedule: PacketPoolScheduleRow[];
+  bracketSchedule: PacketBracketScheduleRow[];
   accentColor: string;
 };
 
@@ -142,48 +163,84 @@ export async function gatherPacketData(
 
   if (!tournament) return null;
 
-  const [organizer, hostSchool, registrationRows, scheduledMatchRows, mapImage] =
-    await Promise.all([
-      db
-        .select({ fullName: users.fullName })
-        .from(users)
-        .where(eq(users.id, tournament.organizerId))
-        .limit(1)
-        .then((rows) => rows[0] ?? null),
-      getHostSchoolById(tournament.hostSchoolId),
-      db
-        .select({
-          teamName: teams.name,
-        })
-        .from(registrations)
-        .innerJoin(teams, eq(registrations.teamId, teams.id))
-        .where(
-          and(
-            eq(registrations.tournamentId, tournamentId),
-            inArray(registrations.status, [...PACKET_REGISTRATION_STATUSES])
-          )
+  const [
+    organizer,
+    hostSchool,
+    registrationRows,
+    scheduledMatchRows,
+    mapImage,
+    divisionRows,
+  ] = await Promise.all([
+    db
+      .select({ fullName: users.fullName })
+      .from(users)
+      .where(eq(users.id, tournament.organizerId))
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+    getHostSchoolById(tournament.hostSchoolId),
+    db
+      .select({ teamName: teams.name })
+      .from(registrations)
+      .innerJoin(teams, eq(registrations.teamId, teams.id))
+      .where(
+        and(
+          eq(registrations.tournamentId, tournamentId),
+          inArray(registrations.status, [...PACKET_REGISTRATION_STATUSES])
         )
-        .orderBy(asc(teams.name)),
-      db
-        .select({
-          scheduledTime: matches.scheduledTime,
-          bracketRound: matches.bracketRound,
-          bracketId: matches.bracketId,
-          poolId: matches.poolId,
-          teamAId: matches.teamAId,
-          teamBId: matches.teamBId,
-          courtId: matches.courtId,
-        })
-        .from(matches)
-        .where(
-          and(
-            eq(matches.tournamentId, tournamentId),
-            isNotNull(matches.scheduledTime)
-          )
+      )
+      .orderBy(asc(teams.name)),
+    db
+      .select({
+        scheduledTime: matches.scheduledTime,
+        bracketRound: matches.bracketRound,
+        bracketId: matches.bracketId,
+        poolId: matches.poolId,
+        teamAId: matches.teamAId,
+        teamBId: matches.teamBId,
+        courtId: matches.courtId,
+      })
+      .from(matches)
+      .where(
+        and(
+          eq(matches.tournamentId, tournamentId),
+          isNotNull(matches.scheduledTime)
         )
-        .orderBy(asc(matches.scheduledTime)),
-      fetchPacketMapImage(tournament.address, tournament.location),
-    ]);
+      )
+      .orderBy(asc(matches.scheduledTime)),
+    fetchPacketMapImage(tournament.address, tournament.location),
+    db
+      .select({ id: divisions.id })
+      .from(divisions)
+      .where(eq(divisions.tournamentId, tournamentId)),
+  ]);
+
+  const divisionIds = divisionRows.map((d) => d.id);
+
+  const allPoolRows =
+    divisionIds.length > 0
+      ? await db
+          .select({ id: pools.id, name: pools.name })
+          .from(pools)
+          .where(inArray(pools.divisionId, divisionIds))
+          .orderBy(asc(pools.name))
+      : [];
+
+  const allPoolIds = allPoolRows.map((p) => p.id);
+
+  const allPoolMemberRows =
+    allPoolIds.length > 0
+      ? await db
+          .select({
+            poolId: poolTeams.poolId,
+            teamId: poolTeams.teamId,
+            seed: poolTeams.seed,
+            teamName: teams.name,
+          })
+          .from(poolTeams)
+          .innerJoin(teams, eq(poolTeams.teamId, teams.id))
+          .where(inArray(poolTeams.poolId, allPoolIds))
+          .orderBy(asc(poolTeams.seed), asc(teams.name))
+      : [];
 
   const teamIds = [
     ...new Set(
@@ -199,13 +256,6 @@ export async function gatherPacketData(
         .filter((id): id is string => Boolean(id))
     ),
   ];
-  const poolIds = [
-    ...new Set(
-      scheduledMatchRows
-        .map((m) => m.poolId)
-        .filter((id): id is string => Boolean(id))
-    ),
-  ];
   const bracketIds = [
     ...new Set(
       scheduledMatchRows
@@ -214,7 +264,7 @@ export async function gatherPacketData(
     ),
   ];
 
-  const [teamRows, courtRows, poolRows, bracketRows, bracketMaxRounds] =
+  const [teamRows, courtRows, bracketRows, bracketMaxRounds] =
     await Promise.all([
       teamIds.length
         ? db
@@ -227,12 +277,6 @@ export async function gatherPacketData(
             .select({ id: courts.id, name: courts.name })
             .from(courts)
             .where(inArray(courts.id, courtIds))
-        : Promise.resolve([]),
-      poolIds.length
-        ? db
-            .select({ id: pools.id, name: pools.name })
-            .from(pools)
-            .where(inArray(pools.id, poolIds))
         : Promise.resolve([]),
       bracketIds.length
         ? db
@@ -262,7 +306,7 @@ export async function gatherPacketData(
 
   const teamNameById = new Map(teamRows.map((t) => [t.id, t.name]));
   const courtNameById = new Map(courtRows.map((c) => [c.id, c.name]));
-  const poolNameById = new Map(poolRows.map((p) => [p.id, p.name]));
+  const poolNameById = new Map(allPoolRows.map((p) => [p.id, p.name]));
   const bracketNameById = new Map(
     bracketRows.map((b) => [b.id, bracketDisplayName(b)])
   );
@@ -276,38 +320,104 @@ export async function gatherPacketData(
     }
   }
 
-  const schedule: PacketScheduleRow[] = scheduledMatchRows
-    .filter((m): m is typeof m & { scheduledTime: Date } =>
-      Boolean(m.scheduledTime)
-    )
-    .map((m) => {
-      let roundLabel = "Match";
-      if (m.poolId) {
-        roundLabel = poolNameById.get(m.poolId) ?? "Pool";
-      } else if (m.bracketId && m.bracketRound != null) {
-        const maxRound = maxRoundByBracket.get(m.bracketId) ?? m.bracketRound;
-        const bracketName = bracketNameById.get(m.bracketId);
-        roundLabel = `${bracketName} · ${bracketRoundLabel(m.bracketRound, maxRound)}`;
-      }
-
-      const teamAName = m.teamAId
-        ? (teamNameById.get(m.teamAId) ?? "TBD")
-        : "TBD";
-      const teamBName = m.teamBId
-        ? (teamNameById.get(m.teamBId) ?? "TBD")
-        : "TBD";
-
-      return {
-        scheduledTime: m.scheduledTime,
-        courtName: m.courtId
-          ? (courtNameById.get(m.courtId) ?? null)
-          : null,
-        teamAName,
-        teamBName,
-        roundLabel,
-        isPool: Boolean(m.poolId),
-      };
+  const membersByPool = new Map<
+    string,
+    Array<{ teamId: string; seed: number | null; teamName: string }>
+  >();
+  for (const row of allPoolMemberRows) {
+    const bucket = membersByPool.get(row.poolId) ?? [];
+    bucket.push({
+      teamId: row.teamId,
+      seed: row.seed,
+      teamName: row.teamName,
     });
+    membersByPool.set(row.poolId, bucket);
+  }
+
+  const poolContextById = new Map<
+    string,
+    ReturnType<typeof buildPoolScheduleContext>
+  >();
+  for (const pool of allPoolRows) {
+    const members = membersByPool.get(pool.id) ?? [];
+    if (members.length > 0) {
+      poolContextById.set(
+        pool.id,
+        buildPoolScheduleContext(
+          members.map((m) => ({ teamId: m.teamId, seed: m.seed }))
+        )
+      );
+    }
+  }
+
+  const poolSeedings: PacketPoolSeeding[] = allPoolRows
+    .map((pool) => {
+      const members = membersByPool.get(pool.id) ?? [];
+      const context = poolContextById.get(pool.id);
+      if (!context || members.length === 0) return null;
+
+      const teams: PacketPoolSeedRow[] = context.teamIds.map((teamId) => ({
+        seed: context.seedByTeamId.get(teamId) ?? 0,
+        teamName:
+          members.find((m) => m.teamId === teamId)?.teamName ?? "TBD",
+      }));
+
+      return { poolName: pool.name, teams };
+    })
+    .filter((row): row is PacketPoolSeeding => row != null);
+
+  const poolSchedule: PacketPoolScheduleRow[] = [];
+  const bracketSchedule: PacketBracketScheduleRow[] = [];
+
+  for (const m of scheduledMatchRows) {
+    if (!m.scheduledTime) continue;
+
+    if (m.poolId) {
+      const context = poolContextById.get(m.poolId);
+      const poolName = poolNameById.get(m.poolId) ?? "Pool";
+      const seedA = context
+        ? lookupTeamSeed(context.seedByTeamId, m.teamAId)
+        : null;
+      const seedB = context
+        ? lookupTeamSeed(context.seedByTeamId, m.teamBId)
+        : null;
+      const roundNumber = context
+        ? (lookupPoolMatchRound(context.roundByPair, m.teamAId, m.teamBId) ??
+          0)
+        : 0;
+
+      const matchupLabel =
+        seedA != null && seedB != null
+          ? formatSeedMatchup(seedA, seedB)
+          : `${
+              m.teamAId ? (teamNameById.get(m.teamAId) ?? "TBD") : "TBD"
+            } vs ${m.teamBId ? (teamNameById.get(m.teamBId) ?? "TBD") : "TBD"}`;
+
+      poolSchedule.push({
+        scheduledTime: m.scheduledTime,
+        courtName: m.courtId ? (courtNameById.get(m.courtId) ?? null) : null,
+        poolName,
+        roundNumber,
+        matchupLabel,
+      });
+      continue;
+    }
+
+    let roundLabel = "Match";
+    if (m.bracketId && m.bracketRound != null) {
+      const maxRound = maxRoundByBracket.get(m.bracketId) ?? m.bracketRound;
+      const bracketName = bracketNameById.get(m.bracketId);
+      roundLabel = `${bracketName} · ${bracketRoundLabel(m.bracketRound, maxRound)}`;
+    }
+
+    bracketSchedule.push({
+      scheduledTime: m.scheduledTime,
+      courtName: m.courtId ? (courtNameById.get(m.courtId) ?? null) : null,
+      roundLabel,
+      teamAName: m.teamAId ? (teamNameById.get(m.teamAId) ?? "TBD") : "TBD",
+      teamBName: m.teamBId ? (teamNameById.get(m.teamBId) ?? "TBD") : "TBD",
+    });
+  }
 
   const playFormat = tournament.playFormat ?? "pool_to_bracket";
   const hasBracketPlay =
@@ -333,19 +443,9 @@ export async function gatherPacketData(
     paymentInstructions: paymentInstructionsText(
       paymentSettingsFromTournament(tournament)
     ),
-    genderLabel:
-      TEAM_GENDER_LABELS[
-        tournament.gender as keyof typeof TEAM_GENDER_LABELS
-      ] ?? tournament.gender,
-    regionLabel:
-      TEAM_REGION_LABELS[
-        tournament.region as keyof typeof TEAM_REGION_LABELS
-      ] ?? tournament.region,
     hostSchoolName: hostSchool?.name ?? null,
     organizerName: organizer?.fullName ?? "Tournament host",
-    registeredTeams: registrationRows.map((r) => ({
-      name: r.teamName,
-    })),
+    registeredTeams: registrationRows.map((r) => ({ name: r.teamName })),
     playFormatLabel: formatPlayFormatLabel(playFormat),
     poolRules: {
       matchFormat: tournament.matchFormat,
@@ -366,7 +466,9 @@ export async function gatherPacketData(
           bracketCount: tournament.bracketCount ?? 1,
         }
       : null,
-    schedule,
+    poolSeedings,
+    poolSchedule,
+    bracketSchedule,
     accentColor: tournament.packetAccentColor ?? "#C93D2E",
   };
 }

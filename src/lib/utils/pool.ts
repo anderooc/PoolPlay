@@ -151,26 +151,29 @@ export function assignRefsToMatchups(
 }
 
 /**
- * Round-robin match order for a pool. `teamIds` must be sorted by seed ascending
- * (seed 1 first, lowest seed last). The first match is always lowest vs seed 2;
- * remaining rounds follow the circle method (with a bye for odd pools).
+ * Round-robin match order for a pool, tagged with 1-based round numbers.
+ * `teamIds` must be sorted by seed ascending.
  */
-export function generatePoolMatches(
+export function generatePoolMatchesWithRounds(
   teamIds: string[]
-): { teamAId: string; teamBId: string }[] {
+): Array<{ teamAId: string; teamBId: string; round: number }> {
   const n = teamIds.length;
   if (n < 2) return [];
 
   let slots = initialCircleSlots(n);
   const m = slots.length;
-  const matches: { teamAId: string; teamBId: string }[] = [];
+  const matches: Array<{ teamAId: string; teamBId: string; round: number }> = [];
 
-  for (let round = 0; round < m - 1; round++) {
-    for (let i = 0; i < m / 2; i++) {
+  for (let round = 0; round < m - 1; round += 1) {
+    for (let i = 0; i < m / 2; i += 1) {
       const a = slots[i];
       const b = slots[m - 1 - i];
       if (a === BYE || b === BYE) continue;
-      matches.push({ teamAId: teamIds[a], teamBId: teamIds[b] });
+      matches.push({
+        teamAId: teamIds[a],
+        teamBId: teamIds[b],
+        round: round + 1,
+      });
     }
     const fixed = slots[0];
     const rest = slots.slice(1);
@@ -178,6 +181,20 @@ export function generatePoolMatches(
   }
 
   return matches;
+}
+
+/**
+ * Round-robin match order for a pool. `teamIds` must be sorted by seed ascending
+ * (seed 1 first, lowest seed last). The first match is always lowest vs seed 2;
+ * remaining rounds follow the circle method (with a bye for odd pools).
+ */
+export function generatePoolMatches(
+  teamIds: string[]
+): { teamAId: string; teamBId: string }[] {
+  return generatePoolMatchesWithRounds(teamIds).map(({ teamAId, teamBId }) => ({
+    teamAId,
+    teamBId,
+  }));
 }
 
 export interface PoolStanding {
