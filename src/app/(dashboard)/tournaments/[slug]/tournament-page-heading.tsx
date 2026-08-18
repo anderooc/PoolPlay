@@ -42,7 +42,6 @@ import {
   updateTournamentDate,
   updateTournamentListingDetails,
 } from "../actions";
-import { formatTournamentDateDisplay } from "@/lib/date-iso";
 import { isTournamentArchived } from "@/lib/tournament-status";
 import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -78,8 +77,7 @@ import {
 } from "@/lib/tournaments/listing-details-checklist";
 import type { TournamentHostSchool } from "@/lib/tournaments/host-school";
 import type { TeamGender, TeamRegion } from "@/types";
-import { Calendar, User } from "lucide-react";
-import { TournamentLocationLink } from "@/components/tournament-location-link";
+import { TournamentHeaderMeta } from "@/components/tournament-header-meta";
 import { AddressMapPreview } from "@/components/address-map-preview";
 
 type DeleteStep = "intro" | "confirm";
@@ -353,99 +351,83 @@ export function TournamentPageHeading({
   return (
     <div
       className={cn(
-        "flex flex-col lg:flex-row lg:items-start lg:justify-between",
-        compact ? "gap-2.5" : "gap-4"
+        "flex flex-col",
+        compact ? "gap-3" : "gap-4",
+        "lg:flex-row lg:items-start lg:justify-between"
       )}
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          {editingTitle ? (
-            <div className="min-w-0 flex-1 basis-full sm:basis-auto sm:max-w-[min(100%,42rem)]">
-              <input
-                ref={titleInputRef}
-                value={draftTitle}
-                onChange={(e) => setDraftTitle(e.target.value)}
-                disabled={titleSaving}
-                aria-label="Tournament name"
-                className={cn(
-                  "w-full min-w-0 border-0 border-b-2 border-primary bg-transparent px-0 py-0.5 text-2xl font-bold tracking-tight text-foreground caret-primary shadow-none outline-none ring-0 transition-[border-color] duration-150",
-                  "focus-visible:border-primary focus-visible:ring-0",
-                  "disabled:cursor-not-allowed disabled:opacity-60",
-                  compact ? "sm:text-2xl" : "sm:text-3xl"
-                )}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="space-y-2">
+          <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            {editingTitle ? (
+              <div className="min-w-0 w-full flex-1 sm:max-w-[min(100%,42rem)]">
+                <input
+                  ref={titleInputRef}
+                  value={draftTitle}
+                  onChange={(e) => setDraftTitle(e.target.value)}
+                  disabled={titleSaving}
+                  aria-label="Tournament name"
+                  className={cn(
+                    "w-full min-w-0 border-0 border-b-2 border-primary bg-transparent px-0 py-0.5 text-2xl font-bold tracking-tight text-foreground caret-primary shadow-none outline-none ring-0 transition-[border-color] duration-150",
+                    "focus-visible:border-primary focus-visible:ring-0",
+                    "disabled:cursor-not-allowed disabled:opacity-60",
+                    compact ? "sm:text-2xl" : "sm:text-3xl"
+                  )}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void commitTitle();
+                    }
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      cancelTitleEdit();
+                    }
+                  }}
+                  onBlur={() => {
+                    if (titleSaving || skipTitleBlurCommit.current) return;
                     void commitTitle();
-                  }
-                  if (e.key === "Escape") {
-                    e.preventDefault();
-                    cancelTitleEdit();
-                  }
-                }}
-                onBlur={() => {
-                  if (titleSaving || skipTitleBlurCommit.current) return;
-                  void commitTitle();
-                }}
-              />
-              {titleError && (
-                <p className="mt-1 text-sm text-destructive">{titleError}</p>
-              )}
-            </div>
-          ) : (
-            <h1
-              className={cn(
-                "text-balance font-bold tracking-tight",
-                compact ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"
-              )}
-            >
-              {name}
-            </h1>
-          )}
-          <StatusBadge
-            kind="tournament"
-            status={status}
-            date={date}
-            className="shrink-0"
-          />
-        </div>
-        <div
-          className={cn(
-            "space-y-1 text-muted-foreground",
-            compact ? "mt-1 text-xs" : "mt-2 text-sm"
-          )}
-        >
-          <TournamentLocationLink
+                  }}
+                />
+                {titleError && (
+                  <p className="mt-1 text-sm text-destructive">{titleError}</p>
+                )}
+              </div>
+            ) : (
+              <h1
+                className={cn(
+                  "min-w-0 max-w-full text-balance font-bold tracking-tight",
+                  compact ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"
+                )}
+              >
+                {name}
+              </h1>
+            )}
+            <StatusBadge
+              kind="tournament"
+              status={status}
+              date={date}
+              className="shrink-0 self-start"
+            />
+          </div>
+          <TournamentHeaderMeta
             location={listingLocation}
             address={listingAddress}
+            date={date}
+            organizerName={organizerName}
+            compact={compact}
           />
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5 shrink-0" />
-              {formatTournamentDateDisplay(date)}
-            </span>
-            <span className="flex items-center gap-1">
-              <User className="h-3.5 w-3.5 shrink-0" />
-              {organizerName}
-            </span>
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <TeamAttributesBadges gender={gender} region={region} />
+            <TournamentHostSchoolLink school={hostSchool} />
           </div>
-        </div>
-        <div
-          className={cn(
-            "flex min-w-0 flex-wrap items-center gap-1.5",
-            compact ? "mt-1" : "mt-2"
-          )}
-        >
-          <TeamAttributesBadges gender={gender} region={region} />
-          <TournamentHostSchoolLink school={hostSchool} />
         </div>
         {listingDescription ? (
           <p
             className={cn(
               "max-w-2xl whitespace-pre-wrap text-muted-foreground",
               compact
-                ? "mt-1.5 line-clamp-2 text-xs"
-                : "mt-3 text-sm"
+                ? "line-clamp-2 text-xs"
+                : "text-sm"
             )}
           >
             {listingDescription}
@@ -454,7 +436,7 @@ export function TournamentPageHeading({
           <p
             className={cn(
               "max-w-2xl italic text-muted-foreground/80",
-              compact ? "mt-1.5 text-xs" : "mt-3 text-sm"
+              compact ? "text-xs" : "text-sm"
             )}
           >
             No description yet. Use the menu to edit listing details.
@@ -464,7 +446,7 @@ export function TournamentPageHeading({
 
       <div
         className={cn(
-          "flex flex-wrap items-center justify-end",
+          "flex w-full min-w-0 flex-wrap items-center gap-2 border-t border-border/50 pt-3 sm:justify-end lg:w-auto lg:border-0 lg:pt-0",
           compact ? "gap-1.5" : "gap-2"
         )}
       >
