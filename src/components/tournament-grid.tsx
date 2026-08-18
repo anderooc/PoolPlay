@@ -218,36 +218,119 @@ function groupByDate(list: Tournament[]): DateGroup[] {
 function TournamentRow({
   tournament: t,
   linkPrefix,
+  compact = false,
 }: {
   tournament: Tournament;
   linkPrefix: string;
+  /** Narrow column beside the date wheel — stack and truncate instead of widening. */
+  compact?: boolean;
 }) {
   return (
-    <div className="min-w-0 max-w-full px-1 py-3.5 transition-colors duration-150 hover:bg-muted/40">
-      <Link href={`${linkPrefix}/${t.slug}`} className="block min-w-0">
-        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-          <span className="min-w-0 truncate font-medium leading-tight">
+    <div
+      className={cn(
+        "min-w-0 max-w-full overflow-hidden px-1 py-3.5 transition-colors duration-150 hover:bg-muted/40",
+        compact && "w-full"
+      )}
+    >
+      <Link
+        href={`${linkPrefix}/${t.slug}`}
+        className="block min-w-0 max-w-full overflow-hidden"
+      >
+        <div
+          className={cn(
+            "flex gap-1.5",
+            compact
+              ? "flex-col items-start"
+              : "flex-col sm:flex-row sm:items-start sm:justify-between sm:gap-3"
+          )}
+        >
+          <span className="min-w-0 w-full truncate font-medium leading-tight">
             {t.name}
           </span>
           <StatusBadge
             kind="tournament"
             status={t.status}
             date={t.date}
-            className="self-start shrink-0"
+            className="shrink-0 self-start"
           />
         </div>
-        <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-          <span className="flex min-w-0 items-center gap-1">
+        <div
+          className={cn(
+            "mt-1.5 min-w-0 text-sm text-muted-foreground",
+            compact
+              ? "flex flex-col gap-1"
+              : "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1"
+          )}
+        >
+          <span className="flex min-w-0 max-w-full items-center gap-1">
             <MapPin className="h-3 w-3 shrink-0" />
             <span className="truncate">{t.location}</span>
           </span>
-          <span>{registrationAvailabilityLabel(t.registrationAvailability)}</span>
+          <span className={cn(compact && "truncate")}>
+            {registrationAvailabilityLabel(t.registrationAvailability)}
+          </span>
         </div>
       </Link>
-      <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
-        <TeamAttributesBadges gender={t.gender} region={t.region} />
-        <TournamentHostSchoolLink school={t.hostSchool} />
+      <div
+        className={cn(
+          "mt-1.5 min-w-0 max-w-full",
+          compact
+            ? "flex flex-col items-start gap-1.5"
+            : "flex min-w-0 flex-wrap items-center gap-1.5"
+        )}
+      >
+        <TeamAttributesBadges
+          gender={t.gender}
+          region={t.region}
+          className={compact ? "w-full" : undefined}
+        />
+        <TournamentHostSchoolLink
+          school={t.hostSchool}
+          className={compact ? "w-full max-w-full" : undefined}
+        />
       </div>
+    </div>
+  );
+}
+
+function SelectedDayPanel({
+  group,
+  linkPrefix,
+  compact = false,
+}: {
+  group: DateGroup;
+  linkPrefix: string;
+  compact?: boolean;
+}) {
+  const isEmpty = group.tournaments.length === 0;
+  return (
+    <div className={cn("w-full min-w-0 overflow-hidden", SELECTED_PANEL_MIN_H)}>
+      {isEmpty ? (
+        <p
+          className={cn(
+            "flex w-full items-center rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 px-4 text-sm text-muted-foreground",
+            SELECTED_PANEL_MIN_H
+          )}
+        >
+          No tournaments scheduled.
+        </p>
+      ) : (
+        <div
+          className={cn(
+            "list-stack w-full min-w-0 overflow-hidden border-t border-border/70",
+            SELECTED_PANEL_MIN_H
+          )}
+        >
+          {group.tournaments.map((t) => (
+            <TournamentRow
+              key={t.id ?? t.slug}
+              tournament={t}
+              linkPrefix={linkPrefix}
+              compact={compact}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -268,7 +351,6 @@ function DateGroupSection({
   sectionRef?: (el: HTMLElement | null) => void;
 }) {
   const isCalendarToday = group.date === today;
-  const isEmpty = group.tournaments.length === 0;
   return (
     <section
       ref={sectionRef}
@@ -309,35 +391,10 @@ function DateGroupSection({
       {isSelected && (
         <div
           className={cn(
-            "mt-2 w-full min-w-0 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200",
-            SELECTED_PANEL_MIN_H
+            "mt-2 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
           )}
         >
-          {isEmpty ? (
-            <p
-              className={cn(
-                "flex w-full items-center rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 px-4 text-sm text-muted-foreground",
-                SELECTED_PANEL_MIN_H
-              )}
-            >
-              No tournaments scheduled.
-            </p>
-          ) : (
-            <div
-              className={cn(
-                "list-stack w-full border-t border-border/70",
-                SELECTED_PANEL_MIN_H
-              )}
-            >
-              {group.tournaments.map((t) => (
-                <TournamentRow
-                  key={t.id ?? t.slug}
-                  tournament={t}
-                  linkPrefix={linkPrefix}
-                />
-              ))}
-            </div>
-          )}
+          <SelectedDayPanel group={group} linkPrefix={linkPrefix} />
         </div>
       )}
     </section>
@@ -345,8 +402,8 @@ function DateGroupSection({
 }
 
 /**
- * No-scroll date cycler on desktop. Mobile is a stacked date list so the
- * page can scroll without a side wheel stealing width.
+ * Desktop: date cycler with headings plus a side wheel. Mobile: wheel only
+ * (no heading stack) beside the selected day's tournaments.
  */
 function ChronologicalSchedule({
   tournaments,
@@ -529,16 +586,56 @@ function ChronologicalSchedule({
       />
     ));
 
+  const selectedGroup =
+    groups.find((g) => g.date === effectiveSelectedDate) ?? {
+      date: effectiveSelectedDate,
+      tournaments: [] as Tournament[],
+    };
+
+  const dateWheel = (asideClassName: string) => (
+    <aside
+      aria-label="Date navigation"
+      className={asideClassName}
+    >
+      <DateScrollWheel
+        className="w-full max-w-full flex-none md:flex-1"
+        dates={scheduleDates}
+        selectedDate={effectiveSelectedDate}
+        onSelect={onSelectedDateChange}
+        today={today}
+        activityKey={wheelActivity}
+      />
+    </aside>
+  );
+
   return (
     <ViewportSplit
       mobile={
-        <div className="min-w-0 space-y-4">{dateSections(false)}</div>
+        <div className="grid w-full max-w-full grid-cols-[minmax(0,1fr)_6.75rem] items-start gap-2 overflow-x-hidden">
+          <div className="min-w-0 overflow-hidden">
+            <p className="sr-only">
+              Tournaments on {formatDate(selectedGroup.date)}
+            </p>
+            <SelectedDayPanel
+              group={selectedGroup}
+              linkPrefix={linkPrefix}
+              compact
+            />
+          </div>
+          {dateWheel(
+            "col-start-2 row-start-1 flex w-full max-w-[6.75rem] shrink-0 touch-none flex-col self-start overscroll-y-none"
+          )}
+        </div>
       }
       desktop={
         <div
-          className="flex min-h-0 w-full min-w-0 flex-1 gap-3 overflow-x-hidden sm:gap-4"
+          className="flex min-h-0 w-full min-w-0 max-w-full flex-1 gap-4 overflow-x-hidden"
           style={{ visibility: layoutReady ? "visible" : "hidden" }}
         >
+          {dateWheel(
+            "flex w-[9.5rem] shrink-0 touch-none flex-col self-stretch overscroll-y-none md:flex-none"
+          )}
+
           <div
             ref={containerRef}
             className="relative min-h-0 min-w-0 flex-1 select-none overflow-hidden outline-none"
@@ -548,20 +645,6 @@ function ChronologicalSchedule({
               <div className="space-y-3 pb-12 pt-2">{dateSections(true)}</div>
             </div>
           </div>
-
-          <aside
-            aria-label="Date navigation"
-            className="flex w-[9.5rem] shrink-0 flex-none touch-none flex-col self-stretch overscroll-y-none"
-          >
-            <DateScrollWheel
-              className="w-full"
-              dates={scheduleDates}
-              selectedDate={effectiveSelectedDate}
-              onSelect={onSelectedDateChange}
-              today={today}
-              activityKey={wheelActivity}
-            />
-          </aside>
         </div>
       }
     />
@@ -689,7 +772,7 @@ export function TournamentGrid({
   }
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-1 flex-col gap-6">
+    <div className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col gap-6 md:h-full">
       <div className="flex min-w-0 items-center gap-3">
         <div className="relative min-w-0 flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
