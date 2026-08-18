@@ -16,12 +16,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { Suspense } from "react";
 import { MobileNav } from "./mobile-nav";
 import { HeaderNav } from "./header-nav";
 import { BracktMark } from "./brackt-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "./user-menu";
 import { SkipLink } from "./skip-link";
+import { NotificationBellSlot } from "@/components/notifications/notification-bell-slot";
 
 export type HeaderUserProfile = {
   fullName: string;
@@ -52,6 +54,11 @@ export function Header({
 
         <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
           <ThemeToggle />
+          {user ? (
+            <Suspense fallback={<span className="size-9" aria-hidden />}>
+              <NotificationBellSlot />
+            </Suspense>
+          ) : null}
           {user && (
             <UserMenu
               fullName={user.fullName}

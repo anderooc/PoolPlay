@@ -80,6 +80,13 @@ export const tournamentEmailKindEnum = pgEnum("tournament_email_kind", [
   "waiver_reminder",
 ]);
 
+export const userNotificationKindEnum = pgEnum("user_notification_kind", [
+  "tournament_posted",
+  "tournament_message",
+  "chat_announcement",
+  "registration_update",
+]);
+
 export const tournamentChatChannelKindEnum = pgEnum(
   "tournament_chat_channel_kind",
   ["announcements", "questions", "general"]
@@ -689,6 +696,59 @@ export const waiverCompletions = pgTable(
   ]
 );
 
+export const userNotifications = pgTable(
+  "user_notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    kind: userNotificationKindEnum("kind").notNull(),
+    title: text("title").notNull(),
+    body: text("body"),
+    href: text("href"),
+    tournamentId: uuid("tournament_id").references(() => tournaments.id, {
+      onDelete: "cascade",
+    }),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("user_notifications_user_created_idx").on(t.userId, t.createdAt),
+  ]
+);
+
+export const tournamentPostingAnnouncements = pgTable(
+  "tournament_posting_announcements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tournamentId: uuid("tournament_id")
+      .references(() => tournaments.id, { onDelete: "cascade" })
+      .notNull(),
+    sentByUserId: uuid("sent_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    subject: text("subject").notNull(),
+    body: text("body").notNull(),
+    gender: teamGenderEnum("gender").notNull(),
+    regions: teamRegionEnum("regions").array().notNull(),
+    sendEmail: boolean("send_email").default(true).notNull(),
+    recipientCount: integer("recipient_count").notNull(),
+    skippedNoCaptainCount: integer("skipped_no_captain_count")
+      .default(0)
+      .notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("tournament_posting_announcements_tournament_idx").on(
+      t.tournamentId,
+      t.sentAt
+    ),
+  ]
+);
+
 export const tournamentEmailSends = pgTable("tournament_email_sends", {
   id: uuid("id").primaryKey().defaultRandom(),
   tournamentId: uuid("tournament_id")
@@ -902,6 +962,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   teamMembers: many(teamMembers),
   schoolMemberships: many(schoolMembers),
   organizedTournaments: many(tournaments),
+  notifications: many(userNotifications),
+  postingAnnouncements: many(tournamentPostingAnnouncements),
 }));
 
 export const schoolsRelations = relations(schools, ({ one, many }) => ({
@@ -956,6 +1018,8 @@ export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
   emailSends: many(tournamentEmailSends),
   chatChannels: many(tournamentChatChannels),
   chatMessages: many(tournamentChatMessages),
+  notifications: many(userNotifications),
+  postingAnnouncements: many(tournamentPostingAnnouncements),
 }));
 
 export const tournamentWaiversRelations = relations(
@@ -1001,6 +1065,34 @@ export const waiverCompletionsRelations = relations(
       fields: [waiverCompletions.waivedByUserId],
       references: [users.id],
       relationName: "waiverWaivedBy",
+    }),
+  })
+);
+
+export const userNotificationsRelations = relations(
+  userNotifications,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userNotifications.userId],
+      references: [users.id],
+    }),
+    tournament: one(tournaments, {
+      fields: [userNotifications.tournamentId],
+      references: [tournaments.id],
+    }),
+  })
+);
+
+export const tournamentPostingAnnouncementsRelations = relations(
+  tournamentPostingAnnouncements,
+  ({ one }) => ({
+    tournament: one(tournaments, {
+      fields: [tournamentPostingAnnouncements.tournamentId],
+      references: [tournaments.id],
+    }),
+    sentBy: one(users, {
+      fields: [tournamentPostingAnnouncements.sentByUserId],
+      references: [users.id],
     }),
   })
 );

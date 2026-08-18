@@ -20,38 +20,64 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { tournamentEmailSends } from "@/lib/db/schema";
 import { TournamentMessagesPanel } from "../messages-panel";
+import { countRecentPostingAnnouncements, listRecentPostingAnnouncements } from "@/lib/tournaments/send-posting-announcement";
+import type { TeamGender, TeamRegion } from "@/types";
 
 export async function TournamentMessagesTabPanel({
   tournamentId,
+  tournamentName,
+  tournamentDate,
+  location,
+  gender,
+  region,
+  status,
   waiverEnabled,
   canEdit,
   lockedReason,
 }: {
   tournamentId: string;
+  tournamentName: string;
+  tournamentDate: string;
+  location: string;
+  gender: TeamGender;
+  region: TeamRegion;
+  status: string;
   waiverEnabled: boolean;
   canEdit: boolean;
   lockedReason?: string | null;
 }) {
-  const sendHistory = await db
-    .select({
-      id: tournamentEmailSends.id,
-      kind: tournamentEmailSends.kind,
-      audience: tournamentEmailSends.audience,
-      subject: tournamentEmailSends.subject,
-      recipientCount: tournamentEmailSends.recipientCount,
-      skippedNoCaptainCount: tournamentEmailSends.skippedNoCaptainCount,
-      sentAt: tournamentEmailSends.sentAt,
-    })
-    .from(tournamentEmailSends)
-    .where(eq(tournamentEmailSends.tournamentId, tournamentId))
-    .orderBy(desc(tournamentEmailSends.sentAt))
-    .limit(20);
+  const [sendHistory, postingHistory, recentAnnouncementCount] = await Promise.all([
+    db
+      .select({
+        id: tournamentEmailSends.id,
+        kind: tournamentEmailSends.kind,
+        audience: tournamentEmailSends.audience,
+        subject: tournamentEmailSends.subject,
+        recipientCount: tournamentEmailSends.recipientCount,
+        skippedNoCaptainCount: tournamentEmailSends.skippedNoCaptainCount,
+        sentAt: tournamentEmailSends.sentAt,
+      })
+      .from(tournamentEmailSends)
+      .where(eq(tournamentEmailSends.tournamentId, tournamentId))
+      .orderBy(desc(tournamentEmailSends.sentAt))
+      .limit(20),
+    listRecentPostingAnnouncements(tournamentId),
+    countRecentPostingAnnouncements(tournamentId),
+  ]);
 
   return (
     <TournamentMessagesPanel
       tournamentId={tournamentId}
+      tournamentName={tournamentName}
+      tournamentDate={tournamentDate}
+      location={location}
+      gender={gender}
+      region={region}
+      status={status}
       waiverEnabled={waiverEnabled}
       sendHistory={sendHistory}
+      postingHistory={postingHistory}
+      recentAnnouncementCount={recentAnnouncementCount}
       canEdit={canEdit}
       lockedReason={lockedReason}
     />

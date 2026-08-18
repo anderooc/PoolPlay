@@ -68,8 +68,11 @@ export function plainTextToHtml(text: string): string {
     .join("")}</div>`;
 }
 
-export function emailFooterHtml(tournamentName: string): string {
-  return `<p style="margin-top: 2em; font-size: 12px; color: #666;">You received this because you are listed as a team captain for ${escapeHtml(tournamentName)} on brackt.</p>`;
+export function emailFooterHtml(
+  tournamentName: string,
+  reason = `You received this because you are listed as a team captain for ${tournamentName} on brackt.`
+): string {
+  return `<p style="margin-top: 2em; font-size: 12px; color: #666;">${escapeHtml(reason)}</p>`;
 }
 
 function escapeHtml(value: string): string {
@@ -139,6 +142,7 @@ export function buildCaptainEmailHtml(input: {
   teamLabels: string;
   ctaUrl?: string;
   ctaLabel?: string;
+  footerReason?: string;
 }): string {
   const header = buildTournamentEmailHeaderHtml({
     tournamentName: input.tournamentName,
@@ -152,7 +156,7 @@ export function buildCaptainEmailHtml(input: {
       ? `<p style="margin: 1.5em 0;"><a href="${escapeHtml(input.ctaUrl)}" style="display: inline-block; padding: 10px 16px; background: #111; color: #fff; text-decoration: none; border-radius: 6px;">${escapeHtml(input.ctaLabel)}</a></p>`
       : "";
 
-  return `${header}${plainTextToHtml(input.body)}${cta}${emailFooterHtml(input.tournamentName)}`;
+  return `${header}${plainTextToHtml(input.body)}${cta}${emailFooterHtml(input.tournamentName, input.footerReason)}`;
 }
 
 export function buildCaptainEmailText(input: {
@@ -163,6 +167,7 @@ export function buildCaptainEmailText(input: {
   teamLabels: string;
   ctaUrl?: string;
   ctaLabel?: string;
+  footerReason?: string;
 }): string {
   const header = buildTournamentEmailHeaderText({
     tournamentName: input.tournamentName,
@@ -176,7 +181,10 @@ export function buildCaptainEmailText(input: {
       ? `\n\n${input.ctaLabel}: ${input.ctaUrl}`
       : "";
 
-  const footer = `\n\n---\nYou received this because you are listed as a team captain for ${input.tournamentName} on brackt.`;
+  const footer = `\n\n---\n${
+    input.footerReason ??
+    `You received this because you are listed as a team captain for ${input.tournamentName} on brackt.`
+  }`;
 
   return `${header}\n\n${input.body}${cta}${footer}`;
 }

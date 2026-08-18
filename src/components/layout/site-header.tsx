@@ -17,6 +17,7 @@
  */
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { HeaderNav } from "./header-nav";
@@ -25,6 +26,7 @@ import { SiteMobileNav } from "./site-mobile-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "./user-menu";
 import { SkipLink } from "./skip-link";
+import { NotificationBellSlot } from "@/components/notifications/notification-bell-slot";
 
 export type SiteHeaderUser = {
   fullName: string;
@@ -48,6 +50,11 @@ export function SiteHeader({ user }: { user?: SiteHeaderUser | null }) {
 
           <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
             <ThemeToggle />
+            {user ? (
+              <Suspense fallback={<span className="size-9" aria-hidden />}>
+                <NotificationBellSlot />
+              </Suspense>
+            ) : null}
             {user ? (
               <UserMenu
                 fullName={user.fullName}
