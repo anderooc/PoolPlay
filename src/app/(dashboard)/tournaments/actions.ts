@@ -448,6 +448,38 @@ export async function updateTournamentPacketNotes(
   return { success: true as const, packetNotes: notes };
 }
 
+const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
+
+export async function updateTournamentPacketAccentColor(
+  tournamentId: string,
+  color: string | null
+) {
+  const user = await requireUser();
+
+  if (color !== null && !HEX_COLOR_RE.test(color)) {
+    return { error: "Color must be a 6-digit hex value (e.g. #1A3F7D)." };
+  }
+
+  const [tournament] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament || !await resolveIsTournamentOrganizer(tournament, user)) {
+    return { error: "Only the organizer can edit the tournament packet." };
+  }
+
+  await db
+    .update(tournaments)
+    .set({ packetAccentColor: color, updatedAt: new Date() })
+    .where(eq(tournaments.id, tournamentId));
+
+  revalidatePath("/tournaments/[slug]", "page");
+
+  return { success: true as const, packetAccentColor: color };
+}
+
 /**
  * Updates the per-set scoring rules used everywhere matches are scored. Already
  * completed sets are not touched so changing format mid-tournament is safe.

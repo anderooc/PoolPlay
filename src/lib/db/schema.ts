@@ -396,6 +396,8 @@ export const tournaments = pgTable("tournaments", {
    * payment, contact). Competition rules are auto-filled from settings.
    */
   packetNotes: text("packet_notes"),
+  /** Hex color (e.g. "#1A3F7D") used as the header accent in the PDF packet. */
+  packetAccentColor: text("packet_accent_color"),
   /** When true, registered teams must complete the uploaded waiver before check-in. */
   waiverEnabled: boolean("waiver_enabled").default(false).notNull(),
   waiverAllowDownloadPrint: boolean("waiver_allow_download_print")

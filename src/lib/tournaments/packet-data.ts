@@ -60,6 +60,8 @@ export type PacketScheduleRow = {
   teamAName: string;
   teamBName: string;
   roundLabel: string;
+  /** true = pool-play match, false = bracket match */
+  isPool: boolean;
 };
 
 export type PacketData = {
@@ -94,6 +96,8 @@ export type PacketData = {
     bracketCount: number;
   } | null;
   schedule: PacketScheduleRow[];
+  /** Hex accent color for the PDF header, e.g. "#1A3F7D". */
+  accentColor: string;
 };
 
 const PACKET_REGISTRATION_STATUSES = [
@@ -103,16 +107,7 @@ const PACKET_REGISTRATION_STATUSES = [
 ] as const;
 
 function tournamentLiveUrl(slug: string): string {
-  const raw =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000");
-
-  const base = /^https?:\/\//i.test(raw.trim())
-    ? raw.trim()
-    : `https://${raw.trim()}`;
-  return `${base}/tournaments/${slug}`;
+  return `https://brac-t.com/tournaments/${slug}`;
 }
 
 function bracketRoundLabel(round: number, maxRound: number): string {
@@ -310,6 +305,7 @@ export async function gatherPacketData(
         teamAName,
         teamBName,
         roundLabel,
+        isPool: Boolean(m.poolId),
       };
     });
 
@@ -371,6 +367,7 @@ export async function gatherPacketData(
         }
       : null,
     schedule,
+    accentColor: tournament.packetAccentColor ?? "#C93D2E",
   };
 }
 

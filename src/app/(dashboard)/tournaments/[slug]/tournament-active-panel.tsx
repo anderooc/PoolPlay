@@ -88,6 +88,7 @@ export async function TournamentActivePanel({
             tournamentId={tournament.id}
             slug={tournament.slug}
             packetNotes={tournament.packetNotes}
+            packetAccentColor={tournament.packetAccentColor ?? null}
             canEdit={canEditSetup}
             lockedReason={preparationLockedReason}
           />

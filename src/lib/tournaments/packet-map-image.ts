@@ -112,8 +112,10 @@ export async function fetchPacketMapImage(
 
   const centerX = lonToTileX(coords.lon, MAP_ZOOM);
   const centerY = latToTileY(coords.lat, MAP_ZOOM);
-  const originX = centerX - Math.floor(MAP_TILE_GRID / 2);
-  const originY = centerY - Math.floor(MAP_TILE_GRID / 2);
+  // For a 2×2 grid the top-left origin is one tile back from the center tile
+  // so the four tiles are: (cx-1,cy-1), (cx,cy-1), (cx-1,cy), (cx,cy).
+  const originX = centerX - 1;
+  const originY = centerY - 1;
 
   const tileCoords: Array<{ x: number; y: number }> = [];
   for (let row = 0; row < MAP_TILE_GRID; row += 1) {
