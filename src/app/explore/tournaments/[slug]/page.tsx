@@ -31,8 +31,8 @@ import { getCurrentAuthProfile } from "@/lib/auth";
 import { getHostSchoolById } from "@/lib/tournaments/host-school";
 import { isTournamentPublishedForPublic } from "@/lib/tournaments/permissions";
 import { formatTournamentDateDisplay } from "@/lib/date-iso";
-import { ArrowRight, Calendar, User } from "lucide-react";
-import { TournamentLocationLink } from "@/components/tournament-location-link";
+import { ArrowRight } from "lucide-react";
+import { TournamentHeaderMeta } from "@/components/tournament-header-meta";
 import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/metadata";
 
@@ -111,38 +111,29 @@ export default async function ExploreTournamentPage({ params }: Props) {
           </Link>
 
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-balance text-2xl font-bold tracking-tight sm:text-3xl">
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              <h1 className="min-w-0 max-w-full text-balance text-2xl font-bold tracking-tight sm:text-3xl">
                 {tournament.name}
               </h1>
               <StatusBadge
                 kind="tournament"
                 status={tournament.status}
                 date={tournament.date}
+                className="shrink-0 self-start"
               />
             </div>
-            <div className="space-y-1 text-sm text-muted-foreground">
-              <TournamentLocationLink
-                location={tournament.location}
-                address={tournament.address}
-              />
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5 shrink-0" />
-                  {formatTournamentDateDisplay(tournament.date)}
-                </span>
-                <span className="flex items-center gap-1">
-                  <User className="h-3.5 w-3.5 shrink-0" />
-                  {organizer?.fullName ?? "Unknown organizer"}
-                </span>
-              </div>
-            </div>
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <TournamentHeaderMeta
+              location={tournament.location}
+              address={tournament.address}
+              date={tournament.date}
+              organizerName={organizer?.fullName ?? "Unknown organizer"}
+            />
+            <div className="flex min-w-0 max-w-full items-center gap-1.5 max-md:overflow-x-auto max-md:pb-0.5 max-md:[scrollbar-width:none]">
               <TeamAttributesBadges
                 gender={tournament.gender}
                 region={tournament.region}
               />
-              <TournamentHostSchoolLink school={hostSchool} />
+              <TournamentHostSchoolLink school={hostSchool} className="shrink-0" />
             </div>
             {tournament.description && (
               <p className="max-w-2xl whitespace-pre-wrap text-pretty text-sm text-muted-foreground">

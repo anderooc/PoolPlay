@@ -39,10 +39,17 @@ export function TournamentHostSchoolLink({
     className
   );
 
+  const label = (
+    <span className="min-w-0 truncate">
+      <span className="hidden sm:inline">Hosted by </span>
+      {school.name}
+    </span>
+  );
+
   const content = (
     <>
       <Building2 className="size-3 shrink-0" aria-hidden />
-      <span className="min-w-0 truncate">Hosted by {school.name}</span>
+      {label}
       {school.verificationStatus === "verified" && (
         <CheckCircle2
           className="size-3 shrink-0 text-success"
@@ -53,11 +60,20 @@ export function TournamentHostSchoolLink({
   );
 
   if (!asLink) {
-    return <span className={classNames}>{content}</span>;
+    return (
+      <span className={classNames} title={`Hosted by ${school.name}`}>
+        {content}
+      </span>
+    );
   }
 
   return (
-    <Link href={`/schools/${school.slug}`} className={classNames}>
+    <Link
+      href={`/schools/${school.slug}`}
+      className={classNames}
+      aria-label={`Hosted by ${school.name}`}
+      title={school.name}
+    >
       {content}
     </Link>
   );

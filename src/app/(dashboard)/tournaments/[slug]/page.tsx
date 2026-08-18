@@ -19,7 +19,7 @@
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Calendar, Download, User } from "lucide-react";
+import { Download } from "lucide-react";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -35,8 +35,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { BackLink } from "@/components/layout/back-link";
 import { TeamAttributesBadges } from "@/components/team-attributes-badges";
 import { TournamentHostSchoolLink } from "@/components/tournament-host-school-link";
-import { TournamentLocationLink } from "@/components/tournament-location-link";
-import { formatTournamentDateDisplay } from "@/lib/date-iso";
+import { TournamentHeaderMeta } from "@/components/tournament-header-meta";
 import {
   canEditTournamentSetup,
   canRegisterTeams,
@@ -354,39 +353,31 @@ export default async function TournamentDetailPage({
       ) : (
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-balance text-2xl font-bold tracking-tight sm:text-3xl">
-                {tournament.name}
-              </h1>
-              <StatusBadge
-                kind="tournament"
-                status={tournament.status}
-                date={tournament.date}
-                className="shrink-0"
-              />
-            </div>
-            <div className="space-y-1 text-sm text-muted-foreground">
-              <TournamentLocationLink
+            <div className="space-y-2">
+              <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                <h1 className="min-w-0 max-w-full text-balance text-2xl font-bold tracking-tight sm:text-3xl">
+                  {tournament.name}
+                </h1>
+                <StatusBadge
+                  kind="tournament"
+                  status={tournament.status}
+                  date={tournament.date}
+                  className="shrink-0 self-start"
+                />
+              </div>
+              <TournamentHeaderMeta
                 location={tournament.location}
                 address={tournament.address}
+                date={tournament.date}
+                organizerName={organizer?.fullName ?? "Unknown organizer"}
               />
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5 shrink-0" />
-                  {formatTournamentDateDisplay(tournament.date)}
-                </span>
-                <span className="flex items-center gap-1">
-                  <User className="h-3.5 w-3.5 shrink-0" />
-                  {organizer?.fullName ?? "Unknown organizer"}
-                </span>
+              <div className="flex min-w-0 max-w-full items-center gap-1.5 max-md:overflow-x-auto max-md:pb-0.5 max-md:[scrollbar-width:none]">
+                <TeamAttributesBadges
+                  gender={tournament.gender}
+                  region={tournament.region}
+                />
+                <TournamentHostSchoolLink school={hostSchool} className="shrink-0" />
               </div>
-            </div>
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              <TeamAttributesBadges
-                gender={tournament.gender}
-                region={tournament.region}
-              />
-              <TournamentHostSchoolLink school={hostSchool} />
             </div>
             {tournament.description && (
               <p className="max-w-2xl whitespace-pre-wrap text-pretty text-sm text-muted-foreground">
@@ -395,33 +386,35 @@ export default async function TournamentDetailPage({
             )}
           </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {canDownloadPacket && !isOrganizer && (
-              <Link
-                href={`/tournaments/${tournament.slug}/packet`}
-                className={buttonVariants({
-                  variant: "outline",
-                  className: "inline-flex items-center gap-2",
-                })}
-              >
-                <Download className="h-4 w-4" />
-                Tournament packet
-              </Link>
-            )}
+          <div className="flex w-full min-w-0 flex-col gap-2.5 border-t border-border/50 pt-3 max-lg:rounded-lg max-lg:bg-muted/15 max-lg:p-3 lg:w-auto lg:border-0 lg:bg-transparent lg:p-0 lg:pt-0">
             {showRegisterLink && (
               <Link
                 href={`/tournaments/${tournament.slug}/register`}
-                className={buttonVariants({ className: "w-full sm:w-auto" })}
+                className={buttonVariants({ className: "w-full sm:w-auto sm:self-end" })}
               >
                 Register Team
               </Link>
             )}
-            <Link
-              href={`/tournaments/${tournament.slug}/scoring`}
-              className={buttonVariants({ variant: "outline" })}
-            >
-              Live Scoring
-            </Link>
+            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
+              {canDownloadPacket && !isOrganizer && (
+                <Link
+                  href={`/tournaments/${tournament.slug}/packet`}
+                  className={buttonVariants({
+                    variant: "outline",
+                    className: "inline-flex items-center gap-2",
+                  })}
+                >
+                  <Download className="h-4 w-4" />
+                  Tournament packet
+                </Link>
+              )}
+              <Link
+                href={`/tournaments/${tournament.slug}/scoring`}
+                className={buttonVariants({ variant: "outline" })}
+              >
+                Live Scoring
+              </Link>
+            </div>
           </div>
         </div>
       )}
