@@ -47,7 +47,7 @@ export default async function SchoolsPage() {
         description={
           mySchool
             ? "Browse other collegiate club programs on brackt."
-            : "Find your program below. A school president or officer must add you to their roster using your signup email — or create a new school if you're starting a program."
+            : "Find your program below. If your school email matches, you can request to join so a president or officer can add you to the roster — or create a new school if you're starting a program."
         }
         actions={
           mySchool ? (
@@ -69,7 +69,7 @@ export default async function SchoolsPage() {
         }
       />
 
-      <SchoolSearchGrid hasSchools={schoolCount > 0} />
+      <SchoolSearchGrid hasSchools={schoolCount > 0} viewerEmail={user.email} />
     </div>
   );
 }

@@ -18,10 +18,11 @@
 
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { asc, count, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
+  schoolJoinRequests,
   schoolMembers,
   schools,
   teamMembers,
@@ -43,13 +44,15 @@ import {
   canManageSchoolRoster,
   canSubmitForVerification,
   canTransferPresidency,
-  emailMatchesDomain,
+  emailMatchesSchoolDomain,
   getVerificationEligibility,
   isSchoolMember,
   isSchoolPresident,
 } from "@/lib/schools/permissions";
 import { SchoolHeaderActions } from "./school-header-actions";
 import { SchoolRoster } from "./school-roster";
+import { SchoolJoinRequestButton } from "./school-join-request-button";
+import { SchoolJoinRequests } from "./school-join-requests";
 import { SchoolAddToTeam } from "./school-add-to-team";
 import { parseSchoolTab } from "./school-tab";
 import { SchoolTabs } from "./school-tabs";
@@ -91,7 +94,14 @@ export default async function SchoolDetailPage({ params, searchParams }: Props) 
     .limit(1);
   if (!school) notFound();
 
-  const [memberRows, teamRows, [{ value: memberCount }], teamMemberships] =
+  const [
+    memberRows,
+    teamRows,
+    [{ value: memberCount }],
+    teamMemberships,
+    pendingJoinRows,
+    userSchoolMembership,
+  ] =
     await Promise.all([
       db
         .select({
@@ -135,6 +145,28 @@ export default async function SchoolDetailPage({ params, searchParams }: Props) 
         .from(teamMembers)
         .innerJoin(teams, eq(teamMembers.teamId, teams.id))
         .where(eq(teams.schoolId, school.id)),
+      db
+        .select({
+          id: schoolJoinRequests.id,
+          userId: schoolJoinRequests.userId,
+          fullName: users.fullName,
+          email: users.email,
+          university: users.university,
+        })
+        .from(schoolJoinRequests)
+        .innerJoin(users, eq(schoolJoinRequests.userId, users.id))
+        .where(
+          and(
+            eq(schoolJoinRequests.schoolId, school.id),
+            eq(schoolJoinRequests.status, "pending")
+          )
+        )
+        .orderBy(desc(schoolJoinRequests.createdAt)),
+      db
+        .select({ schoolId: schoolMembers.schoolId })
+        .from(schoolMembers)
+        .where(eq(schoolMembers.userId, user.id))
+        .limit(1),
     ]);
 
   const myMembership =
@@ -173,7 +205,17 @@ export default async function SchoolDetailPage({ params, searchParams }: Props) 
 
   // The president-or-officer can also see the precomputed domain match,
   // useful before submitting.
-  const myDomainMatches = emailMatchesDomain(user.email, school.domainHint);
+  const myDomainMatches = emailMatchesSchoolDomain(
+    user.email,
+    school.domainHint
+  );
+  const myPendingJoin = pendingJoinRows.some((row) => row.userId === user.id);
+  const alreadyInASchool = userSchoolMembership.length > 0;
+  const canRequestToJoin =
+    Boolean(school.domainHint) &&
+    myDomainMatches &&
+    !isMyOwnSchool &&
+    !alreadyInASchool;
 
   return (
     <div className="space-y-6">
@@ -194,7 +236,14 @@ export default async function SchoolDetailPage({ params, searchParams }: Props) 
           </div>
 
           <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end sm:pt-1">
-            <div className="flex h-8 items-center justify-end gap-2 sm:h-9">
+            <div className="flex min-h-8 flex-wrap items-center justify-end gap-2 sm:min-h-9">
+              {canRequestToJoin || myPendingJoin ? (
+                <SchoolJoinRequestButton
+                  schoolId={school.id}
+                  domainHint={school.domainHint ?? ""}
+                  pending={myPendingJoin}
+                />
+              ) : null}
               {school.verificationStatus !== "verified" &&
                 (canManage || canSubmit) && (
                   <VerificationControls
@@ -221,11 +270,15 @@ export default async function SchoolDetailPage({ params, searchParams }: Props) 
                 }}
               />
             </div>
-            {myDomainMatches && school.domainHint && (canManage || canSubmit) && (
+            {myDomainMatches &&
+            school.domainHint &&
+            (canManage || canSubmit) &&
+            !canRequestToJoin &&
+            !myPendingJoin ? (
               <p className="text-xs text-success">
                 Your email matches @{school.domainHint}
               </p>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -276,19 +329,31 @@ export default async function SchoolDetailPage({ params, searchParams }: Props) 
         </Suspense>
 
         {activeTab === "roster" ? (
-          <SchoolRoster
-            schoolId={school.id}
-            members={memberRows.map((m) => ({
-              membershipId: m.membershipId,
-              userId: m.userId,
-              fullName: m.fullName,
-              email: m.email,
-              role: m.role,
-              title: m.title,
-            }))}
-            canManage={canRosterManage}
-            canTransferPresidencyAction={canTransfer}
-          />
+          <div className="space-y-6">
+            {canRosterManage ? (
+              <SchoolJoinRequests
+                requests={pendingJoinRows.map((row) => ({
+                  id: row.id,
+                  fullName: row.fullName,
+                  email: row.email,
+                  university: row.university,
+                }))}
+              />
+            ) : null}
+            <SchoolRoster
+              schoolId={school.id}
+              members={memberRows.map((m) => ({
+                membershipId: m.membershipId,
+                userId: m.userId,
+                fullName: m.fullName,
+                email: m.email,
+                role: m.role,
+                title: m.title,
+              }))}
+              canManage={canRosterManage}
+              canTransferPresidencyAction={canTransfer}
+            />
+          </div>
         ) : (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

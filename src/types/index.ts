@@ -36,7 +36,15 @@ export type UserNotificationKind =
   | "tournament_posted"
   | "tournament_message"
   | "chat_announcement"
-  | "registration_update";
+  | "registration_update"
+  | "school_join_request"
+  | "school_join_update";
+
+export type SchoolJoinRequestStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "cancelled";
 
 export type RegistrationPaymentStatus =
   | "unpaid"

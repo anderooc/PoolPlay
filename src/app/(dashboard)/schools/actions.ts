@@ -23,6 +23,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
+  schoolJoinRequests,
   schoolMembers,
   schools,
   teams,
@@ -42,10 +43,15 @@ import {
   canSubmitForVerification,
   canTransferPresidency,
   emailMatchesDomain,
+  emailMatchesSchoolDomain,
   getVerificationEligibility,
   type CurrentSchoolMembership,
 } from "@/lib/schools/permissions";
 import type { SchoolMemberRole } from "@/types";
+import {
+  notifyRequesterOfJoinUpdate,
+  notifySchoolOfficersOfJoinRequest,
+} from "@/lib/notifications/school-events";
 import { z } from "zod";
 import { TEAM_GENDERS, TEAM_REGIONS } from "@/lib/constants/team";
 import {
@@ -413,7 +419,255 @@ export async function addSchoolMember(
     title: parsed.data.title,
   });
 
+  await db
+    .update(schoolJoinRequests)
+    .set({
+      status: "approved",
+      resolvedAt: new Date(),
+      resolvedByUserId: user.id,
+    })
+    .where(
+      and(
+        eq(schoolJoinRequests.schoolId, schoolId),
+        eq(schoolJoinRequests.userId, target.id),
+        eq(schoolJoinRequests.status, "pending")
+      )
+    );
+
   revalidatePath(`/schools/${school.slug}`);
+  revalidatePath("/notifications");
+  return { success: true as const };
+}
+
+export async function requestToJoinSchool(schoolId: string) {
+  const user = await requireUser();
+  const school = await loadSchool(schoolId);
+  if (!school) return { error: "School not found" };
+
+  if (!school.domainHint) {
+    return {
+      error:
+        "This school has no email domain on file. Ask a president or officer to add you by email.",
+    };
+  }
+
+  if (!emailMatchesSchoolDomain(user.email, school.domainHint)) {
+    return {
+      error: `Your signup email must match @${school.domainHint} (or a subdomain) to request to join.`,
+    };
+  }
+
+  const membership = await loadMembership(schoolId, user.id);
+  if (membership) {
+    return { error: "You are already on this school's roster." };
+  }
+
+  const existingSlug = await findExistingSchoolSlugForUser(user.id);
+  if (existingSlug) {
+    return {
+      error: "You're already part of a school. Leave it before joining another.",
+    };
+  }
+
+  const [pending] = await db
+    .select({
+      id: schoolJoinRequests.id,
+      schoolId: schoolJoinRequests.schoolId,
+    })
+    .from(schoolJoinRequests)
+    .where(
+      and(
+        eq(schoolJoinRequests.userId, user.id),
+        eq(schoolJoinRequests.status, "pending")
+      )
+    )
+    .limit(1);
+
+  if (pending) {
+    if (pending.schoolId === schoolId) {
+      return { success: true as const, alreadyPending: true };
+    }
+    const [other] = await db
+      .select({ name: schools.name })
+      .from(schools)
+      .where(eq(schools.id, pending.schoolId))
+      .limit(1);
+    return {
+      error: `You already have a pending request to join ${other?.name ?? "another school"}. Cancel it first.`,
+    };
+  }
+
+  try {
+    await db.insert(schoolJoinRequests).values({
+      schoolId,
+      userId: user.id,
+    });
+  } catch {
+    return { error: "Could not send join request. Try again." };
+  }
+
+  try {
+    await notifySchoolOfficersOfJoinRequest({
+      schoolId: school.id,
+      schoolSlug: school.slug,
+      schoolName: school.name,
+      requesterName: user.fullName,
+      excludeUserId: user.id,
+    });
+  } catch {
+    // Request is saved; in-app copy is best-effort.
+  }
+
+  revalidatePath(`/schools/${school.slug}`);
+  revalidatePath("/notifications");
+  return { success: true as const };
+}
+
+export async function cancelSchoolJoinRequest(schoolId: string) {
+  const user = await requireUser();
+  const school = await loadSchool(schoolId);
+  if (!school) return { error: "School not found" };
+
+  const [pending] = await db
+    .select({ id: schoolJoinRequests.id })
+    .from(schoolJoinRequests)
+    .where(
+      and(
+        eq(schoolJoinRequests.schoolId, schoolId),
+        eq(schoolJoinRequests.userId, user.id),
+        eq(schoolJoinRequests.status, "pending")
+      )
+    )
+    .limit(1);
+
+  if (!pending) {
+    return { error: "No pending request to cancel." };
+  }
+
+  await db
+    .update(schoolJoinRequests)
+    .set({
+      status: "cancelled",
+      resolvedAt: new Date(),
+      resolvedByUserId: user.id,
+    })
+    .where(eq(schoolJoinRequests.id, pending.id));
+
+  revalidatePath(`/schools/${school.slug}`);
+  return { success: true as const };
+}
+
+export async function approveSchoolJoinRequest(requestId: string) {
+  const user = await requireUser();
+  const [request] = await db
+    .select()
+    .from(schoolJoinRequests)
+    .where(eq(schoolJoinRequests.id, requestId))
+    .limit(1);
+
+  if (!request || request.status !== "pending") {
+    return { error: "Request is no longer pending." };
+  }
+
+  const school = await loadSchool(request.schoolId);
+  if (!school) return { error: "School not found" };
+
+  const membership = await loadMembership(school.id, user.id);
+  if (!canManageSchoolRoster(membership, user)) {
+    return { error: "Only school officers can approve join requests." };
+  }
+
+  const otherSchoolSlug = await findExistingSchoolSlugForUser(request.userId);
+  if (otherSchoolSlug) {
+    await db
+      .update(schoolJoinRequests)
+      .set({
+        status: "cancelled",
+        resolvedAt: new Date(),
+        resolvedByUserId: user.id,
+      })
+      .where(eq(schoolJoinRequests.id, request.id));
+    return { error: "That user already joined another school." };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.insert(schoolMembers).values({
+        schoolId: school.id,
+        userId: request.userId,
+        role: "member",
+      });
+      await tx
+        .update(schoolJoinRequests)
+        .set({
+          status: "approved",
+          resolvedAt: new Date(),
+          resolvedByUserId: user.id,
+        })
+        .where(eq(schoolJoinRequests.id, request.id));
+    });
+  } catch {
+    return { error: "Could not add this person to the roster. Try again." };
+  }
+
+  try {
+    await notifyRequesterOfJoinUpdate({
+      userId: request.userId,
+      schoolSlug: school.slug,
+      schoolName: school.name,
+      approved: true,
+    });
+  } catch {
+    // Membership is saved; in-app copy is best-effort.
+  }
+
+  revalidatePath(`/schools/${school.slug}`);
+  revalidatePath("/notifications");
+  return { success: true as const };
+}
+
+export async function rejectSchoolJoinRequest(requestId: string) {
+  const user = await requireUser();
+  const [request] = await db
+    .select()
+    .from(schoolJoinRequests)
+    .where(eq(schoolJoinRequests.id, requestId))
+    .limit(1);
+
+  if (!request || request.status !== "pending") {
+    return { error: "Request is no longer pending." };
+  }
+
+  const school = await loadSchool(request.schoolId);
+  if (!school) return { error: "School not found" };
+
+  const membership = await loadMembership(school.id, user.id);
+  if (!canManageSchoolRoster(membership, user)) {
+    return { error: "Only school officers can decline join requests." };
+  }
+
+  await db
+    .update(schoolJoinRequests)
+    .set({
+      status: "rejected",
+      resolvedAt: new Date(),
+      resolvedByUserId: user.id,
+    })
+    .where(eq(schoolJoinRequests.id, request.id));
+
+  try {
+    await notifyRequesterOfJoinUpdate({
+      userId: request.userId,
+      schoolSlug: school.slug,
+      schoolName: school.name,
+      approved: false,
+    });
+  } catch {
+    // Decision is saved; in-app copy is best-effort.
+  }
+
+  revalidatePath(`/schools/${school.slug}`);
+  revalidatePath("/notifications");
   return { success: true as const };
 }
 

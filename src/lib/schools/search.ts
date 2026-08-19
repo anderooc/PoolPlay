@@ -31,6 +31,7 @@ export type SchoolSearchItem = {
   gender: TeamGender;
   region: TeamRegion;
   verificationStatus: SchoolVerificationStatus;
+  domainHint: string | null;
   teamCount: number;
 };
 
@@ -112,6 +113,7 @@ export async function searchSchools(input: SchoolSearchInput): Promise<{
         gender: schools.gender,
         region: schools.region,
         verificationStatus: schools.verificationStatus,
+        domainHint: schools.domainHint,
         teamCount: count(teams.id),
       })
       .from(schools)

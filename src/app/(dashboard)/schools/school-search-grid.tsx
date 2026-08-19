@@ -34,6 +34,7 @@ import type {
   TeamRegion,
 } from "@/types";
 import type { SchoolSearchItem } from "@/lib/schools/search";
+import { emailMatchesSchoolDomain } from "@/lib/schools/email-domain";
 import { searchSchoolsForDiscovery } from "./actions";
 import { SchoolListFilters } from "./school-list-filters";
 
@@ -46,7 +47,13 @@ function toggleSetValue<T extends string>(set: Set<T>, value: T): Set<T> {
   return next;
 }
 
-function SchoolCard({ school }: { school: SchoolSearchItem }) {
+function SchoolCard({
+  school,
+  emailMatches,
+}: {
+  school: SchoolSearchItem;
+  emailMatches: boolean;
+}) {
   return (
     <Link href={`/schools/${school.slug}`}>
       <Card className="h-full cursor-pointer transition-colors duration-150 hover:bg-muted/30">
@@ -62,6 +69,11 @@ function SchoolCard({ school }: { school: SchoolSearchItem }) {
               kind="verification"
               status={school.verificationStatus}
             />
+            {emailMatches ? (
+              <Badge variant="outline" className="text-xs">
+                Matches your email
+              </Badge>
+            ) : null}
             <span className="text-xs text-muted-foreground">
               {school.teamCount} team{school.teamCount === 1 ? "" : "s"}
             </span>
@@ -72,7 +84,13 @@ function SchoolCard({ school }: { school: SchoolSearchItem }) {
   );
 }
 
-export function SchoolSearchGrid({ hasSchools }: { hasSchools: boolean }) {
+export function SchoolSearchGrid({
+  hasSchools,
+  viewerEmail,
+}: {
+  hasSchools: boolean;
+  viewerEmail?: string | null;
+}) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [genderFilter, setGenderFilter] = useState<Set<TeamGender>>(
@@ -265,7 +283,14 @@ export function SchoolSearchGrid({ hasSchools }: { hasSchools: boolean }) {
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {results.map((school) => (
-              <SchoolCard key={school.id} school={school} />
+              <SchoolCard
+                key={school.id}
+                school={school}
+                emailMatches={emailMatchesSchoolDomain(
+                  viewerEmail,
+                  school.domainHint
+                )}
+              />
             ))}
           </div>
           {results.length < total ? (
