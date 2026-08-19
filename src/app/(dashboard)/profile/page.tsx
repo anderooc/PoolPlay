@@ -44,6 +44,7 @@ export default async function ProfilePage() {
           fullName: user.fullName,
           playerGender: user.playerGender,
           volleyballPosition: user.volleyballPosition,
+          jerseyNumber: user.jerseyNumber,
           displayEmail: user.displayEmail ?? user.email,
           displaySchool: user.displaySchool ?? user.university,
           avatarUrl: profileAvatarPublicUrl(user.avatarStoragePath),

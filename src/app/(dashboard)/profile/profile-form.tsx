@@ -52,6 +52,7 @@ export type ProfileFormDefaults = {
   fullName: string;
   playerGender: UserPlayerGender | null;
   volleyballPosition: VolleyballPosition | null;
+  jerseyNumber: number | null;
   displayEmail: string | null;
   displaySchool: string | null;
   avatarUrl: string | null;
@@ -236,6 +237,31 @@ export function ProfileForm({ defaults }: { defaults: ProfileFormDefaults }) {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="jerseyNumber">Jersey number</Label>
+            <Input
+              id="jerseyNumber"
+              name="jerseyNumber"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={2}
+              defaultValue={
+                defaults.jerseyNumber === null
+                  ? ""
+                  : String(defaults.jerseyNumber)
+              }
+              disabled={loading}
+              placeholder="e.g. 7"
+              autoComplete="off"
+            />
+            <p className="text-xs text-muted-foreground">
+              0–99. This number is used on every team and school roster. Captains
+              and officers can still change it, and it cannot be shared at your
+              school.
+            </p>
           </div>
 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}

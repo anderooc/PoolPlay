@@ -20,24 +20,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
-import { updateJerseyNumber } from "../actions";
-
-function parseJersey(value: string): number | null | "invalid" {
-  const trimmed = value.trim();
-  if (trimmed === "") return null;
-  if (!/^\d{1,2}$/.test(trimmed)) return "invalid";
-  const n = Number.parseInt(trimmed, 10);
-  if (n < 0 || n > 99) return "invalid";
-  return n;
-}
+import { parseJerseyNumber } from "@/lib/profile/jersey-number";
+import { updateJerseyNumber, updateUserJerseyNumber } from "../actions";
 
 export function JerseyNumberField({
-  memberId,
   jerseyNumber,
+  memberId,
+  userId,
 }: {
-  memberId: string;
   jerseyNumber: number | null;
+  memberId?: string;
+  userId?: string;
 }) {
   const router = useRouter();
   const [value, setValue] = useState(
@@ -46,16 +41,21 @@ export function JerseyNumberField({
   const [saving, setSaving] = useState(false);
 
   async function save() {
-    const parsed = parseJersey(value);
+    const parsed = parseJerseyNumber(value);
     if (parsed === "invalid") {
       setValue(jerseyNumber === null ? "" : String(jerseyNumber));
       return;
     }
     if (parsed === jerseyNumber) return;
     setSaving(true);
-    const result = await updateJerseyNumber(memberId, parsed);
+    const result = memberId
+      ? await updateJerseyNumber(memberId, parsed)
+      : userId
+        ? await updateUserJerseyNumber(userId, parsed)
+        : { error: "Could not save jersey number." };
     setSaving(false);
     if (result?.error) {
+      toast.error(result.error);
       setValue(jerseyNumber === null ? "" : String(jerseyNumber));
       return;
     }

@@ -121,6 +121,7 @@ export default async function TeamDetailPage({ params }: Props) {
               fullName: users.fullName,
               email: users.email,
               role: schoolMembers.role,
+              jerseyNumber: users.jerseyNumber,
             })
             .from(schoolMembers)
             .innerJoin(users, eq(schoolMembers.userId, users.id))

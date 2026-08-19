@@ -23,6 +23,10 @@ import {
   VOLLEYBALL_POSITIONS,
 } from "@/lib/constants/profile";
 import { PLAY_FORMATS } from "@/lib/labels/play-format";
+import {
+  JERSEY_NUMBER_RANGE_ERROR,
+  parseJerseyNumber,
+} from "@/lib/profile/jersey-number";
 import { isCollegeEmail } from "@/lib/utils/college-email";
 
 export const signUpSchema = z.object({
@@ -52,6 +56,19 @@ export const updateProfileSchema = z.object({
   fullName: z.string().trim().min(1, "Name is required").max(120),
   playerGender: optionalEnum(USER_PLAYER_GENDERS),
   volleyballPosition: optionalEnum(VOLLEYBALL_POSITIONS),
+  jerseyNumber: z
+    .union([z.string(), z.null(), z.undefined()])
+    .transform((value, ctx) => {
+      const parsed = parseJerseyNumber(value);
+      if (parsed === "invalid") {
+        ctx.addIssue({
+          code: "custom",
+          message: JERSEY_NUMBER_RANGE_ERROR,
+        });
+        return z.NEVER;
+      }
+      return parsed;
+    }),
 });
 
 export const forgotPasswordSchema = z.object({
