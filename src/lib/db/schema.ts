@@ -85,6 +85,8 @@ export const userNotificationKindEnum = pgEnum("user_notification_kind", [
   "tournament_message",
   "chat_announcement",
   "registration_update",
+  "school_join_request",
+  "school_join_update",
 ]);
 
 export const tournamentChatChannelKindEnum = pgEnum(
@@ -144,6 +146,11 @@ export const schoolMemberRoleEnum = pgEnum("school_member_role", [
 export const schoolVerificationStatusEnum = pgEnum(
   "school_verification_status",
   ["pending", "verified", "rejected"]
+);
+
+export const schoolJoinRequestStatusEnum = pgEnum(
+  "school_join_request_status",
+  ["pending", "approved", "rejected", "cancelled"]
 );
 
 export const teamVerificationStatusEnum = pgEnum("team_verification_status", [
@@ -280,6 +287,38 @@ export const schoolMembers = pgTable(
   },
   (t) => [
     uniqueIndex("school_members_school_user_unique").on(t.schoolId, t.userId),
+  ]
+);
+
+export const schoolJoinRequests = pgTable(
+  "school_join_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    schoolId: uuid("school_id")
+      .references(() => schools.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    status: schoolJoinRequestStatusEnum("status").default("pending").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedByUserId: uuid("resolved_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+  },
+  (t) => [
+    uniqueIndex("school_join_requests_pending_school_user_unique")
+      .on(t.schoolId, t.userId)
+      .where(sql`${t.status} = 'pending'`),
+    uniqueIndex("school_join_requests_pending_user_unique")
+      .on(t.userId)
+      .where(sql`${t.status} = 'pending'`),
+    index("school_join_requests_school_pending_idx")
+      .on(t.schoolId, t.createdAt)
+      .where(sql`${t.status} = 'pending'`),
   ]
 );
 
@@ -964,10 +1003,15 @@ export const usersRelations = relations(users, ({ many }) => ({
   organizedTournaments: many(tournaments),
   notifications: many(userNotifications),
   postingAnnouncements: many(tournamentPostingAnnouncements),
+  schoolJoinRequests: many(schoolJoinRequests),
+  resolvedSchoolJoinRequests: many(schoolJoinRequests, {
+    relationName: "schoolJoinRequestResolvedBy",
+  }),
 }));
 
 export const schoolsRelations = relations(schools, ({ one, many }) => ({
   members: many(schoolMembers),
+  joinRequests: many(schoolJoinRequests),
   teams: many(teams),
   hostedTournaments: many(tournaments),
   verifiedBy: one(users, {
@@ -986,6 +1030,25 @@ export const schoolMembersRelations = relations(schoolMembers, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const schoolJoinRequestsRelations = relations(
+  schoolJoinRequests,
+  ({ one }) => ({
+    school: one(schools, {
+      fields: [schoolJoinRequests.schoolId],
+      references: [schools.id],
+    }),
+    user: one(users, {
+      fields: [schoolJoinRequests.userId],
+      references: [users.id],
+    }),
+    resolvedBy: one(users, {
+      fields: [schoolJoinRequests.resolvedByUserId],
+      references: [users.id],
+      relationName: "schoolJoinRequestResolvedBy",
+    }),
+  })
+);
 
 export const teamsRelations = relations(teams, ({ one, many }) => ({
   members: many(teamMembers),

@@ -37,7 +37,7 @@ export default async function NotificationsPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <PageHeader
         title="Notification Center"
-        description="Host messages, tournament postings, chat announcements, and registration updates."
+        description="Host messages, tournament postings, chat announcements, registration updates, and school join requests."
       />
       <NotificationsList initialItems={notifications} />
     </div>

@@ -23,6 +23,12 @@ import type {
   SchoolVerificationStatus,
 } from "@/types";
 
+export {
+  emailDomain,
+  emailMatchesDomain,
+  emailMatchesSchoolDomain,
+} from "@/lib/schools/email-domain";
+
 export type UserForPermissions = {
   id: string;
   role: string;
@@ -154,23 +160,4 @@ export function canSubmitForVerification(
 
 export function canApproveSchool(user: UserForPermissions): boolean {
   return isAdmin(user);
-}
-
-/** Returns the email's lowercased domain, or null if invalid. */
-export function emailDomain(email: string | null | undefined): string | null {
-  if (!email) return null;
-  const trimmed = email.trim().toLowerCase();
-  const at = trimmed.lastIndexOf("@");
-  if (at < 1 || at === trimmed.length - 1) return null;
-  return trimmed.slice(at + 1);
-}
-
-/** Case-insensitive match between an email's domain and a stored domain hint. */
-export function emailMatchesDomain(
-  email: string | null | undefined,
-  domainHint: string | null | undefined
-): boolean {
-  const dom = emailDomain(email);
-  if (!dom || !domainHint) return false;
-  return dom === domainHint.trim().toLowerCase();
 }

@@ -66,7 +66,7 @@ export function NotificationsList({
       <EmptyState
         icon={Bell}
         title="No notifications yet"
-        description="Hosts can notify matching captains when a tournament is posted. Host messages, chat announcements, and registration updates will also show up here."
+        description="Hosts can notify matching captains when a tournament is posted. Host messages, chat announcements, registration updates, and school join requests will also show up here."
       />
     );
   }

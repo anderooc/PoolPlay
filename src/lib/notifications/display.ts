@@ -29,6 +29,10 @@ export function notificationKindLabel(kind: UserNotificationKind): string {
       return "Announcement";
     case "registration_update":
       return "Registration";
+    case "school_join_request":
+      return "School join request";
+    case "school_join_update":
+      return "School roster";
   }
 }
 

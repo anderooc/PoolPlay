@@ -29,6 +29,8 @@ describe("notificationKindLabel", () => {
     assert.equal(notificationKindLabel("tournament_message"), "Host message");
     assert.equal(notificationKindLabel("chat_announcement"), "Announcement");
     assert.equal(notificationKindLabel("registration_update"), "Registration");
+    assert.equal(notificationKindLabel("school_join_request"), "School join request");
+    assert.equal(notificationKindLabel("school_join_update"), "School roster");
   });
 });
 
