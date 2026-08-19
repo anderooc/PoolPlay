@@ -18,7 +18,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
@@ -42,6 +41,10 @@ import {
 import { updateProfileSchema, changePasswordSchema } from "@/lib/validators";
 import { checkContentFilter } from "@/lib/utils/content-filter";
 import { flagBlockedContent } from "@/lib/admin/content-flags";
+import {
+  assignUserJerseyNumber,
+  revalidateJerseyPaths,
+} from "@/lib/profile/jersey-number-store";
 
 export async function updateProfile(formData: FormData) {
   const user = await requireUser();
@@ -50,6 +53,7 @@ export async function updateProfile(formData: FormData) {
     fullName: formData.get("fullName"),
     playerGender: formData.get("playerGender"),
     volleyballPosition: formData.get("volleyballPosition"),
+    jerseyNumber: formData.get("jerseyNumber"),
   });
 
   if (!parsed.success) {
@@ -87,6 +91,14 @@ export async function updateProfile(formData: FormData) {
     };
   }
 
+  const jerseyResult = await assignUserJerseyNumber(db, {
+    userId: user.id,
+    jerseyNumber: parsed.data.jerseyNumber,
+  });
+  if ("error" in jerseyResult) {
+    return { error: jerseyResult.error };
+  }
+
   const [updated] = await db
     .update(users)
     .set({
@@ -112,8 +124,7 @@ export async function updateProfile(formData: FormData) {
     // Profile saved in DB; auth metadata sync is best-effort.
   }
 
-  revalidatePath("/profile");
-  revalidatePath("/dashboard");
+  revalidateJerseyPaths(jerseyResult);
 
   return { success: true as const };
 }
@@ -223,6 +234,7 @@ export async function deleteAccount(formData: FormData) {
         avatarStoragePath: null,
         playerGender: null,
         volleyballPosition: null,
+        jerseyNumber: null,
         displayEmail: null,
         displaySchool: null,
         role: "player",

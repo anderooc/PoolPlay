@@ -44,6 +44,7 @@ import {
 } from "../actions";
 import { Crown, Star, UserPlus, X } from "lucide-react";
 import type { SchoolMemberRole } from "@/types";
+import { JerseyNumberField } from "@/app/(dashboard)/teams/[slug]/jersey-number-field";
 
 type RosterMember = {
   membershipId: string;
@@ -52,6 +53,7 @@ type RosterMember = {
   email: string;
   role: SchoolMemberRole;
   title: string | null;
+  jerseyNumber: number | null;
 };
 
 export function SchoolRoster({
@@ -140,6 +142,7 @@ export function SchoolRoster({
             <RosterRow
               member={president}
               canManage={false}
+              canEditJersey={canManage}
               canTransferPresidencyAction={false}
               isBusy={busyId === president.membershipId}
               onRemove={handleRemove}
@@ -173,6 +176,7 @@ export function SchoolRoster({
                 key={m.membershipId}
                 member={m}
                 canManage={canManage}
+                canEditJersey={canManage}
                 canTransferPresidencyAction={canTransferPresidencyAction}
                 isBusy={busyId === m.membershipId}
                 onRemove={handleRemove}
@@ -186,7 +190,7 @@ export function SchoolRoster({
 
       <Section
         title={`Members (${others.length})`}
-        helper="Players and other roster members. Can be added to any team in the school."
+        helper="Players and other roster members. Can be added to any team in the school. Jersey numbers come from each player's profile."
       >
         {others.length === 0 ? (
           <p className="text-sm text-muted-foreground">No members yet.</p>
@@ -197,6 +201,7 @@ export function SchoolRoster({
                 key={m.membershipId}
                 member={m}
                 canManage={canManage}
+                canEditJersey={canManage}
                 canTransferPresidencyAction={canTransferPresidencyAction}
                 isBusy={busyId === m.membershipId}
                 onRemove={handleRemove}
@@ -297,6 +302,7 @@ function Section({
 function RosterRow({
   member,
   canManage,
+  canEditJersey,
   canTransferPresidencyAction,
   isBusy,
   onRemove,
@@ -305,6 +311,7 @@ function RosterRow({
 }: {
   member: RosterMember;
   canManage: boolean;
+  canEditJersey: boolean;
   canTransferPresidencyAction: boolean;
   isBusy: boolean;
   onRemove: (id: string) => void;
@@ -324,25 +331,42 @@ function RosterRow({
       )}
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-baseline gap-2">
-            <p className="truncate text-sm font-medium leading-tight">
-              {member.fullName}
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          {canEditJersey ? (
+            <JerseyNumberField
+              key={`${member.userId}-${member.jerseyNumber ?? "none"}`}
+              userId={member.userId}
+              jerseyNumber={member.jerseyNumber}
+            />
+          ) : member.jerseyNumber !== null ? (
+            <span className="w-11 shrink-0 text-center text-sm font-bold tabular-nums text-muted-foreground">
+              {member.jerseyNumber}
+            </span>
+          ) : (
+            <span className="w-11 shrink-0 text-center text-sm font-bold text-muted-foreground/40">
+              —
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-2">
+              <p className="truncate text-sm font-medium leading-tight">
+                {member.fullName}
+              </p>
+              {member.title ? (
+                <span className="truncate text-xs text-muted-foreground">
+                  {member.title}
+                </span>
+              ) : null}
+              {!showRoleSelect ? (
+                <Badge variant="secondary" className="shrink-0">
+                  {SCHOOL_MEMBER_ROLE_LABELS[member.role]}
+                </Badge>
+              ) : null}
+            </div>
+            <p className="truncate text-xs text-muted-foreground">
+              {member.email}
             </p>
-            {member.title ? (
-              <span className="truncate text-xs text-muted-foreground">
-                {member.title}
-              </span>
-            ) : null}
-            {!showRoleSelect ? (
-              <Badge variant="secondary" className="shrink-0">
-                {SCHOOL_MEMBER_ROLE_LABELS[member.role]}
-              </Badge>
-            ) : null}
           </div>
-          <p className="truncate text-xs text-muted-foreground">
-            {member.email}
-          </p>
         </div>
 
         {showActions ? (

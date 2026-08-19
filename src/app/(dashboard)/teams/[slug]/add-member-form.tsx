@@ -44,6 +44,7 @@ export type SchoolRosterCandidate = {
   fullName: string;
   email: string;
   role: SchoolMemberRole;
+  jerseyNumber: number | null;
 };
 
 const GROUPS: {
@@ -182,6 +183,14 @@ function SchoolRosterAddForm({
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((c) => selected.has(c.email));
   const someFilteredSelected = filtered.some((c) => selected.has(c.email));
+  const selectedPlayer =
+    selected.size === 1
+      ? candidates.find((candidate) => selected.has(candidate.email))
+      : undefined;
+  const selectedJerseyPlaceholder =
+    selectedPlayer?.jerseyNumber == null
+      ? "—"
+      : String(selectedPlayer.jerseyNumber);
 
   function toggleEmail(email: string, checked: boolean) {
     setSelected((prev) => {
@@ -309,7 +318,7 @@ function SchoolRosterAddForm({
                 id="jerseyNumber"
                 name="jerseyNumber"
                 type="number"
-                placeholder="—"
+                placeholder={selectedJerseyPlaceholder}
                 min={0}
                 max={99}
                 value={jerseyNumber}
@@ -389,6 +398,9 @@ function SchoolRosterAddForm({
                                     {candidate.email}
                                   </p>
                                 </div>
+                                <span className="w-11 shrink-0 text-center text-sm font-bold tabular-nums text-muted-foreground">
+                                  {candidate.jerseyNumber ?? "—"}
+                                </span>
                               </div>
                             );
                           })}
@@ -423,13 +435,14 @@ function SchoolRosterAddForm({
                         </TableHead>
                         <TableHead className="h-8 py-0">Name</TableHead>
                         <TableHead className="h-8 py-0">Email</TableHead>
+                        <TableHead className="h-8 w-16 py-0">#</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filtered.length === 0 ? (
                         <TableRow className="hover:bg-transparent">
                           <TableCell
-                            colSpan={3}
+                            colSpan={4}
                             className="h-12 text-center text-muted-foreground"
                           >
                             No roster members match “{query.trim()}”.
@@ -447,7 +460,7 @@ function SchoolRosterAddForm({
                               className="hover:bg-transparent"
                             >
                               <TableCell
-                                colSpan={3}
+                                colSpan={4}
                                 className="bg-muted/50 py-1.5 text-xs font-medium text-muted-foreground"
                               >
                                 {group.label} ({rows.length})
@@ -492,6 +505,9 @@ function SchoolRosterAddForm({
                                       {candidate.email}
                                     </span>
                                   </TableCell>
+                                  <TableCell className="w-16 py-1.5 text-center text-sm font-bold tabular-nums text-muted-foreground">
+                                    {candidate.jerseyNumber ?? "—"}
+                                  </TableCell>
                                 </TableRow>
                               );
                             }),
@@ -511,7 +527,8 @@ function SchoolRosterAddForm({
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-muted-foreground">
-              Jersey # applies when adding a single player.
+              Jersey numbers come from each player&apos;s profile. Override when
+              adding a single player.
             </p>
             <Button
               type="button"

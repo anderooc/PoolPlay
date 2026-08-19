@@ -111,6 +111,7 @@ export default async function SchoolDetailPage({ params, searchParams }: Props) 
           email: users.email,
           role: schoolMembers.role,
           title: schoolMembers.title,
+          jerseyNumber: users.jerseyNumber,
           joinedAt: schoolMembers.joinedAt,
         })
         .from(schoolMembers)
@@ -349,6 +350,7 @@ export default async function SchoolDetailPage({ params, searchParams }: Props) 
                 email: m.email,
                 role: m.role,
                 title: m.title,
+                jerseyNumber: m.jerseyNumber,
               }))}
               canManage={canRosterManage}
               canTransferPresidencyAction={canTransfer}
@@ -406,6 +408,7 @@ export default async function SchoolDetailPage({ params, searchParams }: Props) 
                       fullName: m.fullName,
                       email: m.email,
                       role: m.role,
+                      jerseyNumber: m.jerseyNumber,
                     }))}
                     memberships={teamMemberships}
                   />

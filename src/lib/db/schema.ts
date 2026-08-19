@@ -188,23 +188,34 @@ export const teamRegionEnum = pgEnum("team_region", [
 
 // ── Tables ──────────────────────────────────────────────────────────────────
 
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  authId: text("auth_id").unique().notNull(),
-  email: text("email").unique().notNull(),
-  fullName: text("full_name").notNull(),
-  university: text("university"),
-  avatarStoragePath: text("avatar_storage_path"),
-  /** Player's own gender for profile display; unrelated to team/school gender. */
-  playerGender: userPlayerGenderEnum("player_gender"),
-  volleyballPosition: volleyballPositionEnum("volleyball_position"),
-  displayEmail: text("display_email"),
-  displaySchool: text("display_school"),
-  role: userRoleEnum("role").default("player").notNull(),
-  disabledAt: timestamp("disabled_at", { withTimezone: true }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    authId: text("auth_id").unique().notNull(),
+    email: text("email").unique().notNull(),
+    fullName: text("full_name").notNull(),
+    university: text("university"),
+    avatarStoragePath: text("avatar_storage_path"),
+    /** Player's own gender for profile display; unrelated to team/school gender. */
+    playerGender: userPlayerGenderEnum("player_gender"),
+    volleyballPosition: volleyballPositionEnum("volleyball_position"),
+    /** Preferred jersey 0–99. Copied onto every team roster row for this user. */
+    jerseyNumber: integer("jersey_number"),
+    displayEmail: text("display_email"),
+    displaySchool: text("display_school"),
+    role: userRoleEnum("role").default("player").notNull(),
+    disabledAt: timestamp("disabled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    check(
+      "users_jersey_number_range",
+      sql`${t.jerseyNumber} IS NULL OR (${t.jerseyNumber} >= 0 AND ${t.jerseyNumber} <= 99)`
+    ),
+  ]
+);
 
 export const authRateLimits = pgTable(
   "auth_rate_limits",
@@ -363,6 +374,13 @@ export const teamMembers = pgTable(
   },
   (t) => [
     uniqueIndex("team_members_team_user_unique").on(t.teamId, t.userId),
+    uniqueIndex("team_members_team_jersey_unique")
+      .on(t.teamId, t.jerseyNumber)
+      .where(sql`${t.jerseyNumber} IS NOT NULL`),
+    check(
+      "team_members_jersey_number_range",
+      sql`${t.jerseyNumber} IS NULL OR (${t.jerseyNumber} >= 0 AND ${t.jerseyNumber} <= 99)`
+    ),
   ]
 );
 

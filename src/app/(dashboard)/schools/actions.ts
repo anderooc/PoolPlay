@@ -64,6 +64,7 @@ import {
   currentActorCanDeleteSchool,
   deleteSchoolWithEligibilityLocks,
 } from "@/lib/schools/school-deletion";
+import { releaseJerseyIfSchoolConflict } from "@/lib/profile/jersey-number-store";
 
 const schoolSearchSchema = z.object({
   query: z.string().max(200).optional().default(""),
@@ -412,6 +413,8 @@ export async function addSchoolMember(
     };
   }
 
+  await releaseJerseyIfSchoolConflict(db, schoolId, target.id);
+
   await db.insert(schoolMembers).values({
     schoolId,
     userId: target.id,
@@ -591,6 +594,7 @@ export async function approveSchoolJoinRequest(requestId: string) {
   }
 
   try {
+    await releaseJerseyIfSchoolConflict(db, school.id, request.userId);
     await db.transaction(async (tx) => {
       await tx.insert(schoolMembers).values({
         schoolId: school.id,

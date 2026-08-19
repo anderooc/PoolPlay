@@ -44,6 +44,7 @@ type RosterMember = {
   fullName: string;
   email: string;
   role: SchoolMemberRole;
+  jerseyNumber: number | null;
 };
 
 type SchoolTeam = {
@@ -201,7 +202,7 @@ export function SchoolAddToTeam({
         <h3 className="text-sm font-semibold">Add from school roster</h3>
         <p className="text-sm text-muted-foreground">
           Select a team, then check officers and members to add them to that
-          roster.
+          roster. Jersey numbers fill in from each player&apos;s profile.
         </p>
       </div>
 
@@ -332,7 +333,11 @@ export function SchoolAddToTeam({
                                     }))
                                   }
                                   aria-label={`Jersey number for ${member.fullName}`}
-                                  placeholder="—"
+                                  placeholder={
+                                    member.jerseyNumber === null
+                                      ? "—"
+                                      : String(member.jerseyNumber)
+                                  }
                                   className="h-7 w-11 px-1 text-center text-sm font-bold tabular-nums"
                                 />
                               )}
@@ -465,7 +470,11 @@ export function SchoolAddToTeam({
                                       }))
                                     }
                                     aria-label={`Jersey number for ${member.fullName}`}
-                                    placeholder="—"
+                                    placeholder={
+                                      member.jerseyNumber === null
+                                        ? "—"
+                                        : String(member.jerseyNumber)
+                                    }
                                     className="h-7 w-11 px-1 text-center text-sm font-bold tabular-nums"
                                   />
                                 )}
