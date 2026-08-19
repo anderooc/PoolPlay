@@ -33,6 +33,7 @@ import {
 } from "@/lib/db/schema";
 import { eq, and, ne, inArray, or, count } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
+import { notifyTeamCaptainsOfRegistrationUpdate } from "@/lib/notifications/tournament-events";
 import {
   createTournamentSchema,
   createDivisionSchema,
@@ -972,6 +973,10 @@ export async function updateRegistrationStatus(
     }
   }
 
+  if (reg.status === status) {
+    return { success: true };
+  }
+
   await db
     .update(registrations)
     .set({ status })
@@ -981,8 +986,21 @@ export async function updateRegistrationStatus(
     await syncDivisionAutoPoolMembers(reg.tournamentId, reg.divisionId);
   }
 
+  try {
+    await notifyTeamCaptainsOfRegistrationUpdate({
+      teamIds: [reg.teamId],
+      tournamentId: tournament.id,
+      tournamentSlug: tournament.slug,
+      tournamentName: tournament.name,
+      status,
+    });
+  } catch {
+    // Status already saved; in-app copy is best-effort.
+  }
+
   revalidatePath("/tournaments/[slug]", "page");
   revalidatePath("/tournaments/[slug]/brackets", "page");
+  revalidatePath("/notifications");
   return { success: true };
 }
 
@@ -1014,7 +1032,11 @@ export async function confirmPendingRegistrations(
   }
 
   const rows = await db
-    .select({ id: registrations.id, divisionId: registrations.divisionId })
+    .select({
+      id: registrations.id,
+      divisionId: registrations.divisionId,
+      teamId: registrations.teamId,
+    })
     .from(registrations)
     .where(
       and(
@@ -1053,8 +1075,21 @@ export async function confirmPendingRegistrations(
     rows.map((r) => r.divisionId)
   );
 
+  try {
+    await notifyTeamCaptainsOfRegistrationUpdate({
+      teamIds: rows.map((row) => row.teamId),
+      tournamentId: tournament.id,
+      tournamentSlug: tournament.slug,
+      tournamentName: tournament.name,
+      status: "confirmed",
+    });
+  } catch {
+    // Status already saved; in-app copy is best-effort.
+  }
+
   revalidatePath("/tournaments/[slug]", "page");
   revalidatePath("/tournaments/[slug]/brackets", "page");
+  revalidatePath("/notifications");
   return { success: true as const, count: rows.length };
 }
 

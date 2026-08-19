@@ -40,12 +40,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TournamentPostingAnnouncementCard } from "./posting-announcement-card";
 import type { TournamentEmailAudience } from "@/lib/tournaments/email-recipients";
 import {
   previewTournamentEmailRecipients,
   sendTournamentCustomEmail,
   sendTournamentWaiverReminderEmail,
 } from "./messages/actions";
+import { formatTeamRegion } from "@/lib/labels/team";
+import type { TeamGender, TeamRegion } from "@/types";
 
 type EmailSendHistoryRow = {
   id: string;
@@ -103,16 +106,42 @@ function audienceHistoryLabel(audience: string): string {
   return match?.label ?? audience;
 }
 
+type PostingHistoryRow = {
+  id: string;
+  subject: string;
+  recipientCount: number;
+  skippedNoCaptainCount: number;
+  sendEmail: boolean;
+  regions: TeamRegion[];
+  sentAt: Date;
+};
+
 export function TournamentMessagesPanel({
   tournamentId,
+  tournamentName,
+  tournamentDate,
+  location,
+  gender,
+  region,
+  status,
   waiverEnabled,
   sendHistory,
+  postingHistory,
+  recentAnnouncementCount,
   canEdit,
   lockedReason,
 }: {
   tournamentId: string;
+  tournamentName: string;
+  tournamentDate: string;
+  location: string;
+  gender: TeamGender;
+  region: TeamRegion;
+  status: string;
   waiverEnabled: boolean;
   sendHistory: EmailSendHistoryRow[];
+  postingHistory: PostingHistoryRow[];
+  recentAnnouncementCount: number;
   canEdit: boolean;
   lockedReason?: string | null;
 }) {
@@ -221,6 +250,17 @@ export function TournamentMessagesPanel({
       {lockedReason ? (
         <p className="text-sm text-muted-foreground">{lockedReason}</p>
       ) : null}
+      <TournamentPostingAnnouncementCard
+        tournamentId={tournamentId}
+        tournamentName={tournamentName}
+        tournamentDate={tournamentDate}
+        location={location}
+        gender={gender}
+        region={region}
+        status={status}
+        canEdit={canEdit}
+        recentAnnouncementCount={recentAnnouncementCount}
+      />
       {canEdit ? (
         <>
       <Card>
@@ -368,6 +408,45 @@ Tournament staff`}
       ) : null}
         </>
       ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Posting announcements</CardTitle>
+          <CardDescription>
+            Recent notifications sent to matching captains who were not already
+            registered.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {postingHistory.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No posting announcements sent yet.
+            </p>
+          ) : (
+            <ul className="divide-y rounded-md border border-border/80">
+              {postingHistory.map((row) => (
+                <li key={row.id} className="space-y-1 px-3 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium">{row.subject}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(row.sentAt, "MMM d, yyyy h:mm a")}
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {row.regions.map((value) => formatTeamRegion(value)).join(", ")}{" "}
+                    · {row.recipientCount} recipient
+                    {row.recipientCount === 1 ? "" : "s"}
+                    {row.sendEmail ? " · email + in-app" : " · in-app only"}
+                    {row.skippedNoCaptainCount > 0
+                      ? ` · ${row.skippedNoCaptainCount} skipped (no captain)`
+                      : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

@@ -26,16 +26,25 @@ import { db } from "@/lib/db";
 import { tournaments } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { formatTournamentDateDisplay } from "@/lib/date-iso";
+import { isTeamRegion } from "@/lib/labels/team";
+import { notifyCaptainsOfTournamentMessage } from "@/lib/notifications/tournament-events";
 import {
   audienceLabel,
   resolveCaptainEmailRecipients,
   type TournamentEmailAudience,
 } from "@/lib/tournaments/email-recipients";
+import { resolveMatchingCaptainRecipients } from "@/lib/tournaments/matching-captains";
 import {
   canEditTournamentPreparation,
+  isTournamentPublishedForPublic,
   resolveIsTournamentOrganizer,
   tournamentPreparationLockedReason,
 } from "@/lib/tournaments/permissions";
+import {
+  POSTING_ANNOUNCEMENT_BODY_MAX,
+  POSTING_ANNOUNCEMENT_SUBJECT_MAX,
+  sendTournamentPostingAnnouncement,
+} from "@/lib/tournaments/send-posting-announcement";
 import {
   buildWaiverReminderEmail,
   sendTournamentCaptainEmails,
@@ -141,7 +150,20 @@ export async function sendTournamentCustomEmail(
 
   if ("error" in result) return result;
 
+  try {
+    await notifyCaptainsOfTournamentMessage({
+      recipients: recipientResult.recipients,
+      tournamentId: loaded.tournament.id,
+      tournamentSlug: loaded.tournament.slug,
+      tournamentName: loaded.tournament.name,
+      subject: parsed.data.subject,
+    });
+  } catch {
+    // Email already sent; in-app copy is best-effort.
+  }
+
   revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/notifications");
   return {
     success: true as const,
     recipientCount: result.recipientCount,
@@ -183,10 +205,113 @@ export async function sendTournamentWaiverReminderEmail(tournamentId: string) {
 
   if ("error" in result) return result;
 
+  try {
+    await notifyCaptainsOfTournamentMessage({
+      recipients: recipientResult.recipients,
+      tournamentId: loaded.tournament.id,
+      tournamentSlug: loaded.tournament.slug,
+      tournamentName: loaded.tournament.name,
+      subject: template.subject,
+    });
+  } catch {
+    // Email already sent; in-app copy is best-effort.
+  }
+
   revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/notifications");
   return {
     success: true as const,
     recipientCount: result.recipientCount,
     skippedNoCaptainCount: result.skippedNoCaptainCount,
   };
+}
+
+const postingSchema = z.object({
+  regions: z
+    .array(z.string())
+    .min(1)
+    .transform((values) => values.filter(isTeamRegion)),
+  subject: z.string().trim().min(1).max(POSTING_ANNOUNCEMENT_SUBJECT_MAX),
+  body: z.string().trim().min(1).max(POSTING_ANNOUNCEMENT_BODY_MAX),
+  sendEmail: z.boolean(),
+});
+
+export async function previewMatchingCaptainRecipients(
+  tournamentId: string,
+  regions: string[]
+) {
+  const loaded = await loadOrganizerTournament(tournamentId);
+  if ("error" in loaded) return loaded;
+
+  const selected = regions.filter(isTeamRegion);
+  if (selected.length === 0) {
+    return {
+      success: true as const,
+      recipientCount: 0,
+      skippedNoCaptainCount: 0,
+      skippedNoCaptainTeamNames: [] as string[],
+    };
+  }
+
+  const result = await resolveMatchingCaptainRecipients({
+    tournamentId: loaded.tournament.id,
+    gender: loaded.tournament.gender,
+    regions: selected,
+    excludeUserId: loaded.user.id,
+  });
+
+  return {
+    success: true as const,
+    recipientCount: result.recipients.length,
+    skippedNoCaptainCount: result.skippedNoCaptainCount,
+    skippedNoCaptainTeamNames: result.skippedNoCaptainTeamNames,
+  };
+}
+
+export async function sendMatchingCaptainAnnouncement(
+  tournamentId: string,
+  input: {
+    regions: string[];
+    subject: string;
+    body: string;
+    sendEmail: boolean;
+  }
+) {
+  const loaded = await loadOrganizerTournament(tournamentId);
+  if ("error" in loaded) return loaded;
+
+  if (!isTournamentPublishedForPublic(loaded.tournament)) {
+    return {
+      error:
+        "Publish the tournament (open registration) before notifying matching captains.",
+    };
+  }
+
+  const parsed = postingSchema.safeParse(input);
+  if (!parsed.success || parsed.data.regions.length === 0) {
+    return {
+      error: "Select at least one region and include a subject and message.",
+    };
+  }
+
+  const contentError = await flagBlockedContent(loaded.user.id, [
+    { area: "tournament.posting_subject", text: parsed.data.subject },
+    { area: "tournament.posting_body", text: parsed.data.body },
+  ]);
+  if (contentError) return { error: contentError };
+
+  const result = await sendTournamentPostingAnnouncement({
+    tournament: loaded.tournament,
+    sentByUserId: loaded.user.id,
+    regions: parsed.data.regions,
+    subject: parsed.data.subject,
+    body: parsed.data.body,
+    sendEmail: parsed.data.sendEmail,
+  });
+
+  if ("error" in result) return result;
+
+  revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/notifications");
+  return result;
 }

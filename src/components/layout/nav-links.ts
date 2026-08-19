@@ -23,6 +23,7 @@ import {
   Building2,
   Calendar,
   ShieldAlert,
+  Bell,
   type LucideIcon,
 } from "lucide-react";
 
@@ -39,6 +40,7 @@ export interface NavLink {
 
 export const navLinks: NavLink[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, exact: true },
+  { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Tournaments", href: "/tournaments", icon: Trophy },
   {
     label: "Schools",

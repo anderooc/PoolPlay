@@ -138,6 +138,12 @@ export async function TournamentActivePanel({
         return (
           <TournamentMessagesTabPanel
             tournamentId={tournament.id}
+            tournamentName={tournament.name}
+            tournamentDate={tournament.date}
+            location={tournament.location}
+            gender={tournament.gender}
+            region={tournament.region}
+            status={tournament.status}
             waiverEnabled={tournament.waiverEnabled}
             canEdit={canEditSetup}
             lockedReason={preparationLockedReason}

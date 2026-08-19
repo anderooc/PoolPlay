@@ -19,7 +19,7 @@
  */
 
 import Link from "next/link";
-import { LogOut, UserRound } from "lucide-react";
+import { LogOut, UserRound, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -83,6 +83,13 @@ export function UserMenu({ fullName, email, avatarUrl }: UserMenuProps) {
         >
           <UserRound className="mr-2 h-4 w-4" />
           Edit profile
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className="cursor-pointer"
+          render={<Link href="/notifications" />}
+        >
+          <Bell className="mr-2 h-4 w-4" />
+          Notifications
         </DropdownMenuItem>
         <DropdownMenuItem
           className="cursor-pointer"

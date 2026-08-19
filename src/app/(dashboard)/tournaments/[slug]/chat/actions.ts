@@ -40,6 +40,7 @@ import {
 } from "@/lib/tournaments/chat-access";
 import { resolveIsTournamentOrganizer } from "@/lib/tournaments/permissions";
 import { TOURNAMENT_CHAT_BODY_MAX } from "@/lib/tournaments/chat-constants";
+import { notifyRegisteredCaptainsOfChatAnnouncement } from "@/lib/notifications/tournament-events";
 import type { EligibleSpeakingTeam } from "@/lib/tournaments/chat-access";
 import type { TournamentChatChannelKind } from "@/types";
 
@@ -240,7 +241,22 @@ export async function sendTournamentChatMessage(
       set: { lastReadAt: message!.createdAt },
     });
 
+  if (channel.kind === "announcements") {
+    try {
+      await notifyRegisteredCaptainsOfChatAnnouncement({
+        tournamentId,
+        tournamentSlug: tournament.slug,
+        tournamentName: tournament.name,
+        body: parsed.data.body,
+        excludeUserId: user.id,
+      });
+    } catch {
+      // Chat message already saved; in-app copy is best-effort.
+    }
+  }
+
   revalidatePath("/tournaments/[slug]", "page");
+  revalidatePath("/notifications");
   return { success: true as const, messageId: message!.id };
 }
 

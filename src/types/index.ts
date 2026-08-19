@@ -32,6 +32,12 @@ export type TournamentChatChannelKind =
   | "questions"
   | "general";
 
+export type UserNotificationKind =
+  | "tournament_posted"
+  | "tournament_message"
+  | "chat_announcement"
+  | "registration_update";
+
 export type RegistrationPaymentStatus =
   | "unpaid"
   | "submitted"
