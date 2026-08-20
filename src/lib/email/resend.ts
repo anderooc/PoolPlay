@@ -17,6 +17,7 @@
  */
 
 import { Resend } from "resend";
+import { resolveAppBaseUrl } from "@/lib/metadata";
 
 let resendClient: Resend | null = null;
 
@@ -42,12 +43,7 @@ export function tournamentEmailFromAddress(): string {
 }
 
 export function appBaseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000")
-  );
+  return resolveAppBaseUrl();
 }
 
 export function tournamentPageUrl(slug: string, tab?: string): string {

@@ -26,36 +26,40 @@ export const COPYRIGHT_YEAR = 2026;
 export const APP_DEFAULT_DESCRIPTION =
   "Organize tournaments, manage teams, run pools and brackets, schedule courts, and track live scores for college club volleyball.";
 
-function normalizeAppBaseUrl(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return trimmed;
+/** Normalize env values like `brack-t.com` into absolute URLs. */
+export function normalizeAppUrl(raw: string | undefined | null): string | null {
+  const trimmed = raw?.trim();
+  if (!trimmed) return null;
 
-  // new URL() requires a scheme; env vars are sometimes set to a host only
-  // (e.g. "pool-play-one.vercel.app").
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  // new URL() requires a scheme; env vars are sometimes set to a host only.
+  const withScheme = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : trimmed.startsWith("localhost:") ||
+        trimmed.startsWith("127.0.0.1:") ||
+        trimmed === "localhost" ||
+        trimmed === "127.0.0.1"
+      ? `http://${trimmed}`
+      : `https://${trimmed}`;
 
-  if (
-    trimmed.startsWith("localhost:") ||
-    trimmed.startsWith("127.0.0.1:") ||
-    trimmed === "localhost" ||
-    trimmed === "127.0.0.1"
-  ) {
-    return `http://${trimmed}`;
+  return withScheme.replace(/\/+$/, "");
+}
+
+export function resolveAppBaseUrl(): string {
+  const configured = normalizeAppUrl(process.env.NEXT_PUBLIC_APP_URL);
+  if (configured) return configured;
+
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
   }
 
-  return `https://${trimmed}`;
+  return "http://localhost:3000";
 }
 
 export function appBaseUrl(): URL {
-  const configured =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000");
-
-  return new URL(normalizeAppBaseUrl(configured));
+  return new URL(resolveAppBaseUrl());
 }
 
 /** Join title segments; root layout appends the app name via the title template. */

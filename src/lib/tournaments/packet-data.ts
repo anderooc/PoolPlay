@@ -17,6 +17,7 @@
  */
 
 import { db } from "@/lib/db";
+import { resolveAppBaseUrl } from "@/lib/metadata";
 import {
   brackets,
   courts,
@@ -128,7 +129,7 @@ const PACKET_REGISTRATION_STATUSES = [
 ] as const;
 
 function tournamentLiveUrl(slug: string): string {
-  return `https://brac-t.com/tournaments/${slug}`;
+  return `${resolveAppBaseUrl()}/tournaments/${slug}`;
 }
 
 function bracketRoundLabel(round: number, maxRound: number): string {
