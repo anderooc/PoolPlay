@@ -34,6 +34,7 @@ import { changePassword } from "./actions";
 
 export function ChangePasswordForm() {
   const formRef = useRef<HTMLFormElement>(null);
+  const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -51,7 +52,15 @@ export function ChangePasswordForm() {
     }
 
     formRef.current?.reset();
+    setExpanded(false);
+    setError(null);
     toast.success("Password updated");
+  }
+
+  function handleCancel() {
+    formRef.current?.reset();
+    setExpanded(false);
+    setError(null);
   }
 
   return (
@@ -65,59 +74,79 @@ export function ChangePasswordForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form
-          ref={formRef}
-          onSubmit={onSubmit}
-          className="space-y-4"
-          aria-busy={loading}
-        >
-          <div className="space-y-2">
-            <Label htmlFor="currentPassword">Current password</Label>
-            <Input
-              id="currentPassword"
-              name="currentPassword"
-              type="password"
-              required
-              disabled={loading}
-              autoComplete="current-password"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">New password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={8}
-              disabled={loading}
-              autoComplete="new-password"
-            />
-            <p className="text-xs text-muted-foreground">
-              At least 8 characters.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm new password</Label>
-            <Input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              required
-              minLength={8}
-              disabled={loading}
-              autoComplete="new-password"
-            />
-          </div>
-
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
-          <Button type="submit" disabled={loading}>
-            {loading ? "Updating…" : "Update password"}
+        {!expanded ? (
+          <Button variant="outline" onClick={() => setExpanded(true)}>
+            Change password
           </Button>
-        </form>
+        ) : (
+          <form
+            ref={formRef}
+            onSubmit={onSubmit}
+            className="space-y-4"
+            aria-busy={loading}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">Current password</Label>
+              <Input
+                id="currentPassword"
+                name="currentPassword"
+                type="password"
+                required
+                disabled={loading}
+                autoComplete="current-password"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">New password</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                minLength={8}
+                disabled={loading}
+                autoComplete="new-password"
+              />
+              <p className="text-xs text-muted-foreground">
+                At least 8 characters.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm new password</Label>
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                required
+                minLength={8}
+                disabled={loading}
+                autoComplete="new-password"
+              />
+            </div>
+
+            {error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" disabled={loading}>
+                {loading ? "Updating…" : "Update password"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={loading}
+                onClick={handleCancel}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        )}
       </CardContent>
     </Card>
   );
