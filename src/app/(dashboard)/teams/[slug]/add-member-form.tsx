@@ -37,12 +37,15 @@ import { ViewportSplit } from "@/components/layout/viewport-split";
 import { cn } from "@/lib/utils";
 import { SCHOOL_MEMBER_ROLE_LABELS } from "@/lib/constants/school";
 import { addTeamMember } from "../actions";
-import type { SchoolMemberRole } from "@/types";
+import { VolleyballPositionLabel } from "@/components/roster/volleyball-position-field";
+import { volleyballPositionSearchHaystack } from "@/lib/profile/volleyball-position";
+import type { SchoolMemberRole, VolleyballPosition } from "@/types";
 
 export type SchoolRosterCandidate = {
   userId: string;
   fullName: string;
   email: string;
+  volleyballPosition: VolleyballPosition | null;
   role: SchoolMemberRole;
   jerseyNumber: number | null;
 };
@@ -176,7 +179,8 @@ function SchoolRosterAddForm({
         (c) =>
           c.fullName.toLowerCase().includes(q) ||
           c.email.toLowerCase().includes(q) ||
-          SCHOOL_MEMBER_ROLE_LABELS[c.role].toLowerCase().includes(q)
+          SCHOOL_MEMBER_ROLE_LABELS[c.role].toLowerCase().includes(q) ||
+          volleyballPositionSearchHaystack(c.volleyballPosition).includes(q)
       )
     : candidates;
 
@@ -308,7 +312,7 @@ function SchoolRosterAddForm({
                 id="roster-search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Name, email, or role"
+                placeholder="Name, email, role, or position"
                 autoComplete="off"
               />
             </div>
@@ -397,6 +401,10 @@ function SchoolRosterAddForm({
                                   <p className="truncate text-xs text-muted-foreground">
                                     {candidate.email}
                                   </p>
+                                  <VolleyballPositionLabel
+                                    className="mt-1"
+                                    position={candidate.volleyballPosition}
+                                  />
                                 </div>
                                 <span className="w-11 shrink-0 text-center text-sm font-bold tabular-nums text-muted-foreground">
                                   {candidate.jerseyNumber ?? "—"}
@@ -434,6 +442,7 @@ function SchoolRosterAddForm({
                           />
                         </TableHead>
                         <TableHead className="h-8 py-0">Name</TableHead>
+                        <TableHead className="h-8 py-0">Pos</TableHead>
                         <TableHead className="h-8 py-0">Email</TableHead>
                         <TableHead className="h-8 w-16 py-0">#</TableHead>
                       </TableRow>
@@ -442,7 +451,7 @@ function SchoolRosterAddForm({
                       {filtered.length === 0 ? (
                         <TableRow className="hover:bg-transparent">
                           <TableCell
-                            colSpan={4}
+                            colSpan={5}
                             className="h-12 text-center text-muted-foreground"
                           >
                             No roster members match “{query.trim()}”.
@@ -460,7 +469,7 @@ function SchoolRosterAddForm({
                               className="hover:bg-transparent"
                             >
                               <TableCell
-                                colSpan={4}
+                                colSpan={5}
                                 className="bg-muted/50 py-1.5 text-xs font-medium text-muted-foreground"
                               >
                                 {group.label} ({rows.length})
@@ -499,6 +508,11 @@ function SchoolRosterAddForm({
                                     <span className="block truncate text-sm leading-tight">
                                       {candidate.fullName}
                                     </span>
+                                  </TableCell>
+                                  <TableCell className="w-[4.5rem] py-1.5">
+                                    <VolleyballPositionLabel
+                                      position={candidate.volleyballPosition}
+                                    />
                                   </TableCell>
                                   <TableCell className="max-w-[14rem] py-1.5 text-muted-foreground">
                                     <span className="block truncate text-xs">

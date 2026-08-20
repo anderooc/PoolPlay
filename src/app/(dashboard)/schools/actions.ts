@@ -32,6 +32,7 @@ import {
 import { requireUser } from "@/lib/auth";
 import { flagBlockedContent } from "@/lib/admin/content-flags";
 import { slugify, uniqueSlug } from "@/lib/utils/slug";
+import { parseVolleyballPositionInput } from "@/lib/profile/volleyball-position";
 import {
   addSchoolMemberSchema,
   createSchoolSchema,
@@ -783,6 +784,50 @@ export async function updateSchoolMemberRole(
     .where(eq(schoolMembers.id, membershipId));
 
   revalidatePath(`/schools/${school.slug}`);
+  return { success: true as const };
+}
+
+export async function updateSchoolMemberVolleyballPosition(
+  schoolId: string,
+  membershipId: string,
+  volleyballPosition: string | null
+) {
+  const user = await requireUser();
+  const school = await loadSchool(schoolId);
+  if (!school) return { error: "School not found" };
+
+  const membership = await loadMembership(schoolId, user.id);
+  if (!canManageSchoolRoster(membership, user)) {
+    return { error: "Only school officers can change volleyball positions." };
+  }
+
+  const parsed = parseVolleyballPositionInput(volleyballPosition);
+  if (parsed === "invalid") {
+    return { error: "Invalid volleyball position." };
+  }
+
+  const [target] = await db
+    .select({
+      schoolId: schoolMembers.schoolId,
+      userId: schoolMembers.userId,
+    })
+    .from(schoolMembers)
+    .where(eq(schoolMembers.id, membershipId))
+    .limit(1);
+
+  if (!target || target.schoolId !== schoolId) {
+    return { error: "Member not found." };
+  }
+
+  await db
+    .update(users)
+    .set({ volleyballPosition: parsed, updatedAt: new Date() })
+    .where(eq(users.id, target.userId));
+
+  revalidatePath(`/schools/${school.slug}`);
+  revalidatePath("/teams/[slug]", "page");
+  revalidatePath("/profile");
+  revalidatePath("/dashboard");
   return { success: true as const };
 }
 

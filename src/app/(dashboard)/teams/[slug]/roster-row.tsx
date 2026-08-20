@@ -21,9 +21,11 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import { removeTeamMember } from "../actions";
+import { removeTeamMember, updateTeamMemberVolleyballPosition } from "../actions";
 import { useState } from "react";
 import { JerseyNumberField } from "./jersey-number-field";
+import { VolleyballPositionField } from "@/components/roster/volleyball-position-field";
+import type { VolleyballPosition } from "@/types";
 
 interface Member {
   id: string;
@@ -32,6 +34,7 @@ interface Member {
   userId: string;
   fullName: string;
   email: string;
+  volleyballPosition: VolleyballPosition | null;
 }
 
 export function RosterRow({
@@ -81,6 +84,15 @@ export function RosterRow({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-auto">
+          <VolleyballPositionField
+            key={`${member.id}-${member.volleyballPosition ?? "none"}`}
+            position={member.volleyballPosition}
+            playerName={member.fullName}
+            canEdit={isCaptain}
+            onSave={(next) =>
+              updateTeamMemberVolleyballPosition(member.id, next)
+            }
+          />
           <Badge
             variant={member.role === "captain" ? "default" : "secondary"}
             className="capitalize"

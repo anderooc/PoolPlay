@@ -84,6 +84,7 @@ export default async function TeamDetailPage({ params }: Props) {
           userId: users.id,
           fullName: users.fullName,
           email: users.email,
+          volleyballPosition: users.volleyballPosition,
         })
         .from(teamMembers)
         .innerJoin(users, eq(teamMembers.userId, users.id))
@@ -120,6 +121,7 @@ export default async function TeamDetailPage({ params }: Props) {
               userId: users.id,
               fullName: users.fullName,
               email: users.email,
+              volleyballPosition: users.volleyballPosition,
               role: schoolMembers.role,
               jerseyNumber: users.jerseyNumber,
             })

@@ -44,3 +44,14 @@ export const VOLLEYBALL_POSITION_LABELS: Record<
   setter: "Setter",
   libero_ds: "Libero / DS",
 };
+
+export const VOLLEYBALL_POSITION_SHORT_LABELS: Record<
+  (typeof VOLLEYBALL_POSITIONS)[number],
+  string
+> = {
+  outside_hitter: "OH",
+  middle_blocker: "MB",
+  opposite_hitter: "Opp",
+  setter: "S",
+  libero_ds: "L/DS",
+};

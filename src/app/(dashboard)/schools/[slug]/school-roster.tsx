@@ -41,16 +41,19 @@ import {
   removeSchoolMember,
   transferPresidency,
   updateSchoolMemberRole,
+  updateSchoolMemberVolleyballPosition,
 } from "../actions";
 import { Crown, Star, UserPlus, X } from "lucide-react";
-import type { SchoolMemberRole } from "@/types";
+import type { SchoolMemberRole, VolleyballPosition } from "@/types";
 import { JerseyNumberField } from "@/app/(dashboard)/teams/[slug]/jersey-number-field";
+import { VolleyballPositionField } from "@/components/roster/volleyball-position-field";
 
 type RosterMember = {
   membershipId: string;
   userId: string;
   fullName: string;
   email: string;
+  volleyballPosition: VolleyballPosition | null;
   role: SchoolMemberRole;
   title: string | null;
   jerseyNumber: number | null;
@@ -124,6 +127,22 @@ export function SchoolRoster({
     router.refresh();
   }
 
+  async function handlePositionChange(
+    membershipId: string,
+    volleyballPosition: VolleyballPosition | null
+  ) {
+    setError(null);
+    const result = await updateSchoolMemberVolleyballPosition(
+      schoolId,
+      membershipId,
+      volleyballPosition
+    );
+    if (result?.error) {
+      setError(result.error);
+    }
+    return result;
+  }
+
   const president = members.find((m) => m.role === "president");
   const officers = members.filter((m) => m.role === "officer");
   const others = members.filter((m) => m.role === "member");
@@ -143,11 +162,13 @@ export function SchoolRoster({
               member={president}
               canManage={false}
               canEditJersey={canManage}
+              canEditPosition={canManage}
               canTransferPresidencyAction={false}
               isBusy={busyId === president.membershipId}
               onRemove={handleRemove}
               onRoleChange={handleRoleChange}
               onTransfer={handleTransfer}
+              onPositionChange={handlePositionChange}
             />
           </div>
         ) : (
@@ -177,11 +198,13 @@ export function SchoolRoster({
                 member={m}
                 canManage={canManage}
                 canEditJersey={canManage}
+                canEditPosition={canManage}
                 canTransferPresidencyAction={canTransferPresidencyAction}
                 isBusy={busyId === m.membershipId}
                 onRemove={handleRemove}
                 onRoleChange={handleRoleChange}
                 onTransfer={handleTransfer}
+                onPositionChange={handlePositionChange}
               />
             ))}
           </div>
@@ -202,11 +225,13 @@ export function SchoolRoster({
                 member={m}
                 canManage={canManage}
                 canEditJersey={canManage}
+                canEditPosition={canManage}
                 canTransferPresidencyAction={canTransferPresidencyAction}
                 isBusy={busyId === m.membershipId}
                 onRemove={handleRemove}
                 onRoleChange={handleRoleChange}
                 onTransfer={handleTransfer}
+                onPositionChange={handlePositionChange}
               />
             ))}
           </div>
@@ -303,20 +328,27 @@ function RosterRow({
   member,
   canManage,
   canEditJersey,
+  canEditPosition,
   canTransferPresidencyAction,
   isBusy,
   onRemove,
   onRoleChange,
   onTransfer,
+  onPositionChange,
 }: {
   member: RosterMember;
   canManage: boolean;
   canEditJersey: boolean;
+  canEditPosition: boolean;
   canTransferPresidencyAction: boolean;
   isBusy: boolean;
   onRemove: (id: string) => void;
   onRoleChange: (id: string, role: SchoolMemberRole) => void;
   onTransfer: (id: string) => void;
+  onPositionChange: (
+    id: string,
+    position: VolleyballPosition | null
+  ) => Promise<{ error?: string } | void>;
 }) {
   const showRoleSelect = canManage && member.role !== "president";
   const showActions =
@@ -369,60 +401,70 @@ function RosterRow({
           </div>
         </div>
 
-        {showActions ? (
-          <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0 sm:justify-end">
-            {showRoleSelect ? (
-              <Select
-                value={member.role}
-                onValueChange={(v) => {
-                  if (v === "officer" || v === "member") {
-                    onRoleChange(member.membershipId, v);
-                  }
-                }}
-                disabled={isBusy}
-              >
-                <SelectTrigger
-                  id={`role-${member.membershipId}`}
-                  size="sm"
-                  className="h-8 w-full sm:h-7 sm:w-[7.25rem]"
-                  aria-label={`Role for ${member.fullName}`}
+        <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0 sm:justify-end">
+          <VolleyballPositionField
+            key={`${member.membershipId}-${member.volleyballPosition ?? "none"}`}
+            position={member.volleyballPosition}
+            playerName={member.fullName}
+            canEdit={canEditPosition}
+            disabled={isBusy}
+            onSave={(next) => onPositionChange(member.membershipId, next)}
+          />
+          {showActions ? (
+            <>
+              {showRoleSelect ? (
+                <Select
+                  value={member.role}
+                  onValueChange={(v) => {
+                    if (v === "officer" || v === "member") {
+                      onRoleChange(member.membershipId, v);
+                    }
+                  }}
+                  disabled={isBusy}
                 >
-                  <SelectValue placeholder="Role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">Member</SelectItem>
-                  <SelectItem value="officer">Officer</SelectItem>
-                </SelectContent>
-              </Select>
-            ) : null}
-            {canTransferPresidencyAction && member.role !== "president" ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 px-2 sm:h-7"
-                disabled={isBusy}
-                onClick={() => onTransfer(member.membershipId)}
-              >
-                <Crown className="mr-1 h-3 w-3" />
-                President
-              </Button>
-            ) : null}
-            {showRoleSelect ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive sm:h-7"
-                disabled={isBusy}
-                onClick={() => onRemove(member.membershipId)}
-              >
-                <X className="h-3.5 w-3.5" />
-                <span className="sr-only">Remove {member.fullName}</span>
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+                  <SelectTrigger
+                    id={`role-${member.membershipId}`}
+                    size="sm"
+                    className="h-8 w-full sm:h-7 sm:w-[7.25rem]"
+                    aria-label={`Role for ${member.fullName}`}
+                  >
+                    <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="officer">Officer</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : null}
+              {canTransferPresidencyAction && member.role !== "president" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 sm:h-7"
+                  disabled={isBusy}
+                  onClick={() => onTransfer(member.membershipId)}
+                >
+                  <Crown className="mr-1 h-3 w-3" />
+                  President
+                </Button>
+              ) : null}
+              {showRoleSelect ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive sm:h-7"
+                  disabled={isBusy}
+                  onClick={() => onRemove(member.membershipId)}
+                >
+                  <X className="h-3.5 w-3.5" />
+                  <span className="sr-only">Remove {member.fullName}</span>
+                </Button>
+              ) : null}
+            </>
+          ) : null}
+        </div>
       </div>
     </div>
   );

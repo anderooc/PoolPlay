@@ -34,6 +34,7 @@ import { createTeamSchema } from "@/lib/validators";
 import { flagBlockedContent } from "@/lib/admin/content-flags";
 import { slugify, uniqueSlug } from "@/lib/utils/slug";
 import { isSchoolOfficerOrAbove } from "@/lib/schools/permissions";
+import { parseVolleyballPositionInput } from "@/lib/profile/volleyball-position";
 import { invalidatePublicTournamentCachesByIds } from "@/lib/tournaments/public-cache-invalidation";
 import {
   deleteTeamWithTournamentLocks,
@@ -513,5 +514,67 @@ export async function updateUserJerseyNumber(
   });
   if ("error" in assigned) return { error: assigned.error };
   revalidateJerseyPaths(assigned);
+  return { success: true };
+}
+
+export async function updateTeamMemberVolleyballPosition(
+  memberId: string,
+  volleyballPosition: string | null
+) {
+  const user = await requireUser();
+  const parsed = parseVolleyballPositionInput(volleyballPosition);
+  if (parsed === "invalid") {
+    return { error: "Invalid volleyball position." };
+  }
+
+  const [row] = await db
+    .select({
+      id: teamMembers.id,
+      userId: teamMembers.userId,
+      teamId: teams.id,
+      slug: teams.slug,
+      schoolId: teams.schoolId,
+    })
+    .from(teamMembers)
+    .innerJoin(teams, eq(teamMembers.teamId, teams.id))
+    .where(eq(teamMembers.id, memberId))
+    .limit(1);
+  if (!row) return { error: "Member not found" };
+
+  const [membership] = await db
+    .select()
+    .from(teamMembers)
+    .where(
+      and(eq(teamMembers.teamId, row.teamId), eq(teamMembers.userId, user.id))
+    );
+  let canManage: boolean = isAdmin(user) || membership?.role === "captain";
+  if (!canManage && row.schoolId) {
+    const role = await getSchoolRole(row.schoolId, user.id);
+    canManage = isSchoolOfficerOrAbove(
+      role ? { schoolId: row.schoolId, userId: user.id, role } : null
+    );
+  }
+  if (!canManage) {
+    return {
+      error: "Only captains or school officers can edit volleyball positions",
+    };
+  }
+
+  await db
+    .update(users)
+    .set({ volleyballPosition: parsed, updatedAt: new Date() })
+    .where(eq(users.id, row.userId));
+
+  revalidatePath(`/teams/${row.slug}`);
+  revalidatePath("/profile");
+  revalidatePath("/dashboard");
+  if (row.schoolId) {
+    const [schoolRow] = await db
+      .select({ slug: schools.slug })
+      .from(schools)
+      .where(eq(schools.id, row.schoolId))
+      .limit(1);
+    if (schoolRow) revalidatePath(`/schools/${schoolRow.slug}`);
+  }
   return { success: true };
 }

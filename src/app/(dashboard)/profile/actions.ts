@@ -19,6 +19,7 @@
  */
 
 import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -125,6 +126,8 @@ export async function updateProfile(formData: FormData) {
   }
 
   revalidateJerseyPaths(jerseyResult);
+  revalidatePath("/teams/[slug]", "page");
+  revalidatePath("/schools/[slug]", "page");
 
   return { success: true as const };
 }

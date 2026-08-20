@@ -109,6 +109,7 @@ export default async function SchoolDetailPage({ params, searchParams }: Props) 
           userId: users.id,
           fullName: users.fullName,
           email: users.email,
+          volleyballPosition: users.volleyballPosition,
           role: schoolMembers.role,
           title: schoolMembers.title,
           jerseyNumber: users.jerseyNumber,
@@ -348,6 +349,7 @@ export default async function SchoolDetailPage({ params, searchParams }: Props) 
                 userId: m.userId,
                 fullName: m.fullName,
                 email: m.email,
+                volleyballPosition: m.volleyballPosition,
                 role: m.role,
                 title: m.title,
                 jerseyNumber: m.jerseyNumber,
@@ -407,6 +409,7 @@ export default async function SchoolDetailPage({ params, searchParams }: Props) 
                       userId: m.userId,
                       fullName: m.fullName,
                       email: m.email,
+                      volleyballPosition: m.volleyballPosition,
                       role: m.role,
                       jerseyNumber: m.jerseyNumber,
                     }))}

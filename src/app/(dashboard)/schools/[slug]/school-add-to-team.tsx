@@ -37,12 +37,15 @@ import { cn } from "@/lib/utils";
 import { SCHOOL_MEMBER_ROLE_LABELS } from "@/lib/constants/school";
 import { addTeamMember } from "@/app/(dashboard)/teams/actions";
 import { JerseyNumberField } from "@/app/(dashboard)/teams/[slug]/jersey-number-field";
-import type { SchoolMemberRole } from "@/types";
+import { VolleyballPositionLabel } from "@/components/roster/volleyball-position-field";
+import { volleyballPositionSearchHaystack } from "@/lib/profile/volleyball-position";
+import type { SchoolMemberRole, VolleyballPosition } from "@/types";
 
 type RosterMember = {
   userId: string;
   fullName: string;
   email: string;
+  volleyballPosition: VolleyballPosition | null;
   role: SchoolMemberRole;
   jerseyNumber: number | null;
 };
@@ -101,7 +104,8 @@ export function SchoolAddToTeam({
     return (
       member.fullName.toLowerCase().includes(q) ||
       member.email.toLowerCase().includes(q) ||
-      SCHOOL_MEMBER_ROLE_LABELS[member.role].toLowerCase().includes(q)
+      SCHOOL_MEMBER_ROLE_LABELS[member.role].toLowerCase().includes(q) ||
+      volleyballPositionSearchHaystack(member.volleyballPosition).includes(q)
     );
   });
 
@@ -234,7 +238,7 @@ export function SchoolAddToTeam({
             id="roster-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Name, email, or role"
+            placeholder="Name, email, role, or position"
             autoComplete="off"
           />
         </div>
@@ -308,6 +312,10 @@ export function SchoolAddToTeam({
                               <p className="truncate text-xs text-muted-foreground">
                                 {member.email}
                               </p>
+                              <VolleyballPositionLabel
+                                className="mt-1"
+                                position={member.volleyballPosition}
+                              />
                             </div>
                             <div
                               className="shrink-0"
@@ -371,6 +379,7 @@ export function SchoolAddToTeam({
                       />
                     </TableHead>
                     <TableHead className="h-8 py-0">Name</TableHead>
+                    <TableHead className="h-8 py-0">Pos</TableHead>
                     <TableHead className="h-8 py-0">Email</TableHead>
                     <TableHead className="h-8 w-16 py-0">#</TableHead>
                   </TableRow>
@@ -379,7 +388,7 @@ export function SchoolAddToTeam({
                   {filtered.length === 0 ? (
                     <TableRow className="hover:bg-transparent">
                       <TableCell
-                        colSpan={4}
+                        colSpan={5}
                         className="h-12 text-center text-muted-foreground"
                       >
                         {members.length === 0
@@ -399,7 +408,7 @@ export function SchoolAddToTeam({
                           className="hover:bg-transparent"
                         >
                           <TableCell
-                            colSpan={4}
+                            colSpan={5}
                             className="bg-muted/50 py-1.5 text-xs font-medium text-muted-foreground"
                           >
                             {group.label} ({rows.length})
@@ -440,6 +449,11 @@ export function SchoolAddToTeam({
                                 <span className="block truncate text-sm leading-tight">
                                   {member.fullName}
                                 </span>
+                              </TableCell>
+                              <TableCell className="w-[4.5rem] py-1.5">
+                                <VolleyballPositionLabel
+                                  position={member.volleyballPosition}
+                                />
                               </TableCell>
                               <TableCell className="max-w-[14rem] py-1.5 text-muted-foreground">
                                 <span className="block truncate text-xs">
