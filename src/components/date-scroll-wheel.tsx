@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 
 const LINE_HEIGHT_PX = 36;
 const VISIBLE_RADIUS = 2;
+const WHEEL_HEIGHT_PX = LINE_HEIGHT_PX * (VISIBLE_RADIUS * 2 + 1);
 const WHEEL_DELTA_PER_DATE = 120;
 const FADE_IDLE_MS = 1100;
 const DRAG_STEP_PX = 36;
@@ -82,6 +83,7 @@ export function DateScrollWheel({
   const rootRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepAccumulatorRef = useRef(0);
+  const wheelAccumulatorRef = useRef(0);
   const dragRef = useRef<{
     pointerId: number | null;
     startY: number;
@@ -95,7 +97,10 @@ export function DateScrollWheel({
     startDate: null,
     dragged: false,
   });
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(true);
+  // Media queries differ on server vs device; defer idle-fade until after
+  // mount so the first client paint matches SSR (wheel shown).
+  const [idleFadeReady, setIdleFadeReady] = useState(false);
   const reduceMotion = useSyncExternalStore(
     subscribeReducedMotion,
     getReducedMotionSnapshot,
@@ -110,23 +115,31 @@ export function DateScrollWheel({
 
   const selectedIndex = dates.indexOf(selectedDate);
 
-  const visibleDates = useMemo(() => {
+  /**
+   * Fixed-size window of slots centered on the selection, padded with empty
+   * slots at the ends of the range. Keeps the selected line at the wheel's
+   * middle instead of drifting to an edge on the first/last date.
+   */
+  const slots = useMemo(() => {
     if (dates.length === 0) return [];
     const i = selectedIndex === -1 ? 0 : selectedIndex;
-    const start = Math.max(0, i - VISIBLE_RADIUS);
-    const end = Math.min(dates.length, i + VISIBLE_RADIUS + 1);
-    return dates.slice(start, end);
+    const out: (string | null)[] = [];
+    for (let offset = -VISIBLE_RADIUS; offset <= VISIBLE_RADIUS; offset += 1) {
+      const index = i + offset;
+      out.push(index >= 0 && index < dates.length ? dates[index] : null);
+    }
+    return out;
   }, [dates, selectedIndex]);
 
   const show = useCallback(() => {
     setVisible(true);
-    if (reduceMotion || isCoarsePointer) return;
+    if (!idleFadeReady || reduceMotion || isCoarsePointer) return;
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     hideTimerRef.current = setTimeout(() => {
       setVisible(false);
       hideTimerRef.current = null;
     }, FADE_IDLE_MS);
-  }, [isCoarsePointer, reduceMotion]);
+  }, [idleFadeReady, isCoarsePointer, reduceMotion]);
 
   const advance = useCallback(
     (delta: number) => {
@@ -142,8 +155,15 @@ export function DateScrollWheel({
   );
 
   useEffect(() => {
-    if (activityKey > 0) queueMicrotask(() => show());
-  }, [activityKey, show]);
+    setIdleFadeReady(true);
+  }, []);
+
+  // Visible on first paint, then idle-fade (fine pointer). Re-show on
+  // external date activity (schedule scroll, keys, calendar).
+  useEffect(() => {
+    if (!idleFadeReady) return;
+    queueMicrotask(() => show());
+  }, [activityKey, idleFadeReady, show]);
 
   useEffect(
     () => () => {
@@ -156,21 +176,26 @@ export function DateScrollWheel({
     const el = rootRef.current;
     if (!el) return;
 
-    let wheelAccumulator = 0;
     function onWheel(e: WheelEvent) {
       e.preventDefault();
       e.stopPropagation();
       if (Math.abs(e.deltaY) < 1) return;
-      wheelAccumulator += e.deltaY;
+      // Accumulator lives in a ref so re-attaching this listener on each date
+      // change doesn't discard leftover trackpad momentum mid-gesture.
+      wheelAccumulatorRef.current += e.deltaY;
 
-      while (wheelAccumulator >= WHEEL_DELTA_PER_DATE) {
-        advance(1);
-        wheelAccumulator -= WHEEL_DELTA_PER_DATE;
+      let steps = 0;
+      while (wheelAccumulatorRef.current >= WHEEL_DELTA_PER_DATE) {
+        steps += 1;
+        wheelAccumulatorRef.current -= WHEEL_DELTA_PER_DATE;
       }
-      while (wheelAccumulator <= -WHEEL_DELTA_PER_DATE) {
-        advance(-1);
-        wheelAccumulator += WHEEL_DELTA_PER_DATE;
+      while (wheelAccumulatorRef.current <= -WHEEL_DELTA_PER_DATE) {
+        steps -= 1;
+        wheelAccumulatorRef.current += WHEEL_DELTA_PER_DATE;
       }
+      // One move for the whole event: `advance` reads the committed date, so
+      // repeated single steps in a fast flick would collapse into one.
+      advance(steps);
     }
 
     function onTouchMove(e: TouchEvent) {
@@ -251,14 +276,16 @@ export function DateScrollWheel({
 
       stepAccumulatorRef.current += dy;
 
+      let steps = 0;
       while (stepAccumulatorRef.current >= DRAG_STEP_PX) {
-        advance(1);
+        steps += 1;
         stepAccumulatorRef.current -= DRAG_STEP_PX;
       }
       while (stepAccumulatorRef.current <= -DRAG_STEP_PX) {
-        advance(-1);
+        steps -= 1;
         stepAccumulatorRef.current += DRAG_STEP_PX;
       }
+      advance(steps);
     },
     [advance]
   );
@@ -270,9 +297,12 @@ export function DateScrollWheel({
     [endDrag]
   );
 
-  if (visibleDates.length === 0) return null;
+  // Before idle-fade is armed, always show so SSR and the first client
+  // paint match (media queries are not safe during hydration).
+  const isShown =
+    !idleFadeReady || reduceMotion || isCoarsePointer || visible;
 
-  const isShown = reduceMotion || isCoarsePointer || visible;
+  if (slots.length === 0) return null;
 
   return (
     <div
@@ -282,10 +312,10 @@ export function DateScrollWheel({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       className={cn(
-        "flex w-full min-h-0 flex-1 touch-none select-none flex-col justify-center overflow-hidden overscroll-y-none",
+        "flex min-h-0 w-full flex-1 touch-none select-none flex-col justify-center overflow-hidden overscroll-y-none",
         "transition-opacity duration-300 ease-out",
         isDragging ? "cursor-grabbing" : "cursor-grab",
-        isShown ? "opacity-100" : "opacity-0",
+        isShown ? "opacity-100" : "pointer-events-none opacity-0",
         className
       )}
       aria-label="Date selector"
@@ -293,19 +323,24 @@ export function DateScrollWheel({
     >
       <div
         className="flex flex-col items-center"
-        style={{ minHeight: LINE_HEIGHT_PX * (VISIBLE_RADIUS * 2 + 1) }}
+        style={{ height: WHEEL_HEIGHT_PX }}
       >
-        {visibleDates.map((iso) => {
-          const index = dates.indexOf(iso);
-          const distance =
-            selectedIndex === -1
-              ? index === 0
-                ? 0
-                : 99
-              : Math.abs(index - selectedIndex);
+        {slots.map((iso, slotIndex) => {
+          const offset = slotIndex - VISIBLE_RADIUS;
+          if (!iso) {
+            return (
+              <div
+                key={`empty-${offset}`}
+                style={{ height: LINE_HEIGHT_PX }}
+                className="w-full shrink-0"
+                aria-hidden
+              />
+            );
+          }
+
           const isSelected = iso === selectedDate;
           const { isToday, label, dateLabel } = formatWheelLine(iso, today);
-          const proximity = Math.min(distance, 2);
+          const proximity = Math.min(Math.abs(offset), 2);
 
           return (
             <button
@@ -315,7 +350,7 @@ export function DateScrollWheel({
               disabled={!isShown}
               style={{ height: LINE_HEIGHT_PX }}
               className={cn(
-                "flex w-full min-w-0 items-center justify-center overflow-hidden border-0 bg-transparent px-1 text-center leading-tight transition-[color,opacity] duration-300 ease-out select-none",
+                "flex w-full min-w-0 shrink-0 items-center justify-center overflow-hidden border-0 bg-transparent px-1 text-center leading-tight transition-[color,opacity] duration-300 ease-out select-none",
                 "outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                 isSelected
                   ? "text-sm font-semibold text-foreground"

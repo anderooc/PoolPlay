@@ -28,6 +28,7 @@ import {
 } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -52,30 +53,14 @@ import {
 } from "@/components/tournament-list-filters";
 import { Calendar, MapPin, Search, Trophy } from "lucide-react";
 import { ViewportSplit } from "@/components/layout/viewport-split";
+import { DateScrollWheel } from "@/components/date-scroll-wheel";
 import { cn } from "@/lib/utils";
 import { isTournamentArchived, todayISO } from "@/lib/tournament-status";
+import { takeTournamentScheduleFocus } from "@/lib/tournaments/schedule-focus";
 import type { TeamGender, TeamRegion } from "@/types";
 import type { TournamentHostSchool } from "@/lib/tournaments/host-school";
 import type { PublicRegistrationAvailability } from "@/lib/tournaments/public-projection";
 import { registrationAvailabilityOpen } from "@/lib/tournaments/public-refresh-policy";
-
-const DateScrollWheel = dynamic(
-  () =>
-    import("@/components/date-scroll-wheel").then((mod) => ({
-      default: mod.DateScrollWheel,
-    })),
-  {
-    ssr: false,
-    loading: () => (
-      <div
-        className="flex h-[180px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground"
-        aria-hidden
-      >
-        Loading schedule…
-      </div>
-    ),
-  }
-);
 
 const DatePickerCalendar = dynamic(
   () =>
@@ -99,11 +84,22 @@ const SELECTED_PANEL_MIN_H =
   "min-h-[5.5rem] min-w-0 w-full max-w-full";
 
 /**
- * Remaining viewport below the sticky header, page title, and search on
- * phones. Caps the selected-day list so extra tournaments scroll inside
- * that pane instead of stretching the page and fighting the date wheel.
+ * Desktop selected-day list: room for the page chrome plus the date
+ * heading sitting at SCHEDULE_TOP_INSET, then scroll inside the day pane.
  */
-const MOBILE_LIST_MAX_H = "max-h-[calc(100dvh-18rem)]";
+const DESKTOP_LIST_MAX_H = "max-h-[calc(100dvh-20rem)]";
+
+/**
+ * The date wheel is centered inside its own column, so that column's height
+ * must not track the tournament list — otherwise the wheel drifts whenever the
+ * selected day has more or fewer tournaments. Derive it from the viewport
+ * (never smaller than the wheel itself) instead of stretching with the row.
+ */
+const WHEEL_COLUMN_H = "h-[max(11.25rem,calc(100dvh-18rem))]";
+
+/** Enter animation for rows that appear after a list refresh / date move. */
+const ROW_ENTER_ANIMATION =
+  "ui-enter-soft 420ms cubic-bezier(0.22, 1, 0.36, 1) both";
 
 /**
  * Accumulated wheel deltaY (px) required before moving to the next/previous
@@ -226,18 +222,31 @@ function TournamentRow({
   tournament: t,
   linkPrefix,
   compact = false,
+  enter = false,
+  highlighted = false,
 }: {
   tournament: Tournament;
   linkPrefix: string;
   /** Narrow column beside the date wheel — stack and truncate instead of widening. */
   compact?: boolean;
+  /** Soft enter when this row appears after a schedule refresh. */
+  enter?: boolean;
+  /** Brief emphasis after navigating back from an edit-date flow. */
+  highlighted?: boolean;
 }) {
   return (
     <div
+      data-tournament-slug={t.slug}
       className={cn(
         "min-w-0 max-w-full overflow-hidden px-1 py-3.5 transition-colors duration-150 hover:bg-muted/40",
-        compact && "w-full"
+        compact && "w-full",
+        highlighted && "rounded-md bg-primary/10"
       )}
+      style={
+        enter || highlighted
+          ? { animation: ROW_ENTER_ANIMATION }
+          : undefined
+      }
     >
       <Link
         href={`${linkPrefix}/${t.slug}`}
@@ -304,12 +313,55 @@ function SelectedDayPanel({
   group,
   linkPrefix,
   compact = false,
+  highlightSlug = null,
 }: {
   group: DateGroup;
   linkPrefix: string;
   compact?: boolean;
+  highlightSlug?: string | null;
 }) {
   const isEmpty = group.tournaments.length === 0;
+  const knownKeysRef = useRef<Set<string> | null>(null);
+  const [enteringKeys, setEnteringKeys] = useState<Set<string>>(
+    () => new Set()
+  );
+
+  const rowKeys = group.tournaments.map((t) => t.id ?? t.slug);
+  const rowKeysSignature = rowKeys.join("\0");
+
+  useLayoutEffect(() => {
+    const keys = rowKeysSignature === "" ? [] : rowKeysSignature.split("\0");
+    if (knownKeysRef.current === null) {
+      knownKeysRef.current = new Set(keys);
+      return;
+    }
+    const prev = knownKeysRef.current;
+    const entering = new Set(keys.filter((key) => !prev.has(key)));
+    knownKeysRef.current = new Set(keys);
+    if (entering.size === 0) return;
+    setEnteringKeys(entering);
+    const clearId = window.setTimeout(() => {
+      setEnteringKeys(new Set());
+    }, 450);
+    return () => window.clearTimeout(clearId);
+  }, [rowKeysSignature]);
+
+  useEffect(() => {
+    if (!highlightSlug) return;
+    const frame = window.requestAnimationFrame(() => {
+      const nodes = document.querySelectorAll(
+        `[data-tournament-slug="${CSS.escape(highlightSlug)}"]`
+      );
+      for (const el of nodes) {
+        // ViewportSplit keeps both trees mounted; skip the CSS-hidden one.
+        if (el.getClientRects().length === 0) continue;
+        el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        break;
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [highlightSlug, rowKeysSignature]);
+
   return (
     <div className={cn("w-full min-w-0 overflow-hidden", SELECTED_PANEL_MIN_H)}>
       {isEmpty ? (
@@ -328,14 +380,19 @@ function SelectedDayPanel({
             SELECTED_PANEL_MIN_H
           )}
         >
-          {group.tournaments.map((t) => (
-            <TournamentRow
-              key={t.id ?? t.slug}
-              tournament={t}
-              linkPrefix={linkPrefix}
-              compact={compact}
-            />
-          ))}
+          {group.tournaments.map((t) => {
+            const key = t.id ?? t.slug;
+            return (
+              <TournamentRow
+                key={key}
+                tournament={t}
+                linkPrefix={linkPrefix}
+                compact={compact}
+                enter={enteringKeys.has(key)}
+                highlighted={highlightSlug === t.slug}
+              />
+            );
+          })}
         </div>
       )}
     </div>
@@ -349,6 +406,7 @@ function DateGroupSection({
   linkPrefix,
   onSelectDate,
   sectionRef,
+  highlightSlug = null,
 }: {
   group: DateGroup;
   today: string;
@@ -356,6 +414,7 @@ function DateGroupSection({
   linkPrefix: string;
   onSelectDate: (date: string) => void;
   sectionRef?: (el: HTMLElement | null) => void;
+  highlightSlug?: string | null;
 }) {
   const isCalendarToday = group.date === today;
   return (
@@ -397,11 +456,18 @@ function DateGroupSection({
       </h3>
       {isSelected && (
         <div
+          data-day-scroll
           className={cn(
-            "mt-2 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+            "mt-2 overflow-y-auto overscroll-y-contain touch-pan-y [scrollbar-width:thin]",
+            DESKTOP_LIST_MAX_H,
+            "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
           )}
         >
-          <SelectedDayPanel group={group} linkPrefix={linkPrefix} />
+          <SelectedDayPanel
+            group={group}
+            linkPrefix={linkPrefix}
+            highlightSlug={highlightSlug}
+          />
         </div>
       )}
     </section>
@@ -409,20 +475,24 @@ function DateGroupSection({
 }
 
 /**
- * Desktop: date cycler with headings plus a side wheel. Mobile: wheel only
- * (no heading stack) beside a scrollable selected-day list so extra
- * tournaments stay in that pane instead of stretching the page.
+ * Desktop: date cycler with headings plus a side wheel; selected-day list
+ * scrolls when it overflows. Mobile: wheel only (no heading stack) beside a
+ * scrollable selected-day list. The date wheel column always fills the
+ * schedule pane height so it stays vertically centered regardless of how
+ * many tournaments are on the selected day.
  */
 function ChronologicalSchedule({
   tournaments,
   linkPrefix,
   selectedDate,
   onSelectedDateChange,
+  highlightSlug = null,
 }: {
   tournaments: Tournament[];
   linkPrefix: string;
   selectedDate: string;
   onSelectedDateChange: (date: string) => void;
+  highlightSlug?: string | null;
 }) {
   const today = todayISO();
 
@@ -448,6 +518,7 @@ function ChronologicalSchedule({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
+  const wheelAccumulatorRef = useRef(0);
   const sectionRefs = useRef<Map<string, HTMLElement>>(new Map());
   const layoutInitializedRef = useRef(false);
   const [layoutReady, setLayoutReady] = useState(false);
@@ -497,6 +568,7 @@ function ChronologicalSchedule({
     if (!el) return;
 
     function advance(delta: number) {
+      if (delta === 0) return;
       registerWheelActivity();
       const i = groups.findIndex((g) => g.date === selectedDate);
       const safeI =
@@ -509,20 +581,39 @@ function ChronologicalSchedule({
       if (nextDate) onSelectedDateChange(nextDate);
     }
 
-    let wheelAccumulator = 0;
     function onWheel(e: WheelEvent) {
+      // An overflowing selected-day list owns the gesture until it reaches the
+      // edge it's being scrolled toward; then dates resume cycling.
+      const target = e.target as HTMLElement | null;
+      const dayScroll = target?.closest<HTMLElement>("[data-day-scroll]");
+      if (dayScroll && dayScroll.scrollHeight > dayScroll.clientHeight + 1) {
+        const atTop = dayScroll.scrollTop <= 0;
+        const atBottom =
+          dayScroll.scrollTop + dayScroll.clientHeight >=
+          dayScroll.scrollHeight - 1;
+        const towardEdge = e.deltaY > 0 ? atBottom : atTop;
+        if (!towardEdge) {
+          wheelAccumulatorRef.current = 0;
+          return;
+        }
+      }
+
       e.preventDefault();
       if (Math.abs(e.deltaY) < 1) return;
-      wheelAccumulator += e.deltaY;
+      // Ref-held accumulator: this listener re-attaches on every date change,
+      // and a local would drop leftover momentum mid-gesture.
+      wheelAccumulatorRef.current += e.deltaY;
 
-      while (wheelAccumulator >= WHEEL_DELTA_PER_DATE) {
-        advance(1);
-        wheelAccumulator -= WHEEL_DELTA_PER_DATE;
+      let steps = 0;
+      while (wheelAccumulatorRef.current >= WHEEL_DELTA_PER_DATE) {
+        steps += 1;
+        wheelAccumulatorRef.current -= WHEEL_DELTA_PER_DATE;
       }
-      while (wheelAccumulator <= -WHEEL_DELTA_PER_DATE) {
-        advance(-1);
-        wheelAccumulator += WHEEL_DELTA_PER_DATE;
+      while (wheelAccumulatorRef.current <= -WHEEL_DELTA_PER_DATE) {
+        steps -= 1;
+        wheelAccumulatorRef.current += WHEEL_DELTA_PER_DATE;
       }
+      advance(steps);
     }
 
     el.addEventListener("wheel", onWheel, { passive: false });
@@ -583,6 +674,7 @@ function ChronologicalSchedule({
         isSelected={group.date === effectiveSelectedDate}
         linkPrefix={linkPrefix}
         onSelectDate={onSelectedDateChange}
+        highlightSlug={highlightSlug}
         sectionRef={
           withRefs
             ? (el) => {
@@ -606,7 +698,6 @@ function ChronologicalSchedule({
       className={asideClassName}
     >
       <DateScrollWheel
-        className="w-full max-w-full flex-none md:flex-1"
         dates={scheduleDates}
         selectedDate={effectiveSelectedDate}
         onSelect={onSelectedDateChange}
@@ -617,52 +708,58 @@ function ChronologicalSchedule({
   );
 
   return (
-    <ViewportSplit
-      mobileClassName="flex min-h-0 flex-1 flex-col"
-      mobile={
-        <div className="grid min-h-0 w-full max-w-full flex-1 grid-cols-[minmax(0,1fr)_6.75rem] items-stretch gap-2 overflow-x-hidden">
-          <div
-            key={selectedGroup.date}
-            className={cn(
-              "h-full min-h-0 min-w-0 overflow-y-auto overscroll-y-contain touch-pan-y [scrollbar-width:thin]",
-              MOBILE_LIST_MAX_H
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <ViewportSplit
+        mobileClassName="flex min-h-0 flex-1 flex-col"
+        mobile={
+          <div className="grid h-full min-h-0 w-full max-w-full flex-1 grid-cols-[minmax(0,1fr)_6.75rem] items-stretch gap-2 overflow-x-hidden">
+            <div
+              key={selectedGroup.date}
+              className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-y-contain touch-pan-y [scrollbar-width:thin]"
+            >
+              <p className="sr-only">
+                Tournaments on {formatDate(selectedGroup.date)}
+              </p>
+              <SelectedDayPanel
+                group={selectedGroup}
+                linkPrefix={linkPrefix}
+                compact
+                highlightSlug={highlightSlug}
+              />
+            </div>
+            {dateWheel(
+              cn(
+                "col-start-2 row-start-1 flex w-full max-w-[6.75rem] shrink-0 touch-none flex-col overscroll-y-none",
+                WHEEL_COLUMN_H
+              )
             )}
-          >
-            <p className="sr-only">
-              Tournaments on {formatDate(selectedGroup.date)}
-            </p>
-            <SelectedDayPanel
-              group={selectedGroup}
-              linkPrefix={linkPrefix}
-              compact
-            />
           </div>
-          {dateWheel(
-            "col-start-2 row-start-1 flex h-full w-full max-w-[6.75rem] shrink-0 touch-none flex-col overscroll-y-none"
-          )}
-        </div>
-      }
-      desktop={
-        <div
-          className="flex min-h-0 w-full min-w-0 max-w-full flex-1 gap-4 overflow-x-hidden"
-          style={{ visibility: layoutReady ? "visible" : "hidden" }}
-        >
-          {dateWheel(
-            "flex w-[9.5rem] shrink-0 touch-none flex-col self-stretch overscroll-y-none md:flex-none"
-          )}
-
+        }
+        desktop={
           <div
-            ref={containerRef}
-            className="relative min-h-0 min-w-0 flex-1 select-none overflow-hidden outline-none"
-            aria-roledescription="date cycler"
+            className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 gap-4 overflow-x-hidden"
+            style={{ visibility: layoutReady ? "visible" : "hidden" }}
           >
-            <div ref={stackRef} className="will-change-transform">
-              <div className="space-y-3 pb-12 pt-2">{dateSections(true)}</div>
+            {dateWheel(
+              cn(
+                "flex w-[9.5rem] shrink-0 touch-none flex-col overscroll-y-none md:flex-none",
+                WHEEL_COLUMN_H
+              )
+            )}
+
+            <div
+              ref={containerRef}
+              className="relative h-full min-h-0 min-w-0 flex-1 select-none overflow-hidden outline-none"
+              aria-roledescription="date cycler"
+            >
+              <div ref={stackRef} className="will-change-transform">
+                <div className="space-y-3 pb-12 pt-2">{dateSections(true)}</div>
+              </div>
             </div>
           </div>
-        </div>
-      }
-    />
+        }
+      />
+    </div>
   );
 }
 
@@ -673,6 +770,7 @@ export function TournamentGrid({
   tournaments: Tournament[];
   linkPrefix?: string;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [genderFilter, setGenderFilter] = useState<Set<TeamGender>>(
     () => new Set()
@@ -682,13 +780,34 @@ export function TournamentGrid({
   );
   const [hideArchived, setHideArchived] = useState(false);
   const [registrationOpenOnly, setRegistrationOpenOnly] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(todayISO);
+  const [selectedDate, setSelectedDate] = useState(() => todayISO());
+  const [highlightSlug, setHighlightSlug] = useState<string | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [now, setNow] = useState(() => new Date().toISOString());
   const today = todayISO();
+  const todaySyncedRef = useRef(today);
+
+  // After edit-date, land on the new day and refresh so late RSC updates
+  // animate in instead of snapping mid-view.
+  useEffect(() => {
+    const focus = takeTournamentScheduleFocus();
+    if (!focus) return;
+    setSelectedDate(focus.date);
+    setHighlightSlug(focus.slug);
+    router.refresh();
+  }, [router]);
 
   useEffect(() => {
+    if (!highlightSlug) return;
+    const clearId = window.setTimeout(() => setHighlightSlug(null), 1600);
+    return () => window.clearTimeout(clearId);
+  }, [highlightSlug]);
+
+  // Day rollover only — skip the initial mount so a schedule-focus hint wins.
+  useEffect(() => {
+    if (todaySyncedRef.current === today) return;
+    todaySyncedRef.current = today;
     setSelectedDate(today);
   }, [today]);
 
@@ -877,6 +996,7 @@ export function TournamentGrid({
           linkPrefix={linkPrefix}
           selectedDate={selectedDate}
           onSelectedDateChange={setSelectedDate}
+          highlightSlug={highlightSlug}
         />
       )}
     </div>

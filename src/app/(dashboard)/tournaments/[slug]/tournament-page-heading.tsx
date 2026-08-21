@@ -43,6 +43,7 @@ import {
   updateTournamentListingDetails,
 } from "../actions";
 import { isTournamentArchived } from "@/lib/tournament-status";
+import { setTournamentScheduleFocus } from "@/lib/tournaments/schedule-focus";
 import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -343,6 +344,9 @@ export function TournamentPageHeading({
       setDateSaving(false);
       return;
     }
+    // Land the schedule on this day when the host navigates back — soft
+    // navigation can briefly show stale placement before the list refreshes.
+    setTournamentScheduleFocus({ date: next, slug });
     setDateOpen(false);
     setDateSaving(false);
     router.refresh();
