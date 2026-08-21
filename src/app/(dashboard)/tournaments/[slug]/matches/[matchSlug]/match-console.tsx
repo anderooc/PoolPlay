@@ -99,7 +99,6 @@ interface ConsoleSettings {
 const SAVE_DEBOUNCE_MS = 1000;
 
 export function MatchConsole({
-  slug,
   tournamentId,
   tournamentDate,
   match,
@@ -109,7 +108,6 @@ export function MatchConsole({
   isOrganizer,
   isRefMember,
 }: {
-  slug: string;
   tournamentId: string;
   tournamentDate: string;
   match: ConsoleMatch;
@@ -155,8 +153,12 @@ export function MatchConsole({
   const [selectedSetNumber, setSelectedSetNumber] = useState(liveSetNumber);
   const prevLiveSetRef = useRef(liveSetNumber);
 
+  // Runs only when the console switches matches. Reacting to liveSetNumber here
+  // would yank the ref off an earlier set they opened for corrections; the effect
+  // below follows the live set instead.
   useEffect(() => {
     setSelectedSetNumber(liveSetNumber);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match.id]);
 
   // Follow the live set when it advances, unless the ref is editing an older set.

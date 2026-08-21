@@ -204,7 +204,6 @@ export default async function MatchPage({ params }: Props) {
     <div className="space-y-6">
       <BackLink href={backHref}>{backLabel}</BackLink>
       <MatchConsole
-        slug={slug}
         tournamentId={tournament.id}
         tournamentDate={tournament.date}
         match={{

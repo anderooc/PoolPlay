@@ -232,9 +232,10 @@ export function TournamentChatPanel({
 
   const activeChannel =
     channels.find((channel) => channel.id === activeChannelId) ?? channels[0];
-  const activeMessages = activeChannel
-    ? (messagesByChannel[activeChannel.id] ?? [])
-    : [];
+  const activeMessages = useMemo(
+    () => (activeChannel ? (messagesByChannel[activeChannel.id] ?? []) : []),
+    [activeChannel, messagesByChannel]
+  );
   const messageGroups = useMemo(
     () => groupMessagesByDay(activeMessages),
     [activeMessages]

@@ -26,7 +26,6 @@ import {
   loadRecentChatMessages,
   type ChatMessageRow,
 } from "@/lib/tournaments/chat-unread";
-import type { TournamentChatChannelKind } from "@/types";
 import { ensureTournamentChatForPage } from "../chat/actions";
 import { TournamentChatPanel } from "../chat-panel";
 

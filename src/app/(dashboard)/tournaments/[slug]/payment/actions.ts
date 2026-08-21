@@ -33,7 +33,6 @@ import {
   backfillRegistrationPayments,
   getPaymentsByRegistrationIds,
 } from "@/lib/tournaments/payment-compliance";
-import { paymentSettingsFromTournament } from "@/lib/tournaments/payment-access";
 import {
   canEditTournamentSetup,
   resolveIsTournamentOrganizer,

@@ -36,7 +36,7 @@ import {
 } from "@/lib/tournaments/permissions";
 import { getMatchTournamentId } from "@/lib/tournaments/match-query";
 import { assertNoCourtScheduleConflict } from "@/lib/tournaments/court-schedule";
-import { tryFillBracketFromPoolPlay, assignBracketRefsForBracket } from "@/lib/tournaments/bracket-structure";
+import { assignBracketRefsForBracket } from "@/lib/tournaments/bracket-structure";
 import { revertTournamentIfBracketsIncomplete } from "@/lib/tournaments/tournament-completion";
 import {
   upsertSetScore,

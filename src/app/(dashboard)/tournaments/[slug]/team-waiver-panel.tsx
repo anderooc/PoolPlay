@@ -89,7 +89,6 @@ export function TeamWaiverPanel({
   if (!settings.enabled || teams.length === 0) return null;
 
   async function runAction(
-    teamId: string,
     playerUserId: string,
     action: () => Promise<{ error?: string; success?: boolean }>
   ) {
@@ -186,7 +185,7 @@ export function TeamWaiverPanel({
                       size="sm"
                       disabled={busyUserId === currentUserId}
                       onClick={() =>
-                        void runAction(team.teamId, currentUserId, () =>
+                        void runAction(currentUserId, () =>
                           acknowledgeWaiverDigitally(
                             tournamentId,
                             team.teamId,
@@ -241,7 +240,7 @@ export function TeamWaiverPanel({
                               variant="outline"
                               disabled={busy}
                               onClick={() =>
-                                void runAction(team.teamId, member.userId, () =>
+                                void runAction(member.userId, () =>
                                   hostWaivePlayerWaiver(
                                     tournamentId,
                                     team.teamId,
@@ -260,7 +259,7 @@ export function TeamWaiverPanel({
                               variant="outline"
                               disabled={busy}
                               onClick={() =>
-                                void runAction(team.teamId, member.userId, () =>
+                                void runAction(member.userId, () =>
                                   captainAttestWaiverPlayer(
                                     tournamentId,
                                     team.teamId,
@@ -283,7 +282,7 @@ export function TeamWaiverPanel({
                               variant="ghost"
                               disabled={busy}
                               onClick={() =>
-                                void runAction(team.teamId, member.userId, () =>
+                                void runAction(member.userId, () =>
                                   clearWaiverCompletion(
                                     tournamentId,
                                     team.teamId,

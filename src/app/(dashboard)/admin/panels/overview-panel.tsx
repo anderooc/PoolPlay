@@ -20,13 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatSnakeCaseLabel } from "@/lib/utils/format-label";
 import { Users, Trophy, Group, Flag, Calendar, UserCog } from "lucide-react";
 import { db } from "@/lib/db";
-import {
-  users,
-  tournaments,
-  teams,
-  contentFlags,
-  registrations,
-} from "@/lib/db/schema";
+import { users, contentFlags } from "@/lib/db/schema";
 import { isNull, sql } from "drizzle-orm";
 import { todayISO } from "@/lib/tournament-status";
 
