@@ -1,0 +1,185 @@
+/*
+ * brackt - Collegiate club volleyball tournament hub
+ * Copyright (C) 2026 Andrew Chang
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+import type {
+  ApiErrorBody,
+  ApiErrorCode,
+  ApiSuccessBody,
+} from "@/lib/api/contracts/envelope";
+import { supabase } from "~/auth/supabase";
+import { API_BASE_URL } from "./config";
+
+/** Mirrors the server's error envelope; carries the code the UI branches on. */
+export class ApiClientError extends Error {
+  readonly code: ApiErrorCode | "network_error" | "malformed_response";
+  readonly status: number;
+  readonly details?: Record<string, string[]>;
+
+  constructor(
+    code: ApiClientError["code"],
+    message: string,
+    status: number,
+    details?: Record<string, string[]>
+  ) {
+    super(message);
+    this.name = "ApiClientError";
+    this.code = code;
+    this.status = status;
+    this.details = details;
+  }
+
+  /** True when signing the user out is the correct response. */
+  get isAuthFailure(): boolean {
+    return this.code === "unauthorized" || this.code === "forbidden";
+  }
+}
+
+interface RequestOptions {
+  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+  body?: unknown;
+  query?: Record<string, string | number | undefined>;
+  /** Send the access token. Public endpoints can skip it. */
+  authenticated?: boolean;
+  signal?: AbortSignal;
+}
+
+function buildUrl(path: string, query?: RequestOptions["query"]): string {
+  const url = new URL(`${API_BASE_URL}${path}`);
+  if (query) {
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined) url.searchParams.set(key, String(value));
+    }
+  }
+  return url.toString();
+}
+
+async function accessToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
+function isErrorBody(body: unknown): body is ApiErrorBody {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    "error" in body &&
+    typeof (body as ApiErrorBody).error?.code === "string"
+  );
+}
+
+async function parseBody(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    // A proxy, captive portal, or crash page can return HTML with any status.
+    throw new ApiClientError(
+      "malformed_response",
+      "The server returned an unreadable response.",
+      response.status
+    );
+  }
+}
+
+async function performRequest(
+  path: string,
+  options: RequestOptions
+): Promise<Response> {
+  const headers: Record<string, string> = { Accept: "application/json" };
+
+  if (options.body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (options.authenticated !== false) {
+    const token = await accessToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+
+  try {
+    return await fetch(buildUrl(path, options.query), {
+      method: options.method ?? "GET",
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: options.signal,
+    });
+  } catch (cause) {
+    // Gyms have famously bad reception; this is the common case, not an edge.
+    throw new ApiClientError(
+      "network_error",
+      "Can't reach brackt. Check your connection and try again.",
+      0
+    );
+  }
+}
+
+/**
+ * Issues a request and unwraps the response envelope.
+ *
+ * A `token_expired` response triggers one forced refresh and a single retry.
+ * Supabase refreshes on its own timer, but that timer is paused while the app
+ * is backgrounded, so the first request after resuming can legitimately race a
+ * expiring token.
+ */
+export async function apiRequest<T>(
+  path: string,
+  options: RequestOptions = {}
+): Promise<T> {
+  let response = await performRequest(path, options);
+  let body = await parseBody(response);
+
+  if (
+    response.status === 401 &&
+    isErrorBody(body) &&
+    body.error.code === "token_expired" &&
+    options.authenticated !== false
+  ) {
+    const { error } = await supabase.auth.refreshSession();
+    if (!error) {
+      response = await performRequest(path, options);
+      body = await parseBody(response);
+    }
+  }
+
+  if (!response.ok) {
+    if (isErrorBody(body)) {
+      throw new ApiClientError(
+        body.error.code,
+        body.error.message,
+        response.status,
+        body.error.details
+      );
+    }
+    throw new ApiClientError(
+      "malformed_response",
+      `Request failed with status ${response.status}.`,
+      response.status
+    );
+  }
+
+  const success = body as ApiSuccessBody<T> | null;
+  if (!success || !("data" in success)) {
+    throw new ApiClientError(
+      "malformed_response",
+      "The server response was missing its payload.",
+      response.status
+    );
+  }
+
+  return success.data;
+}

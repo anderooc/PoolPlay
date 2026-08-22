@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     ".cursor/**",
     "graphify-out/**",
     "next-env.d.ts",
+    // The Expo app has its own toolchain and TypeScript version; linting React
+    // Native sources with the Next.js config produces only false positives.
+    "mobile/**",
   ]),
   {
     rules: {
