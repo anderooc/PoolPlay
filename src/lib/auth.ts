@@ -55,19 +55,22 @@ export const getCurrentAuthProfile = cache(async function getCurrentAuthProfile(
 });
 
 /**
- * De-duplicates the auth-user + DB lookup within a single server request.
- * Layouts, pages, and components that all call getCurrentUser() share one
- * result instead of each triggering their own round-trips to Supabase Auth
- * and the database.
+ * The subset of a Supabase auth user this module needs. Declared structurally
+ * so callers can pass a user resolved from a cookie session or from a bearer
+ * token without the two paths diverging.
  */
-export const getCurrentUser = cache(async () => {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+export interface AuthIdentity {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+}
 
-  if (!authUser) return null;
-
+/**
+ * Maps a Supabase auth identity onto the application `users` row, applying
+ * admin bootstrap and healing a missing row. Shared by every transport so the
+ * web session and the mobile API always agree on who the caller is.
+ */
+export async function resolveAppUser(authUser: AuthIdentity) {
   const bootstrapAdmins = adminBootstrapEmails();
   const email = (authUser.email ?? "").toLowerCase();
   const shouldBeAdmin = email.length > 0 && bootstrapAdmins.has(email);
@@ -113,6 +116,26 @@ export const getCurrentUser = cache(async () => {
     .returning();
 
   return newUser ?? null;
+}
+
+/** The application user row, as every transport resolves it. */
+export type AppUser = NonNullable<Awaited<ReturnType<typeof resolveAppUser>>>;
+
+/**
+ * De-duplicates the auth-user + DB lookup within a single server request.
+ * Layouts, pages, and components that all call getCurrentUser() share one
+ * result instead of each triggering their own round-trips to Supabase Auth
+ * and the database.
+ */
+export const getCurrentUser = cache(async () => {
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (!authUser) return null;
+
+  return resolveAppUser(authUser);
 });
 
 export async function requireUser() {

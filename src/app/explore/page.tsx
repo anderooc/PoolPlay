@@ -16,12 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { unstable_cache } from "next/cache";
 import { SiteHeader } from "@/components/layout/site-header";
 import { getCurrentAuthProfile } from "@/lib/auth";
 import { TournamentGrid } from "@/components/tournament-grid";
-import { PUBLIC_TOURNAMENTS_CACHE_TAG } from "@/lib/tournaments/public-cache";
-import { loadPublicTournamentList } from "@/lib/tournaments/public-list-loader";
+import { getCachedPublicTournamentList } from "@/lib/tournaments/public-list-cache";
 import { pageMetadata } from "@/lib/metadata";
 import { PublicSiteFooter } from "@/components/layout/public-site-footer";
 
@@ -33,15 +31,10 @@ export const metadata = pageMetadata(
 
 export const dynamic = "force-dynamic";
 
-const getPublicTournaments = unstable_cache(
-  loadPublicTournamentList,
-  ["public-tournaments"],
-  { revalidate: 60, tags: [PUBLIC_TOURNAMENTS_CACHE_TAG] }
-);
 export default async function ExplorePage() {
   const [user, allTournaments] = await Promise.all([
     getCurrentAuthProfile(),
-    getPublicTournaments(),
+    getCachedPublicTournamentList(),
   ]);
 
   return (
