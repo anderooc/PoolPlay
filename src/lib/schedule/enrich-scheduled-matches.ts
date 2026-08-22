@@ -31,6 +31,7 @@ import {
   warmupMinutesForFormat,
   type WarmupFormat,
 } from "@/lib/labels/warmup-format";
+import type { TeamGender, TeamRegion } from "@/types";
 
 export type ScheduledMatchRow = typeof matches.$inferSelect;
 
@@ -41,6 +42,8 @@ export type EnrichedScheduledMatch = ScheduledMatchRow & {
   refTeamName: string | null;
   contextLabel: string;
   warmupStart: Date | null;
+  gender: TeamGender;
+  region: TeamRegion;
 };
 
 /** Batch-load related rows for scheduled matches (avoids per-match N+1 queries). */
@@ -53,8 +56,10 @@ export async function enrichScheduledMatches(
   const courtIds = new Set<string>();
   const poolIds = new Set<string>();
   const bracketIds = new Set<string>();
+  const tournamentIds = new Set<string>();
 
   for (const match of scheduledMatches) {
+    tournamentIds.add(match.tournamentId);
     if (match.teamAId) teamIds.add(match.teamAId);
     if (match.teamBId) teamIds.add(match.teamBId);
     if (match.refTeamId) teamIds.add(match.refTeamId);
@@ -63,49 +68,61 @@ export async function enrichScheduledMatches(
     if (match.bracketId) bracketIds.add(match.bracketId);
   }
 
-  const [teamRows, courtRows, poolRows, bracketRows] = await Promise.all([
-    teamIds.size > 0
-      ? db
-          .select({ id: teams.id, name: teams.name })
-          .from(teams)
-          .where(inArray(teams.id, [...teamIds]))
-      : Promise.resolve([]),
-    courtIds.size > 0
-      ? db
-          .select({ id: courts.id, name: courts.name })
-          .from(courts)
-          .where(inArray(courts.id, [...courtIds]))
-      : Promise.resolve([]),
-    poolIds.size > 0
-      ? db
-          .select({
-            id: pools.id,
-            name: pools.name,
-            warmupFormat: tournaments.warmupFormat,
-          })
-          .from(pools)
-          .innerJoin(divisions, eq(pools.divisionId, divisions.id))
-          .innerJoin(tournaments, eq(divisions.tournamentId, tournaments.id))
-          .where(inArray(pools.id, [...poolIds]))
-      : Promise.resolve([]),
-    bracketIds.size > 0
-      ? db
-          .select({
-            id: brackets.id,
-            warmupFormat: tournaments.warmupFormat,
-          })
-          .from(brackets)
-          .innerJoin(divisions, eq(brackets.divisionId, divisions.id))
-          .innerJoin(tournaments, eq(divisions.tournamentId, tournaments.id))
-          .where(inArray(brackets.id, [...bracketIds]))
-      : Promise.resolve([]),
-  ]);
+  const [teamRows, courtRows, poolRows, bracketRows, tournamentRows] =
+    await Promise.all([
+      teamIds.size > 0
+        ? db
+            .select({ id: teams.id, name: teams.name })
+            .from(teams)
+            .where(inArray(teams.id, [...teamIds]))
+        : Promise.resolve([]),
+      courtIds.size > 0
+        ? db
+            .select({ id: courts.id, name: courts.name })
+            .from(courts)
+            .where(inArray(courts.id, [...courtIds]))
+        : Promise.resolve([]),
+      poolIds.size > 0
+        ? db
+            .select({
+              id: pools.id,
+              name: pools.name,
+              warmupFormat: tournaments.warmupFormat,
+            })
+            .from(pools)
+            .innerJoin(divisions, eq(pools.divisionId, divisions.id))
+            .innerJoin(tournaments, eq(divisions.tournamentId, tournaments.id))
+            .where(inArray(pools.id, [...poolIds]))
+        : Promise.resolve([]),
+      bracketIds.size > 0
+        ? db
+            .select({
+              id: brackets.id,
+              warmupFormat: tournaments.warmupFormat,
+            })
+            .from(brackets)
+            .innerJoin(divisions, eq(brackets.divisionId, divisions.id))
+            .innerJoin(tournaments, eq(divisions.tournamentId, tournaments.id))
+            .where(inArray(brackets.id, [...bracketIds]))
+        : Promise.resolve([]),
+      db
+        .select({
+          id: tournaments.id,
+          gender: tournaments.gender,
+          region: tournaments.region,
+        })
+        .from(tournaments)
+        .where(inArray(tournaments.id, [...tournamentIds])),
+    ]);
 
   const teamNameById = new Map(teamRows.map((row) => [row.id, row.name]));
   const courtNameById = new Map(courtRows.map((row) => [row.id, row.name]));
   const poolById = new Map(poolRows.map((row) => [row.id, row]));
   const bracketWarmupById = new Map(
     bracketRows.map((row) => [row.id, row.warmupFormat])
+  );
+  const tournamentById = new Map(
+    tournamentRows.map((row) => [row.id, row])
   );
 
   return scheduledMatches.map((match) => {
@@ -129,6 +146,13 @@ export async function enrichScheduledMatches(
         ? new Date(match.scheduledTime.getTime() - warmupMinutes * 60 * 1000)
         : null;
 
+    const tournament = tournamentById.get(match.tournamentId);
+    if (!tournament) {
+      throw new Error(
+        `Scheduled match ${match.id} references missing tournament ${match.tournamentId}`
+      );
+    }
+
     return {
       ...match,
       teamAName: (match.teamAId && teamNameById.get(match.teamAId)) || "TBD",
@@ -139,6 +163,8 @@ export async function enrichScheduledMatches(
         (match.refTeamId && teamNameById.get(match.refTeamId)) ?? null,
       contextLabel,
       warmupStart,
+      gender: tournament.gender,
+      region: tournament.region,
     };
   });
 }

@@ -20,13 +20,13 @@ import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { matches, tournaments } from "@/lib/db/schema";
 import { eq, isNotNull, asc } from "drizzle-orm";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState } from "@/components/ui/empty-state";
-import { CalendarClock } from "lucide-react";
 import { redirect } from "next/navigation";
-import { format } from "date-fns";
 import { ScheduleControls } from "./schedule-controls";
+import {
+  ScheduleMatchList,
+  type ScheduleMatchListItem,
+} from "./schedule-match-list";
 import { enrichScheduledMatches } from "@/lib/schedule/enrich-scheduled-matches";
 import { pageMetadata } from "@/lib/metadata";
 
@@ -50,14 +50,19 @@ export default async function SchedulePage() {
 
   const enrichedMatches = await enrichScheduledMatches(scheduledMatches);
 
-  const byDate = new Map<string, typeof enrichedMatches>();
-  for (const match of enrichedMatches) {
-    const dateKey = match.scheduledTime
-      ? format(match.scheduledTime, "yyyy-MM-dd")
-      : "unscheduled";
-    if (!byDate.has(dateKey)) byDate.set(dateKey, []);
-    byDate.get(dateKey)!.push(match);
-  }
+  const listItems: ScheduleMatchListItem[] = enrichedMatches.map((match) => ({
+    id: match.id,
+    status: match.status,
+    scheduledTime: match.scheduledTime?.toISOString() ?? null,
+    warmupStart: match.warmupStart?.toISOString() ?? null,
+    teamAName: match.teamAName,
+    teamBName: match.teamBName,
+    courtName: match.courtName,
+    refTeamName: match.refTeamName,
+    contextLabel: match.contextLabel,
+    gender: match.gender,
+    region: match.region,
+  }));
 
   return (
     <div className="space-y-8">
@@ -70,85 +75,7 @@ export default async function SchedulePage() {
         <ScheduleControls tournaments={userTournaments} />
       ) : null}
 
-      {enrichedMatches.length === 0 ? (
-        <EmptyState
-          icon={CalendarClock}
-          title="No scheduled matches yet"
-          description="Create a tournament and generate pools or brackets, then auto-schedule to see matches here."
-        />
-      ) : (
-        <div className="space-y-8">
-          {[...byDate.entries()].map(([dateKey, dayMatches]) => (
-            <section key={dateKey} className="space-y-3">
-              <h2 className="text-sm font-semibold tracking-tight text-foreground">
-                {dateKey === "unscheduled"
-                  ? "Unscheduled"
-                  : format(
-                      new Date(dateKey + "T00:00:00"),
-                      "EEE, MMM d, yyyy"
-                    )}
-              </h2>
-              <div className="list-stack border-y border-border/70">
-                {dayMatches.map((match) => {
-                  const meta = [
-                    match.courtName,
-                    match.contextLabel || null,
-                    match.refTeamName ? `Ref ${match.refTeamName}` : null,
-                  ].filter(Boolean);
-
-                  return (
-                    <div
-                      key={match.id}
-                      className="flex flex-col gap-2.5 px-1 py-3.5 transition-colors duration-150 ease-out hover:bg-muted/45 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
-                    >
-                      <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-                        <div className="flex items-start justify-between gap-3 sm:contents">
-                          {match.scheduledTime ? (
-                            <div className="flex shrink-0 flex-col sm:w-[4.5rem] sm:items-end">
-                              <span className="text-sm font-medium tabular-nums text-foreground sm:text-muted-foreground">
-                                {format(match.scheduledTime, "h:mm a")}
-                              </span>
-                              {match.warmupStart ? (
-                                <span className="text-[10px] font-normal uppercase tracking-wide text-muted-foreground/70">
-                                  Warmup {format(match.warmupStart, "h:mm")}
-                                </span>
-                              ) : null}
-                            </div>
-                          ) : null}
-                          <StatusBadge
-                            kind="match"
-                            status={match.status}
-                            className="shrink-0 sm:hidden"
-                          />
-                        </div>
-
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <p className="font-medium leading-snug sm:truncate">
-                            {match.teamAName}
-                            <span className="text-muted-foreground"> vs </span>
-                            {match.teamBName}
-                          </p>
-                          {meta.length > 0 ? (
-                            <p className="text-sm text-muted-foreground sm:truncate">
-                              {meta.join(" · ")}
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <StatusBadge
-                        kind="match"
-                        status={match.status}
-                        className="hidden shrink-0 self-center sm:inline-flex"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
+      <ScheduleMatchList matches={listItems} />
     </div>
   );
 }
