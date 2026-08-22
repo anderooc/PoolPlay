@@ -179,6 +179,7 @@ export function TournamentListFilters({
                   label={TEAM_GENDER_LABELS[value]}
                   pressed={genderFilter.has(value)}
                   onClick={() => onToggleGender(value)}
+                  tone={value === "mens" ? "primary" : "secondary"}
                 />
               ))}
             </div>
