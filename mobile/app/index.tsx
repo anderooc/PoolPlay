@@ -17,81 +17,46 @@
  */
 
 import type { TournamentListItemContract } from "@/lib/api/contracts/tournament";
-import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import type { TeamGender, TeamRegion } from "@/types";
+import { router, useNavigation } from "expo-router";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { ApiClientError } from "~/api/client";
 import { fetchTournaments } from "~/api/endpoints";
 import { useSession } from "~/auth/session";
 import {
-  formatCalendarDate,
-  TOURNAMENT_STATUS_LABELS,
+  formatScheduleHeading,
+  parseISODate,
+  todayISO,
 } from "~/lib/format";
-import { useThemeColors, type ThemeColors } from "~/theme/colors";
+import { useThemeColors, withAlpha, type ThemeColors } from "~/theme/colors";
+import { DateRail } from "~/tournament/date-rail";
+import {
+  buildScheduleGroups,
+  countActiveTournamentFilters,
+  emptyScheduleCopy,
+  filterTournamentList,
+  toggleSetValue,
+} from "~/tournament/filter-tournament-list";
+import { ListFiltersSheet } from "~/tournament/list-filters";
+import { MonthCalendar } from "~/tournament/month-calendar";
+import { ScheduleRow } from "~/tournament/schedule-row";
+import { ErrorScreen, LoadingScreen } from "~/tournament/screen-state";
 
-function TournamentCard({
-  tournament,
-  colors,
-}: {
-  tournament: TournamentListItemContract;
-  colors: ThemeColors;
-}) {
-  const { registrationAvailability: availability } = tournament;
-  const spotsLeft =
-    availability.capacity === null
-      ? null
-      : Math.max(0, availability.capacity - availability.registeredCount);
-
-  return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: colors.card, borderColor: colors.border },
-      ]}
-    >
-      <View style={styles.cardHeader}>
-        <Text style={[styles.cardDate, { color: colors.primary }]}>
-          {formatCalendarDate(tournament.date)}
-        </Text>
-        <Text style={[styles.cardStatus, { color: colors.mutedForeground }]}>
-          {TOURNAMENT_STATUS_LABELS[tournament.status] ?? tournament.status}
-        </Text>
-      </View>
-
-      <Text style={[styles.cardTitle, { color: colors.foreground }]}>
-        {tournament.name}
-      </Text>
-      <Text style={[styles.cardMeta, { color: colors.mutedForeground }]}>
-        {tournament.location}
-      </Text>
-
-      {tournament.hostSchool ? (
-        <Text style={[styles.cardMeta, { color: colors.secondary }]}>
-          Hosted by {tournament.hostSchool.name}
-        </Text>
-      ) : null}
-
-      <Text style={[styles.cardFooter, { color: colors.mutedForeground }]}>
-        {availability.registeredCount} registered
-        {spotsLeft !== null ? ` · ${spotsLeft} spots left` : ""}
-        {availability.waitlistCount > 0
-          ? ` · ${availability.waitlistCount} waitlisted`
-          : ""}
-      </Text>
-    </View>
-  );
-}
+const LIST_LIMIT = 100;
 
 export default function TournamentsScreen() {
   const colors = useThemeColors();
+  const navigation = useNavigation();
   const { session } = useSession();
 
   const [tournaments, setTournaments] = useState<
@@ -99,11 +64,29 @@ export default function TournamentsScreen() {
   >(null);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [query, setQuery] = useState("");
+  const [genderFilter, setGenderFilter] = useState<Set<TeamGender>>(
+    () => new Set()
+  );
+  const [regionFilter, setRegionFilter] = useState<Set<TeamRegion>>(
+    () => new Set()
+  );
+  const [hideArchived, setHideArchived] = useState(false);
+  const [registrationOpenOnly, setRegistrationOpenOnly] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => todayISO());
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const today = parseISODate(todayISO());
+    return { year: today.getFullYear(), monthIndex: today.getMonth() };
+  });
+  const [now, setNow] = useState(() => new Date().toISOString());
+  const today = todayISO();
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
       setError(null);
-      const page = await fetchTournaments({ limit: 50 }, signal);
+      const page = await fetchTournaments({ limit: LIST_LIMIT }, signal);
       setTournaments(page.tournaments);
     } catch (cause) {
       if (signal?.aborted) return;
@@ -121,84 +104,407 @@ export default function TournamentsScreen() {
     return () => controller.abort();
   }, [load]);
 
+  useEffect(() => {
+    if (!registrationOpenOnly) return;
+    const id = setInterval(() => setNow(new Date().toISOString()), 30_000);
+    return () => clearInterval(id);
+  }, [registrationOpenOnly]);
+
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
+    setNow(new Date().toISOString());
     await load();
     setIsRefreshing(false);
   }, [load]);
 
+  const activeCount = countActiveTournamentFilters({
+    genderFilter,
+    regionFilter,
+    hideArchived,
+    registrationOpenOnly,
+  });
+  const hasActiveFilters = activeCount > 0;
+
+  const filtered = useMemo(() => {
+    if (!tournaments) return [];
+    return filterTournamentList(tournaments, {
+      query,
+      genderFilter,
+      regionFilter,
+      hideArchived,
+      registrationOpenOnly,
+      today,
+      now,
+    });
+  }, [
+    tournaments,
+    query,
+    genderFilter,
+    regionFilter,
+    hideArchived,
+    registrationOpenOnly,
+    today,
+    now,
+  ]);
+
+  const groups = useMemo(
+    () => buildScheduleGroups(filtered, { today, selectedDate }),
+    [filtered, today, selectedDate]
+  );
+  const selectedGroup =
+    groups.find((group) => group.date === selectedDate) ?? {
+      date: selectedDate,
+      tournaments: [] as TournamentListItemContract[],
+    };
+  const markedDates = useMemo(
+    () => new Set(filtered.map((tournament) => tournament.date)),
+    [filtered]
+  );
+
+  const clearFilters = useCallback(() => {
+    setGenderFilter(new Set());
+    setRegionFilter(new Set());
+    setHideArchived(false);
+    setRegistrationOpenOnly(false);
+  }, []);
+
+  function handleCalendarSelect(iso: string) {
+    setSelectedDate(iso);
+    setCalendarOpen(false);
+  }
+
+  function openCalendar() {
+    const next = parseISODate(selectedDate);
+    setCalendarMonth({ year: next.getFullYear(), monthIndex: next.getMonth() });
+    setCalendarOpen((open) => !open);
+  }
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: session
+        ? () => null
+        : () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Sign in"
+              onPress={() => router.push("/sign-in")}
+              hitSlop={8}
+              style={{ paddingHorizontal: 4, paddingVertical: 6 }}
+            >
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontWeight: "600",
+                  fontSize: 16,
+                }}
+              >
+                Sign in
+              </Text>
+            </Pressable>
+          ),
+    });
+  }, [colors.primary, navigation, session]);
+
   if (tournaments === null && error === null) {
+    return <LoadingScreen />;
+  }
+
+  if (tournaments === null && error) {
     return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
+      <ErrorScreen
+        title="Couldn’t load tournaments"
+        message={error}
+        onRetry={() => void load()}
+      />
     );
   }
 
+  const empty =
+    filtered.length === 0
+      ? emptyScheduleCopy({
+          loadedCount: tournaments?.length ?? 0,
+          query,
+          hasActiveFilters,
+        })
+      : null;
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <FlatList
-        data={tournaments ?? []}
-        keyExtractor={(item) => item.slug}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
+      <View style={styles.toolbar}>
+        <View style={styles.toolbarRow}>
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search tournaments…"
+            placeholderTextColor={colors.mutedForeground}
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+            accessibilityLabel="Search tournaments"
+            style={[
+              styles.search,
+              {
+                color: colors.foreground,
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
           />
-        }
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <Pressable
-              onPress={() =>
-                router.push(session ? "/profile" : "/sign-in")
-              }
-              style={[styles.authButton, { borderColor: colors.border }]}
-            >
-              <Text style={{ color: colors.primary, fontWeight: "600" }}>
-                {session ? "Profile" : "Sign in"}
-              </Text>
-            </Pressable>
-          </View>
-        }
-        renderItem={({ item }) => (
+          <FilterButton
+            activeCount={activeCount}
+            colors={colors}
+            onPress={() => setFiltersOpen(true)}
+          />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${item.name}, ${formatCalendarDate(item.date)}`}
-            onPress={() => router.push(`/tournament/${item.slug}`)}
+            accessibilityLabel={`Calendar, ${formatScheduleHeading(selectedDate)} selected`}
+            onPress={openCalendar}
+            style={[
+              styles.toolButton,
+              {
+                borderColor: colors.border,
+                backgroundColor:
+                  calendarOpen || selectedDate !== today
+                    ? colors.muted
+                    : "transparent",
+              },
+            ]}
           >
-            <TournamentCard tournament={item} colors={colors} />
-          </Pressable>
-        )}
-        ListEmptyComponent={
-          <View style={styles.centered}>
-            <Text style={{ color: colors.mutedForeground }}>
-              {error ?? "No tournaments posted yet."}
+            <Text style={[styles.toolButtonLabel, { color: colors.foreground }]}>
+              Calendar
             </Text>
+          </Pressable>
+        </View>
+
+        {calendarOpen ? (
+          <MonthCalendar
+            selectedDate={selectedDate}
+            today={today}
+            markedDates={markedDates}
+            month={calendarMonth}
+            onMonthChange={setCalendarMonth}
+            onSelectDate={handleCalendarSelect}
+          />
+        ) : null}
+      </View>
+
+      {empty ? (
+        <ScrollView
+          contentContainerStyle={styles.empty}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+            {empty.title}
+          </Text>
+          <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>
+            {empty.body}
+          </Text>
+        </ScrollView>
+      ) : (
+        <View style={styles.split}>
+          <View style={styles.dayPane}>
+            <View style={styles.dayHeading}>
+              {selectedDate === today ? (
+                <View
+                  style={[
+                    styles.todayChip,
+                    { backgroundColor: withAlpha(colors.primary, 0.12) },
+                  ]}
+                >
+                  <Text style={[styles.todayChipLabel, { color: colors.primary }]}>
+                    Today
+                  </Text>
+                </View>
+              ) : null}
+              <Text
+                style={[styles.dayTitle, { color: colors.foreground }]}
+                accessibilityRole="header"
+              >
+                {formatScheduleHeading(selectedDate)}
+              </Text>
+            </View>
+            <FlatList
+              data={selectedGroup.tournaments}
+              keyExtractor={(item) => item.slug}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.dayList}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={onRefresh}
+                  tintColor={colors.primary}
+                />
+              }
+              renderItem={({ item }) => (
+                <ScheduleRow
+                  tournament={item}
+                  today={today}
+                  onPress={() => router.push(`/tournament/${item.slug}`)}
+                />
+              )}
+              ListEmptyComponent={
+                <View
+                  style={[
+                    styles.dayEmpty,
+                    { borderColor: colors.border, backgroundColor: colors.muted },
+                  ]}
+                >
+                  <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>
+                    No tournaments scheduled.
+                  </Text>
+                </View>
+              }
+            />
           </View>
+          <DateRail
+            dates={groups.map((group) => group.date)}
+            selectedDate={selectedDate}
+            today={today}
+            onSelect={setSelectedDate}
+          />
+        </View>
+      )}
+
+      <ListFiltersSheet
+        visible={filtersOpen}
+        genderFilter={genderFilter}
+        regionFilter={regionFilter}
+        hideArchived={hideArchived}
+        registrationOpenOnly={registrationOpenOnly}
+        activeCount={activeCount}
+        onToggleGender={(value) =>
+          setGenderFilter((prev) => toggleSetValue(prev, value))
         }
+        onToggleRegion={(value) =>
+          setRegionFilter((prev) => toggleSetValue(prev, value))
+        }
+        onHideArchivedChange={setHideArchived}
+        onRegistrationOpenOnlyChange={(value) => {
+          setRegistrationOpenOnly(value);
+          setNow(new Date().toISOString());
+        }}
+        onClear={clearFilters}
+        onClose={() => setFiltersOpen(false)}
       />
     </View>
   );
 }
 
+function FilterButton({
+  activeCount,
+  colors,
+  onPress,
+}: {
+  activeCount: number;
+  colors: ThemeColors;
+  onPress: () => void;
+}) {
+  const hasActive = activeCount > 0;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={
+        hasActive ? `Filters, ${activeCount} active` : "Filter tournaments"
+      }
+      onPress={onPress}
+      style={[
+        styles.toolButton,
+        {
+          borderColor: colors.border,
+          backgroundColor: hasActive ? colors.muted : "transparent",
+        },
+      ]}
+    >
+      <Text style={[styles.toolButtonLabel, { color: colors.foreground }]}>
+        Filters
+      </Text>
+      {hasActive ? (
+        <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.badgeLabel, { color: colors.primaryForeground }]}>
+            {activeCount}
+          </Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
-  listContent: { padding: 16, gap: 12 },
-  header: { alignItems: "flex-end", paddingBottom: 4 },
-  authButton: {
+  toolbar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, gap: 10 },
+  toolbarRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  search: {
+    flex: 1,
+    minHeight: 44,
     borderWidth: 1,
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    fontSize: 16,
   },
-  card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 4 },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between" },
-  cardDate: { fontSize: 13, fontWeight: "700" },
-  cardStatus: { fontSize: 13 },
-  cardTitle: { fontSize: 18, fontWeight: "700", marginTop: 2 },
-  cardMeta: { fontSize: 14 },
-  cardFooter: { fontSize: 13, marginTop: 6 },
+  toolButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    minHeight: 40,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+  },
+  toolButtonLabel: { fontSize: 14, fontWeight: "600" },
+  badge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  badgeLabel: { fontSize: 11, fontWeight: "700" },
+  split: { flex: 1, flexDirection: "row" },
+  dayPane: { flex: 1, minWidth: 0 },
+  dayHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  todayChip: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  todayChipLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  dayTitle: { flex: 1, fontSize: 15, fontWeight: "700" },
+  dayList: { paddingHorizontal: 16, paddingBottom: 24 },
+  dayEmpty: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderRadius: 12,
+    padding: 20,
+  },
+  empty: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+    gap: 8,
+  },
+  emptyTitle: { fontSize: 20, fontWeight: "700" },
+  emptyBody: { fontSize: 15, textAlign: "center", lineHeight: 22 },
 });
