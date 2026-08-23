@@ -69,3 +69,11 @@ export function useThemeColors(): ThemeColors {
 }
 
 export const themes: Record<"light" | "dark", ThemeColors> = { light, dark };
+
+/** Append an 8-bit alpha channel to a `#rrggbb` token. */
+export function withAlpha(hex: string, alpha: number): string {
+  const clamped = Math.max(0, Math.min(1, alpha));
+  return `${hex}${Math.round(clamped * 255)
+    .toString(16)
+    .padStart(2, "0")}`;
+}

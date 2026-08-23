@@ -23,6 +23,19 @@ export const TOURNAMENT_STATUS_LABELS: Record<string, string> = {
   completed: "Completed",
 };
 
+export const TEAM_GENDER_VALUES = ["mens", "womens"] as const;
+export const TEAM_REGION_VALUES = [
+  "north",
+  "northeast",
+  "east",
+  "east_central",
+  "central",
+  "south",
+  "southeast",
+  "west",
+  "northwest",
+] as const;
+
 export const GENDER_LABELS: Record<string, string> = {
   mens: "Men's",
   womens: "Women's",
@@ -39,6 +52,86 @@ export const REGION_LABELS: Record<string, string> = {
   west: "West",
   northwest: "Northwest",
 };
+
+/** Today as `YYYY-MM-DD` in the device's local timezone. */
+export function todayISO(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Parses a `YYYY-MM-DD` calendar date as local midnight. */
+export function parseISODate(iso: string): Date {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year ?? 0, (month ?? 1) - 1, day ?? 1);
+}
+
+export function toISODate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+export function isTournamentArchived(
+  tournamentDate: string,
+  today: string = todayISO()
+): boolean {
+  return tournamentDate < today;
+}
+
+export function tournamentListStatusLabel(
+  status: string,
+  tournamentDate: string,
+  today: string = todayISO()
+): string {
+  if (isTournamentArchived(tournamentDate, today)) return "Archived";
+  return TOURNAMENT_STATUS_LABELS[status] ?? status;
+}
+
+export function formatScheduleHeading(iso: string): string {
+  return parseISODate(iso).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export function formatRailDate(iso: string): {
+  weekday: string;
+  monthDay: string;
+} {
+  const date = parseISODate(iso);
+  return {
+    weekday: date.toLocaleDateString("en-US", { weekday: "short" }),
+    monthDay: date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    }),
+  };
+}
+
+export function formatMonthTitle(year: number, monthIndex: number): string {
+  return new Date(year, monthIndex, 1).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+export function registrationAvailabilityLabel(availability: {
+  capacity: number | null;
+  registeredCount: number;
+  waitlistCount: number;
+}): string {
+  const registered =
+    availability.capacity == null
+      ? `${availability.registeredCount} registered`
+      : `${availability.registeredCount} / ${availability.capacity} registered`;
+  return `${registered} · ${availability.waitlistCount} waiting`;
+}
 
 export const DIVISION_FORMAT_LABELS: Record<string, string> = {
   pool_to_bracket: "Group play to bracket",
