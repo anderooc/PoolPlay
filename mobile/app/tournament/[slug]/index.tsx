@@ -40,6 +40,7 @@ import {
 } from "~/api/endpoints";
 import { TournamentMatchesPanel } from "~/tournament/matches-panel";
 import { TournamentOverview } from "~/tournament/overview";
+import { SectionBack } from "~/tournament/section-back";
 import { TournamentTeamsPanel } from "~/tournament/teams-panel";
 import { useThemeColors } from "~/theme/colors";
 
@@ -144,6 +145,7 @@ export default function TournamentDetailScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       title: tournament?.name ?? "Tournament",
+      headerBackTitle: "Tournaments",
     });
   }, [navigation, tournament?.name]);
 
@@ -167,28 +169,36 @@ export default function TournamentDetailScreen() {
 
   if (!tournament) {
     return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-          Tournament unavailable
-        </Text>
-        <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>
-          {error}
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => void loadOverview()}
-          style={[styles.retry, { borderColor: colors.border }]}
-        >
-          <Text style={{ color: colors.primary, fontWeight: "600" }}>
-            Try again
+      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        <View style={styles.backPad}>
+          <SectionBack label="Tournaments" fallbackHref="/" />
+        </View>
+        <View style={styles.centered}>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+            Tournament unavailable
           </Text>
-        </Pressable>
+          <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>
+            {error}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void loadOverview()}
+            style={[styles.retry, { borderColor: colors.border }]}
+          >
+            <Text style={{ color: colors.primary, fontWeight: "600" }}>
+              Try again
+            </Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <View style={styles.backPad}>
+        <SectionBack label="Tournaments" fallbackHref="/" />
+      </View>
       <View
         style={[styles.tabs, { borderBottomColor: colors.border }]}
         accessibilityRole="tablist"
@@ -274,6 +284,7 @@ function messageFor(cause: unknown, fallback: string): string {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  backPad: { paddingHorizontal: 20, paddingTop: 12 },
   content: { padding: 20, paddingBottom: 40 },
   centered: {
     flex: 1,
