@@ -17,6 +17,18 @@
  */
 
 import type {
+  SchoolDetailContract,
+  SchoolJoinResultContract,
+  SchoolListContract,
+  SchoolMutationResultContract,
+} from "@/lib/api/contracts/school";
+import type { DashboardContract } from "@/lib/api/contracts/dashboard";
+import type {
+  TeamDetailContract,
+  TeamListContract,
+  TeamMutationResultContract,
+} from "@/lib/api/contracts/team";
+import type {
   TournamentDetailContract,
   TournamentListContract,
   TournamentMatchDetailContract,
@@ -24,8 +36,22 @@ import type {
   TournamentPlayContract,
   TournamentTeamListContract,
 } from "@/lib/api/contracts/tournament";
+import type {
+  TournamentBracketSettingsContract,
+  TournamentChatContract,
+  TournamentEmailContract,
+  TournamentEmailPreviewContract,
+  TournamentEmailSendResultContract,
+  TournamentPacketContract,
+  TournamentParticipationContract,
+  TournamentPaymentContract,
+  TournamentPoolSettingsContract,
+  TournamentRegisterOptionsContract,
+  TournamentRegisterResultContract,
+  TournamentWaiverContract,
+} from "@/lib/api/contracts/tournament-ops";
 import type { ViewerContract } from "@/lib/api/contracts/viewer";
-import { apiRequest } from "./client";
+import { apiDownload, apiRequest } from "./client";
 
 /*
  * Response types come from the web project's contract modules, so a change to
@@ -35,6 +61,218 @@ import { apiRequest } from "./client";
 
 export function fetchViewer(signal?: AbortSignal): Promise<ViewerContract> {
   return apiRequest<ViewerContract>("/api/v1/me", { signal });
+}
+
+export type UpdateProfileBody = {
+  fullName: string;
+  playerGender?: string | null;
+  volleyballPosition?: string | null;
+  jerseyNumber?: string | null;
+};
+
+export function updateProfile(body: UpdateProfileBody): Promise<ViewerContract> {
+  return apiRequest<ViewerContract>("/api/v1/me", {
+    method: "PATCH",
+    body,
+  });
+}
+
+export function changePassword(body: {
+  currentPassword: string;
+  password: string;
+  confirmPassword: string;
+}): Promise<{ success: true }> {
+  return apiRequest("/api/v1/me/password", {
+    method: "POST",
+    body,
+  });
+}
+
+export function fetchDashboard(
+  signal?: AbortSignal
+): Promise<DashboardContract> {
+  return apiRequest<DashboardContract>("/api/v1/dashboard", { signal });
+}
+
+export type SchoolListParams = {
+  q?: string;
+  gender?: string;
+  region?: string;
+  verification?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export function fetchSchools(
+  params: SchoolListParams = {},
+  signal?: AbortSignal
+): Promise<SchoolListContract> {
+  return apiRequest<SchoolListContract>("/api/v1/schools", {
+    query: params,
+    signal,
+  });
+}
+
+export function fetchSchool(
+  slug: string,
+  signal?: AbortSignal
+): Promise<SchoolDetailContract> {
+  return apiRequest<SchoolDetailContract>(
+    `/api/v1/schools/${encodeURIComponent(slug)}`,
+    { signal }
+  );
+}
+
+export function requestSchoolJoin(
+  slug: string
+): Promise<SchoolJoinResultContract> {
+  return apiRequest(`/api/v1/schools/${encodeURIComponent(slug)}/join`, {
+    method: "POST",
+    body: {},
+  });
+}
+
+export function cancelSchoolJoin(slug: string): Promise<{ success: true }> {
+  return apiRequest(`/api/v1/schools/${encodeURIComponent(slug)}/join`, {
+    method: "DELETE",
+  });
+}
+
+export function addSchoolMember(
+  slug: string,
+  body: { email: string; role: "officer" | "member"; title?: string | null }
+): Promise<SchoolMutationResultContract> {
+  return apiRequest(
+    `/api/v1/schools/${encodeURIComponent(slug)}/members`,
+    { method: "POST", body }
+  );
+}
+
+export function updateSchoolMemberRole(
+  slug: string,
+  membershipId: string,
+  role: "officer" | "member"
+): Promise<SchoolMutationResultContract> {
+  return apiRequest(
+    `/api/v1/schools/${encodeURIComponent(slug)}/members/${encodeURIComponent(membershipId)}`,
+    { method: "PATCH", body: { role } }
+  );
+}
+
+export function updateSchoolMemberPosition(
+  slug: string,
+  membershipId: string,
+  volleyballPosition: string | null
+): Promise<SchoolMutationResultContract> {
+  return apiRequest(
+    `/api/v1/schools/${encodeURIComponent(slug)}/members/${encodeURIComponent(membershipId)}`,
+    { method: "PATCH", body: { volleyballPosition } }
+  );
+}
+
+export function updateSchoolMemberJersey(
+  slug: string,
+  membershipId: string,
+  jerseyNumber: number | null
+): Promise<SchoolMutationResultContract> {
+  return apiRequest(
+    `/api/v1/schools/${encodeURIComponent(slug)}/members/${encodeURIComponent(membershipId)}`,
+    { method: "PATCH", body: { jerseyNumber } }
+  );
+}
+
+export function transferSchoolPresidency(
+  slug: string,
+  membershipId: string
+): Promise<SchoolMutationResultContract> {
+  return apiRequest(
+    `/api/v1/schools/${encodeURIComponent(slug)}/members/${encodeURIComponent(membershipId)}/transfer-presidency`,
+    { method: "POST", body: {} }
+  );
+}
+
+export function removeSchoolMember(
+  slug: string,
+  membershipId: string
+): Promise<SchoolMutationResultContract> {
+  return apiRequest(
+    `/api/v1/schools/${encodeURIComponent(slug)}/members/${encodeURIComponent(membershipId)}`,
+    { method: "DELETE" }
+  );
+}
+
+export function leaveSchool(slug: string): Promise<SchoolMutationResultContract> {
+  return apiRequest(`/api/v1/schools/${encodeURIComponent(slug)}/leave`, {
+    method: "POST",
+    body: {},
+  });
+}
+
+export function resolveSchoolJoinRequest(
+  slug: string,
+  requestId: string,
+  action: "approve" | "reject"
+): Promise<SchoolMutationResultContract> {
+  return apiRequest(
+    `/api/v1/schools/${encodeURIComponent(slug)}/join-requests/${encodeURIComponent(requestId)}`,
+    { method: "POST", body: { action } }
+  );
+}
+
+export function fetchTeams(signal?: AbortSignal): Promise<TeamListContract> {
+  return apiRequest<TeamListContract>("/api/v1/teams", { signal });
+}
+
+export function fetchTeam(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TeamDetailContract> {
+  return apiRequest<TeamDetailContract>(
+    `/api/v1/teams/${encodeURIComponent(slug)}`,
+    { signal }
+  );
+}
+
+export function addTeamMember(
+  slug: string,
+  body: { email?: string; userId?: string; jerseyNumber?: string | null }
+): Promise<TeamMutationResultContract> {
+  return apiRequest(`/api/v1/teams/${encodeURIComponent(slug)}/members`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function removeTeamMember(
+  slug: string,
+  membershipId: string
+): Promise<TeamMutationResultContract> {
+  return apiRequest(
+    `/api/v1/teams/${encodeURIComponent(slug)}/members/${encodeURIComponent(membershipId)}`,
+    { method: "DELETE" }
+  );
+}
+
+export function updateTeamMemberJersey(
+  slug: string,
+  membershipId: string,
+  jerseyNumber: number | null
+): Promise<TeamMutationResultContract> {
+  return apiRequest(
+    `/api/v1/teams/${encodeURIComponent(slug)}/members/${encodeURIComponent(membershipId)}`,
+    { method: "PATCH", body: { jerseyNumber } }
+  );
+}
+
+export function updateTeamMemberPosition(
+  slug: string,
+  membershipId: string,
+  volleyballPosition: string | null
+): Promise<TeamMutationResultContract> {
+  return apiRequest(
+    `/api/v1/teams/${encodeURIComponent(slug)}/members/${encodeURIComponent(membershipId)}`,
+    { method: "PATCH", body: { volleyballPosition } }
+  );
 }
 
 /**
@@ -124,4 +362,234 @@ export function fetchTournamentMatch(
       signal,
     }
   );
+}
+
+export function fetchTournamentParticipation(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentParticipationContract> {
+  return apiRequest<TournamentParticipationContract>(
+    tournamentPath(slug, "/participation"),
+    { signal }
+  );
+}
+
+export function fetchTournamentRegisterOptions(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentRegisterOptionsContract> {
+  return apiRequest<TournamentRegisterOptionsContract>(
+    tournamentPath(slug, "/register"),
+    { signal }
+  );
+}
+
+export function submitTournamentRegistration(
+  slug: string,
+  body: { teamSlugs: string[]; operationId: string }
+): Promise<TournamentRegisterResultContract> {
+  return apiRequest<TournamentRegisterResultContract>(
+    tournamentPath(slug, "/register"),
+    { method: "POST", body }
+  );
+}
+
+export function fetchTournamentPacket(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentPacketContract> {
+  return apiRequest<TournamentPacketContract>(tournamentPath(slug, "/packet"), {
+    signal,
+  });
+}
+
+export function downloadTournamentPacketPdf(
+  slug: string,
+  signal?: AbortSignal
+) {
+  return apiDownload(tournamentPath(slug, "/packet/pdf"), { signal });
+}
+
+export function fetchTournamentWaiver(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentWaiverContract> {
+  return apiRequest<TournamentWaiverContract>(tournamentPath(slug, "/waiver"), {
+    signal,
+  });
+}
+
+export function downloadTournamentWaiverPdf(
+  slug: string,
+  signal?: AbortSignal
+) {
+  return apiDownload(tournamentPath(slug, "/waiver/pdf"), { signal });
+}
+
+export function acknowledgeTournamentWaiver(
+  slug: string,
+  body: { teamSlug: string; signedName: string }
+): Promise<{ success: true }> {
+  return apiRequest(tournamentPath(slug, "/waiver/acknowledge"), {
+    method: "POST",
+    body,
+  });
+}
+
+export function fetchTournamentPayment(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentPaymentContract> {
+  return apiRequest<TournamentPaymentContract>(
+    tournamentPath(slug, "/payment"),
+    { signal }
+  );
+}
+
+export function submitTournamentPayment(
+  slug: string,
+  body: { teamSlug: string; method: string; note?: string }
+): Promise<{ success: true }> {
+  return apiRequest(tournamentPath(slug, "/payment/submit"), {
+    method: "POST",
+    body,
+  });
+}
+
+export function confirmTournamentPayment(
+  slug: string,
+  teamSlug: string
+): Promise<{ success: true }> {
+  return apiRequest(tournamentPath(slug, "/payment/confirm"), {
+    method: "POST",
+    body: { teamSlug },
+  });
+}
+
+export function waiveTournamentPayment(
+  slug: string,
+  teamSlug: string
+): Promise<{ success: true }> {
+  return apiRequest(tournamentPath(slug, "/payment/waive"), {
+    method: "POST",
+    body: { teamSlug },
+  });
+}
+
+export function fetchTournamentChat(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentChatContract> {
+  return apiRequest<TournamentChatContract>(tournamentPath(slug, "/chat"), {
+    signal,
+  });
+}
+
+export function postTournamentChatMessage(
+  slug: string,
+  body: { channelKind: string; body: string; teamSlug?: string }
+): Promise<{ success: true; messageId: string }> {
+  return apiRequest(tournamentPath(slug, "/chat/messages"), {
+    method: "POST",
+    body,
+  });
+}
+
+export function markTournamentChatRead(
+  slug: string,
+  channelKind: string
+): Promise<{ success: true }> {
+  return apiRequest(tournamentPath(slug, "/chat/read"), {
+    method: "POST",
+    body: { channelKind },
+  });
+}
+
+export function fetchTournamentEmail(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentEmailContract> {
+  return apiRequest<TournamentEmailContract>(tournamentPath(slug, "/email"), {
+    signal,
+  });
+}
+
+export function previewTournamentEmail(
+  slug: string,
+  audience: string
+): Promise<TournamentEmailPreviewContract> {
+  return apiRequest(tournamentPath(slug, "/email/preview"), {
+    method: "POST",
+    body: { audience },
+  });
+}
+
+export function sendTournamentEmail(
+  slug: string,
+  body: { audience: string; subject: string; body: string }
+): Promise<TournamentEmailSendResultContract> {
+  return apiRequest(tournamentPath(slug, "/email"), {
+    method: "POST",
+    body,
+  });
+}
+
+export function sendTournamentWaiverReminder(
+  slug: string
+): Promise<TournamentEmailSendResultContract> {
+  return apiRequest(tournamentPath(slug, "/email/waiver-reminder"), {
+    method: "POST",
+    body: {},
+  });
+}
+
+export function fetchTournamentPoolSettings(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentPoolSettingsContract> {
+  return apiRequest<TournamentPoolSettingsContract>(
+    tournamentPath(slug, "/settings/pool"),
+    { signal }
+  );
+}
+
+export function updateTournamentPoolSettings(
+  slug: string,
+  body: TournamentPoolSettingsContract
+): Promise<TournamentPoolSettingsContract> {
+  return apiRequest(tournamentPath(slug, "/settings/pool"), {
+    method: "POST",
+    body: {
+      matchFormat: body.matchFormat,
+      setStartingScore: body.setStartingScore,
+      setTargetScore: body.setTargetScore,
+      tiebreakTargetScore: body.tiebreakTargetScore,
+      warmupFormat: body.warmupFormat,
+      poolTiebreakCriteria: body.poolTiebreakCriteria,
+    },
+  });
+}
+
+export function fetchTournamentBracketSettings(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentBracketSettingsContract> {
+  return apiRequest<TournamentBracketSettingsContract>(
+    tournamentPath(slug, "/settings/bracket"),
+    { signal }
+  );
+}
+
+export function updateTournamentBracketSettings(
+  slug: string,
+  body: {
+    bracketCount: number;
+    goldTeamCount: number | null;
+    silverTeamCount: number | null;
+  }
+): Promise<TournamentBracketSettingsContract> {
+  return apiRequest(tournamentPath(slug, "/settings/bracket"), {
+    method: "POST",
+    body,
+  });
 }

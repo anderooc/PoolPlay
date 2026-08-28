@@ -183,3 +183,56 @@ export async function apiRequest<T>(
 
   return success.data;
 }
+
+/**
+ * Authenticated binary download (PDF). These routes intentionally skip the
+ * JSON envelope so native clients can hand the bytes to the share sheet.
+ */
+export async function apiDownload(
+  path: string,
+  options: { signal?: AbortSignal } = {}
+): Promise<{ bytes: ArrayBuffer; contentType: string; filename: string | null }> {
+  let response = await performRequest(path, {
+    authenticated: true,
+    signal: options.signal,
+  });
+
+  if (response.status === 401) {
+    const { error } = await supabase.auth.refreshSession();
+    if (!error) {
+      response = await performRequest(path, {
+        authenticated: true,
+        signal: options.signal,
+      });
+    }
+  }
+
+  if (!response.ok) {
+    const body = await parseBody(response);
+    if (isErrorBody(body)) {
+      throw new ApiClientError(
+        body.error.code,
+        body.error.message,
+        response.status,
+        body.error.details
+      );
+    }
+    throw new ApiClientError(
+      "malformed_response",
+      `Download failed with status ${response.status}.`,
+      response.status
+    );
+  }
+
+  const disposition = response.headers.get("Content-Disposition");
+  const filenameMatch = disposition?.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i);
+  const filename = filenameMatch
+    ? decodeURIComponent(filenameMatch[1].replace(/"/g, ""))
+    : null;
+
+  return {
+    bytes: await response.arrayBuffer(),
+    contentType: response.headers.get("Content-Type") ?? "application/octet-stream",
+    filename,
+  };
+}

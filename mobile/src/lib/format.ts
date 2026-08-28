@@ -41,6 +41,59 @@ export const GENDER_LABELS: Record<string, string> = {
   womens: "Women's",
 };
 
+export const SCHOOL_VERIFICATION_LABELS: Record<string, string> = {
+  pending: "Pending verification",
+  verified: "Verified",
+  rejected: "Rejected",
+};
+
+export const SCHOOL_ROLE_LABELS: Record<string, string> = {
+  president: "President",
+  officer: "Officer",
+  member: "Member",
+};
+
+export const TEAM_ROLE_LABELS: Record<string, string> = {
+  captain: "Captain",
+  player: "Player",
+};
+
+export const TEAM_VERIFICATION_LABELS: Record<string, string> = {
+  pending: "Pending verification",
+  verified: "Verified",
+  rejected: "Rejected",
+};
+
+export const DASHBOARD_RELATION_LABELS: Record<string, string> = {
+  pending: "Pending acceptance",
+  signed_up: "Signed up",
+  past: "Past",
+  hosting: "Hosting",
+};
+
+export const USER_PLAYER_GENDERS = ["male", "female"] as const;
+
+export const USER_PLAYER_GENDER_LABELS: Record<string, string> = {
+  male: "Male",
+  female: "Female",
+};
+
+export const VOLLEYBALL_POSITIONS = [
+  "outside_hitter",
+  "middle_blocker",
+  "opposite_hitter",
+  "setter",
+  "libero_ds",
+] as const;
+
+export const VOLLEYBALL_POSITION_LABELS: Record<string, string> = {
+  outside_hitter: "Outside hitter",
+  middle_blocker: "Middle blocker",
+  opposite_hitter: "Opposite hitter",
+  setter: "Setter",
+  libero_ds: "Libero / DS",
+};
+
 export const REGION_LABELS: Record<string, string> = {
   north: "North",
   northeast: "Northeast",
@@ -203,3 +256,109 @@ export function formatDeadline(iso: string): string {
     day: "numeric",
   });
 }
+
+export function formatFeeCents(cents: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(cents / 100);
+}
+
+export function paymentMethodLabel(method: string | null | undefined): string {
+  switch (method) {
+    case "venmo":
+      return "Venmo";
+    case "zelle":
+      return "Zelle";
+    case "cashapp":
+      return "Cash App";
+    case "check":
+      return "Check";
+    case "cash":
+      return "Cash";
+    case "other":
+      return "Other";
+    default:
+      return "Not specified";
+  }
+}
+
+export function paymentStatusLabel(status: string): string {
+  switch (status) {
+    case "unpaid":
+      return "Unpaid";
+    case "submitted":
+      return "Pending review";
+    case "confirmed":
+      return "Paid";
+    case "waived":
+      return "Waived";
+    default:
+      return status;
+  }
+}
+
+export function waiverMethodLabel(method: string | null): string {
+  switch (method) {
+    case "digital":
+      return "Digital";
+    case "captain_attested":
+      return "Captain attested";
+    case "host_override":
+      return "Host waived";
+    default:
+      return "Pending";
+  }
+}
+
+export const EMAIL_AUDIENCE_OPTIONS = [
+  {
+    value: "captains_confirmed",
+    label: "Confirmed captains",
+  },
+  {
+    value: "captains_all",
+    label: "All registered captains",
+  },
+  {
+    value: "captains_pending",
+    label: "Pending captains",
+  },
+  {
+    value: "captains_waiver_incomplete",
+    label: "Captains with incomplete waivers",
+  },
+] as const;
+
+export const PAYMENT_METHODS = [
+  "venmo",
+  "zelle",
+  "cashapp",
+  "check",
+  "cash",
+  "other",
+] as const;
+
+export const MATCH_FORMAT_OPTIONS = [
+  { value: "two_with_tiebreak", label: "2 sets, 3rd if tied" },
+  { value: "play_all_3", label: "Play all 3 sets" },
+  { value: "best_of_2", label: "Best of 2 (ties allowed)" },
+] as const;
+
+export const WARMUP_FORMAT_OPTIONS = [
+  { value: "three_three_one", label: "3–3–1 warmup" },
+  { value: "none", label: "No warmup" },
+] as const;
+
+export const POOL_TIEBREAK_OPTIONS = [
+  { value: "match_record", label: "Match record (W-L)" },
+  { value: "set_record", label: "Set record" },
+  { value: "point_diff", label: "Point differential" },
+  { value: "head_to_head", label: "Head-to-head" },
+] as const;
+
+export const BRACKET_COUNT_OPTIONS = [
+  { value: 1, label: "Single combined bracket" },
+  { value: 2, label: "Gold and silver" },
+  { value: 3, label: "Gold, silver, and bronze" },
+] as const;
