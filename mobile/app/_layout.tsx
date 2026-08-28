@@ -18,7 +18,7 @@
 
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useColorScheme } from "react-native";
+import { Platform, useColorScheme } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SessionProvider } from "~/auth/session";
 import { useThemeColors } from "~/theme/colors";
@@ -33,17 +33,23 @@ function RootStack() {
         headerTitleStyle: { color: colors.foreground },
         headerTintColor: colors.primary,
         contentStyle: { backgroundColor: colors.background },
+        // Keep back transitions sliding in from the left (iOS-style) on Android too.
+        animation: Platform.OS === "android" ? "ios_from_right" : "default",
+        animationTypeForReplace: "pop",
       }}
     >
-      <Stack.Screen name="index" options={{ title: "Tournaments" }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="sign-in"
         options={{ title: "Sign in", presentation: "modal" }}
       />
-      <Stack.Screen name="profile" options={{ title: "Profile" }} />
       <Stack.Screen
         name="tournament/[slug]/index"
-        options={{ headerBackTitle: "Tournaments" }}
+        options={{
+          headerBackTitle: "Tournaments",
+          // Deep-link / cold-start back uses replace("/"); pop animates from the left.
+          animationTypeForReplace: "pop",
+        }}
       />
       <Stack.Screen
         name="tournament/[slug]/pools"
@@ -56,6 +62,38 @@ function RootStack() {
       <Stack.Screen
         name="tournament/[slug]/scoring"
         options={{ title: "Live scores", headerBackTitle: "Tournament" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/packet"
+        options={{ title: "Packet", headerBackTitle: "Tournament" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/waiver"
+        options={{ title: "Waiver", headerBackTitle: "Tournament" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/payment"
+        options={{ title: "Payment", headerBackTitle: "Tournament" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/email"
+        options={{ title: "Email", headerBackTitle: "Tournament" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/chat"
+        options={{ title: "Chat", headerBackTitle: "Tournament" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/register"
+        options={{ title: "Register", headerBackTitle: "Tournament" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/settings/pool"
+        options={{ title: "Pool settings", headerBackTitle: "Tournament" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/settings/bracket"
+        options={{ title: "Bracket settings", headerBackTitle: "Tournament" }}
       />
       <Stack.Screen
         name="tournament/[slug]/matches/[matchSlug]"
