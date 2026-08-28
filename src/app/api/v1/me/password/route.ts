@@ -19,43 +19,30 @@
 import { requireViewer } from "@/lib/api/auth";
 import { badRequest } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
-import { buildViewerContract } from "@/lib/api/projections/viewer";
-import {
-  changePasswordForViewer,
-  updateProfileForViewer,
-} from "@/lib/api/queries/viewer-mutations";
+import { changePasswordForViewer } from "@/lib/api/queries/viewer-mutations";
 import { jsonSuccess } from "@/lib/api/response";
 
-export const GET = apiHandler(async (request: Request) => {
-  const { user } = await requireViewer(request);
-  return jsonSuccess(buildViewerContract(user));
-});
-
-export const PATCH = apiHandler(async (request: Request) => {
+export const POST = apiHandler(async (request: Request) => {
   const { user } = await requireViewer(request);
   const body = (await request.json().catch(() => null)) as Record<
     string,
     unknown
   > | null;
-  if (!body || typeof body.fullName !== "string") {
-    throw badRequest("fullName is required.");
+  if (
+    !body ||
+    typeof body.currentPassword !== "string" ||
+    typeof body.password !== "string" ||
+    typeof body.confirmPassword !== "string"
+  ) {
+    throw badRequest(
+      "currentPassword, password, and confirmPassword are required."
+    );
   }
   return jsonSuccess(
-    await updateProfileForViewer(user, {
-      fullName: body.fullName,
-      playerGender:
-        body.playerGender === null || typeof body.playerGender === "string"
-          ? body.playerGender
-          : undefined,
-      volleyballPosition:
-        body.volleyballPosition === null ||
-        typeof body.volleyballPosition === "string"
-          ? body.volleyballPosition
-          : undefined,
-      jerseyNumber:
-        body.jerseyNumber === null || typeof body.jerseyNumber === "string"
-          ? body.jerseyNumber
-          : undefined,
+    await changePasswordForViewer(user, {
+      currentPassword: body.currentPassword,
+      password: body.password,
+      confirmPassword: body.confirmPassword,
     })
   );
 });
