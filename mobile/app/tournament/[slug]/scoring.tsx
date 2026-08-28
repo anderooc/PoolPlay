@@ -33,7 +33,6 @@ import {
 import { fetchTournamentMatches } from "~/api/endpoints";
 import { usePolling } from "~/lib/use-polling";
 import { MatchRow } from "~/tournament/match-row";
-import { SectionBack } from "~/tournament/section-back";
 import { ErrorScreen, LoadingScreen } from "~/tournament/screen-state";
 import { usePublicLoader } from "~/tournament/use-public-loader";
 import { useThemeColors } from "~/theme/colors";
@@ -92,12 +91,6 @@ export default function ScoringScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={styles.backPad}>
-        <SectionBack
-          label="Tournament"
-          fallbackHref={slug ? `/tournament/${slug}` : "/"}
-        />
-      </View>
       <View
         style={[styles.tabs, { borderBottomColor: colors.border }]}
         accessibilityRole="tablist"
@@ -177,7 +170,6 @@ function emptyCopy(tab: BoardTab, nonePosted: boolean): string {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  backPad: { paddingHorizontal: 20, paddingTop: 12 },
   tabs: {
     flexDirection: "row",
     borderBottomWidth: 1,

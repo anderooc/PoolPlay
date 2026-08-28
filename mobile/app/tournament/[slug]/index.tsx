@@ -21,7 +21,8 @@ import type {
   TournamentMatchContract,
   TournamentTeamContract,
 } from "@/lib/api/contracts/tournament";
-import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import type { TournamentParticipationContract } from "@/lib/api/contracts/tournament-ops";
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -36,11 +37,12 @@ import { ApiClientError } from "~/api/client";
 import {
   fetchTournament,
   fetchTournamentMatches,
+  fetchTournamentParticipation,
   fetchTournamentTeams,
 } from "~/api/endpoints";
+import { useSession } from "~/auth/session";
 import { TournamentMatchesPanel } from "~/tournament/matches-panel";
 import { TournamentOverview } from "~/tournament/overview";
-import { SectionBack } from "~/tournament/section-back";
 import { TournamentTeamsPanel } from "~/tournament/teams-panel";
 import { useThemeColors } from "~/theme/colors";
 
@@ -56,6 +58,7 @@ export default function TournamentDetailScreen() {
   const colors = useThemeColors();
   const navigation = useNavigation();
   const router = useRouter();
+  const { session, isLoading: sessionLoading } = useSession();
   const { slug, tab: tabParam } = useLocalSearchParams<{
     slug: string;
     tab?: string;
@@ -73,6 +76,8 @@ export default function TournamentDetailScreen() {
   const [tournament, setTournament] = useState<TournamentDetailContract | null>(
     null
   );
+  const [participation, setParticipation] =
+    useState<TournamentParticipationContract | null>(null);
   const [teams, setTeams] = useState<TournamentTeamContract[] | null>(null);
   const [matches, setMatches] = useState<TournamentMatchContract[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -84,16 +89,30 @@ export default function TournamentDetailScreen() {
         setError("Tournament not found.");
         return;
       }
+      // Wait for auth so Team tools can load with the rest of the overview.
+      if (sessionLoading) return;
       try {
         setError(null);
-        setTournament(await fetchTournament(slug, signal));
+        if (!session) {
+          setTournament(await fetchTournament(slug, signal));
+          setParticipation(null);
+          return;
+        }
+        const [detail, part] = await Promise.all([
+          fetchTournament(slug, signal),
+          fetchTournamentParticipation(slug, signal).catch(() => null),
+        ]);
+        if (signal?.aborted) return;
+        setTournament(detail);
+        setParticipation(part);
       } catch (cause) {
         if (signal?.aborted) return;
         setTournament(null);
+        setParticipation(null);
         setError(messageFor(cause, "Could not load this tournament."));
       }
     },
-    [slug]
+    [session, sessionLoading, slug]
   );
 
   const loadTeams = useCallback(
@@ -122,11 +141,13 @@ export default function TournamentDetailScreen() {
     [slug]
   );
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void loadOverview(controller.signal);
-    return () => controller.abort();
-  }, [loadOverview]);
+  useFocusEffect(
+    useCallback(() => {
+      const controller = new AbortController();
+      void loadOverview(controller.signal);
+      return () => controller.abort();
+    }, [loadOverview])
+  );
 
   useEffect(() => {
     if (tab !== "teams" || teams !== null) return;
@@ -143,11 +164,33 @@ export default function TournamentDetailScreen() {
   }, [tab, matches, loadMatches]);
 
   useLayoutEffect(() => {
+    const canGoBack = navigation.canGoBack();
     navigation.setOptions({
       title: tournament?.name ?? "Tournament",
       headerBackTitle: "Tournaments",
+      animationTypeForReplace: "pop",
+      // Native back only appears when the stack has history. Deep links / cold
+      // starts land here as the root screen, so provide an explicit fallback.
+      headerLeft: canGoBack
+        ? undefined
+        : () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Back to Tournaments"
+              hitSlop={10}
+              onPress={() => router.replace("/")}
+              style={styles.headerBack}
+            >
+              <Text style={[styles.headerBackChevron, { color: colors.primary }]}>
+                ‹
+              </Text>
+              <Text style={[styles.headerBackLabel, { color: colors.primary }]}>
+                Tournaments
+              </Text>
+            </Pressable>
+          ),
     });
-  }, [navigation, tournament?.name]);
+  }, [colors.primary, navigation, router, tournament?.name]);
 
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -159,7 +202,7 @@ export default function TournamentDetailScreen() {
     setIsRefreshing(false);
   }, [loadOverview, loadTeams, loadMatches, tab]);
 
-  if (tournament === null && error === null) {
+  if ((tournament === null && error === null) || sessionLoading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <ActivityIndicator color={colors.primary} />
@@ -169,36 +212,28 @@ export default function TournamentDetailScreen() {
 
   if (!tournament) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background }]}>
-        <View style={styles.backPad}>
-          <SectionBack label="Tournaments" fallbackHref="/" />
-        </View>
-        <View style={styles.centered}>
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-            Tournament unavailable
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+          Tournament unavailable
+        </Text>
+        <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>
+          {error}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void loadOverview()}
+          style={[styles.retry, { borderColor: colors.border }]}
+        >
+          <Text style={{ color: colors.primary, fontWeight: "600" }}>
+            Try again
           </Text>
-          <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>
-            {error}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => void loadOverview()}
-            style={[styles.retry, { borderColor: colors.border }]}
-          >
-            <Text style={{ color: colors.primary, fontWeight: "600" }}>
-              Try again
-            </Text>
-          </Pressable>
-        </View>
+        </Pressable>
       </View>
     );
   }
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={styles.backPad}>
-        <SectionBack label="Tournaments" fallbackHref="/" />
-      </View>
       <View
         style={[styles.tabs, { borderBottomColor: colors.border }]}
         accessibilityRole="tablist"
@@ -248,7 +283,10 @@ export default function TournamentDetailScreen() {
         ) : null}
 
         {tab === "overview" ? (
-          <TournamentOverview tournament={tournament} />
+          <TournamentOverview
+            tournament={tournament}
+            participation={participation}
+          />
         ) : null}
 
         {tab === "teams" ? (
@@ -284,8 +322,20 @@ function messageFor(cause: unknown, fallback: string): string {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  backPad: { paddingHorizontal: 20, paddingTop: 12 },
   content: { padding: 20, paddingBottom: 40 },
+  headerBack: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: -4,
+    gap: 2,
+  },
+  headerBackChevron: {
+    fontSize: 28,
+    fontWeight: "400",
+    lineHeight: 28,
+    marginTop: -2,
+  },
+  headerBackLabel: { fontSize: 17, fontWeight: "400" },
   centered: {
     flex: 1,
     alignItems: "center",

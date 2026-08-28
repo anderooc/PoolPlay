@@ -26,7 +26,6 @@ import {
   MATCH_STATUS_LABELS,
 } from "~/lib/format";
 import { usePolling } from "~/lib/use-polling";
-import { SectionBack } from "~/tournament/section-back";
 import { ErrorScreen, LoadingScreen } from "~/tournament/screen-state";
 import { usePublicLoader } from "~/tournament/use-public-loader";
 import { useThemeColors, type ThemeColors } from "~/theme/colors";
@@ -95,10 +94,6 @@ export default function MatchDetailScreen() {
         />
       }
     >
-      <SectionBack
-        label="Tournament"
-        fallbackHref={slug ? `/tournament/${slug}` : "/"}
-      />
       <Text style={[styles.kicker, { color: colors.mutedForeground }]}>
         {data.tournamentName}
       </Text>

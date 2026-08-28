@@ -17,9 +17,9 @@
  */
 
 import type { TournamentDetailContract } from "@/lib/api/contracts/tournament";
+import type { TournamentParticipationContract } from "@/lib/api/contracts/tournament-ops";
 import { useRouter } from "expo-router";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
-import { API_BASE_URL } from "~/api/config";
 import {
   DIVISION_FORMAT_LABELS,
   formatCalendarDate,
@@ -32,14 +32,23 @@ import { useThemeColors, type ThemeColors } from "~/theme/colors";
 
 export function TournamentOverview({
   tournament,
+  participation,
 }: {
   tournament: TournamentDetailContract;
+  participation: TournamentParticipationContract | null;
 }) {
   const colors = useThemeColors();
+  const router = useRouter();
   const status =
     TOURNAMENT_STATUS_LABELS[tournament.status] ?? tournament.status;
   const gender = GENDER_LABELS[tournament.gender] ?? tournament.gender;
   const region = REGION_LABELS[tournament.region] ?? tournament.region;
+
+  const alreadyEntered = (participation?.myTeams.length ?? 0) > 0;
+  const showRegister =
+    tournament.registrationOpen &&
+    !alreadyEntered &&
+    (participation == null || participation.canRegister);
 
   return (
     <View style={styles.stack}>
@@ -69,16 +78,50 @@ export function TournamentOverview({
 
       <PlayLinks slug={tournament.slug} colors={colors} />
 
+      {participation?.isOrganizer ? (
+        <HostLinks slug={tournament.slug} colors={colors} />
+      ) : null}
+
+      {participation ? (
+        <OpsLinks
+          slug={tournament.slug}
+          access={participation.access}
+          colors={colors}
+        />
+      ) : null}
+
+      {alreadyEntered ? (
+        <View style={[styles.entered, { borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Your teams
+          </Text>
+          {participation!.myTeams.map((team) => (
+            <Text
+              key={team.slug}
+              style={[styles.enteredRow, { color: colors.mutedForeground }]}
+            >
+              {team.name}
+              {" · "}
+              {team.status === "waitlisted"
+                ? "Waitlisted"
+                : team.status === "pending"
+                  ? "Pending"
+                  : team.status === "checked_in"
+                    ? "Checked in"
+                    : "Confirmed"}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+
       <Availability tournament={tournament} colors={colors} />
 
-      {tournament.registrationOpen ? (
+      {showRegister ? (
         <Pressable
-          accessibilityRole="link"
-          accessibilityLabel="Register a team on the web"
+          accessibilityRole="button"
+          accessibilityLabel="Register a team"
           onPress={() =>
-            void Linking.openURL(
-              `${API_BASE_URL}/tournaments/${tournament.slug}/register`
-            )
+            router.push(`/tournament/${tournament.slug}/register`)
           }
           style={[styles.register, { backgroundColor: colors.primary }]}
         >
@@ -160,6 +203,137 @@ function PlayLinks({
 
   return (
     <View style={styles.play}>
+      {links.map((link) => (
+        <Pressable
+          key={link.href}
+          accessibilityRole="button"
+          accessibilityLabel={`${link.title}. ${link.detail}`}
+          onPress={() => router.push(link.href)}
+          style={[styles.playRow, { borderColor: colors.border }]}
+        >
+          <View style={styles.playText}>
+            <Text style={[styles.playTitle, { color: colors.foreground }]}>
+              {link.title}
+            </Text>
+            <Text style={[styles.playDetail, { color: colors.mutedForeground }]}>
+              {link.detail}
+            </Text>
+          </View>
+          <Text style={[styles.playChevron, { color: colors.primary }]}>›</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function HostLinks({
+  slug,
+  colors,
+}: {
+  slug: string;
+  colors: ThemeColors;
+}) {
+  const router = useRouter();
+  const links = [
+    {
+      href: `/tournament/${slug}/settings/pool` as const,
+      title: "Pool settings",
+      detail: "Match format, scoring, and tie-breaks",
+    },
+    {
+      href: `/tournament/${slug}/settings/bracket` as const,
+      title: "Bracket settings",
+      detail: "Gold / silver / bronze structure",
+    },
+  ];
+
+  return (
+    <View style={styles.play}>
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+        Host tools
+      </Text>
+      {links.map((link) => (
+        <Pressable
+          key={link.href}
+          accessibilityRole="button"
+          accessibilityLabel={`${link.title}. ${link.detail}`}
+          onPress={() => router.push(link.href)}
+          style={[styles.playRow, { borderColor: colors.border }]}
+        >
+          <View style={styles.playText}>
+            <Text style={[styles.playTitle, { color: colors.foreground }]}>
+              {link.title}
+            </Text>
+            <Text style={[styles.playDetail, { color: colors.mutedForeground }]}>
+              {link.detail}
+            </Text>
+          </View>
+          <Text style={[styles.playChevron, { color: colors.primary }]}>›</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function OpsLinks({
+  slug,
+  access,
+  colors,
+}: {
+  slug: string;
+  access: TournamentParticipationContract["access"];
+  colors: ThemeColors;
+}) {
+  const router = useRouter();
+  const links = [
+    access.packet
+      ? {
+          href: `/tournament/${slug}/packet` as const,
+          title: "Packet",
+          detail: "Rules, schedule, and logistics PDF",
+        }
+      : null,
+    access.waiver
+      ? {
+          href: `/tournament/${slug}/waiver` as const,
+          title: "Waiver",
+          detail: "Download and complete team waivers",
+        }
+      : null,
+    access.payment
+      ? {
+          href: `/tournament/${slug}/payment` as const,
+          title: "Payment",
+          detail: "Fee instructions and payment status",
+        }
+      : null,
+    access.email
+      ? {
+          href: `/tournament/${slug}/email` as const,
+          title: "Email",
+          detail: "Message registered captains",
+        }
+      : null,
+    access.chat
+      ? {
+          href: `/tournament/${slug}/chat` as const,
+          title: "Chat",
+          detail: "Announcements and team discussion",
+        }
+      : null,
+  ].filter(Boolean) as {
+    href: `/tournament/${string}/packet` | `/tournament/${string}/waiver` | `/tournament/${string}/payment` | `/tournament/${string}/email` | `/tournament/${string}/chat`;
+    title: string;
+    detail: string;
+  }[];
+
+  if (links.length === 0) return null;
+
+  return (
+    <View style={styles.play}>
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+        Team tools
+      </Text>
       {links.map((link) => (
         <Pressable
           key={link.href}
@@ -306,6 +480,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   registerLabel: { fontSize: 16, fontWeight: "700" },
+  entered: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    gap: 6,
+  },
+  enteredRow: { fontSize: 15, lineHeight: 22 },
   description: { fontSize: 16, lineHeight: 24 },
   sectionTitle: { fontSize: 18, fontWeight: "700", marginBottom: 10 },
   divisions: { gap: 4 },

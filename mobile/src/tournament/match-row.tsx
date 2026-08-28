@@ -23,7 +23,7 @@ import {
   formatSetLine,
   MATCH_STATUS_LABELS,
 } from "~/lib/format";
-import { useThemeColors, type ThemeColors } from "~/theme/colors";
+import { useThemeColors, withAlpha, type ThemeColors } from "~/theme/colors";
 
 export function MatchRow({
   match,
@@ -39,10 +39,10 @@ export function MatchRow({
   const setLine = formatSetLine(match.sets);
   const teamA = match.teamA?.name ?? "TBD";
   const teamB = match.teamB?.name ?? "TBD";
+  const isLive = match.status === "in_progress";
   const meta = [
     match.scheduledTime ? formatMatchTime(match.scheduledTime) : null,
     match.courtName,
-    compact ? null : match.divisionName,
     compact ? null : match.phase === "bracket" ? "Bracket" : null,
   ]
     .filter(Boolean)
@@ -52,27 +52,39 @@ export function MatchRow({
     <View
       style={[
         styles.row,
-        match.status === "in_progress"
-          ? { borderColor: colors.primary }
-          : { borderColor: colors.border },
+        {
+          borderColor: isLive ? colors.primary : colors.border,
+          backgroundColor: isLive
+            ? withAlpha(colors.primary, 0.05)
+            : colors.card,
+        },
       ]}
     >
       <View style={styles.top}>
-        <Text
+        <View
           style={[
-            styles.status,
+            styles.statusChip,
             {
-              color:
-                match.status === "in_progress"
-                  ? colors.primary
-                  : colors.mutedForeground,
+              backgroundColor: isLive
+                ? withAlpha(colors.primary, 0.12)
+                : colors.muted,
             },
           ]}
         >
-          {status}
-        </Text>
+          <Text
+            style={[
+              styles.status,
+              { color: isLive ? colors.primary : colors.mutedForeground },
+            ]}
+          >
+            {status}
+          </Text>
+        </View>
         {meta ? (
-          <Text style={[styles.meta, { color: colors.mutedForeground }]}>
+          <Text
+            style={[styles.meta, { color: colors.mutedForeground }]}
+            numberOfLines={1}
+          >
             {meta}
           </Text>
         ) : null}
@@ -128,6 +140,7 @@ function TeamLine({
           fontWeight: won ? "700" : "500",
         },
       ]}
+      numberOfLines={1}
     >
       {team?.name ?? "TBD"}
     </Text>
@@ -143,12 +156,18 @@ const styles = StyleSheet.create({
   },
   top: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  status: { fontSize: 13, fontWeight: "700" },
+  statusChip: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  status: { fontSize: 12, fontWeight: "700" },
   meta: { fontSize: 13, flexShrink: 1, textAlign: "right" },
-  team: { fontSize: 16 },
+  team: { fontSize: 16, lineHeight: 22 },
   sets: { fontSize: 13, marginTop: 6 },
 });

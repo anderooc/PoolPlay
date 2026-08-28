@@ -34,28 +34,94 @@ export function TournamentMatchesPanel({
 
   if (matches.length === 0) {
     return (
-      <Text style={{ color: colors.mutedForeground, fontSize: 15 }}>
-        No public matches yet. Scores appear here once the host releases
-        pools or brackets.
-      </Text>
+      <View style={styles.empty}>
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+          No matches yet
+        </Text>
+        <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>
+          Public matches appear here once the host releases pools or brackets.
+        </Text>
+      </View>
     );
   }
 
+  const groups = groupMatches(matches);
+  const liveCount = matches.filter((m) => m.status === "in_progress").length;
+
   return (
     <View style={styles.stack}>
-      {matches.map((match) => (
-        <MatchRow
-          key={match.slug}
-          match={match}
-          onPress={() =>
-            router.push(`/tournament/${tournamentSlug}/matches/${match.slug}`)
-          }
-        />
+      <Text style={[styles.summary, { color: colors.mutedForeground }]}>
+        {matches.length} match{matches.length === 1 ? "" : "es"}
+        {liveCount > 0 ? ` · ${liveCount} live` : ""}
+      </Text>
+      {groups.map((group) => (
+        <View key={group.key} style={styles.group}>
+          <Text style={[styles.groupTitle, { color: colors.foreground }]}>
+            {group.title}
+          </Text>
+          {group.subtitle ? (
+            <Text style={[styles.groupSubtitle, { color: colors.mutedForeground }]}>
+              {group.subtitle}
+            </Text>
+          ) : null}
+          <View style={styles.rows}>
+            {group.matches.map((match) => (
+              <MatchRow
+                key={match.slug}
+                match={match}
+                onPress={() =>
+                  router.push(
+                    `/tournament/${tournamentSlug}/matches/${match.slug}`
+                  )
+                }
+              />
+            ))}
+          </View>
+        </View>
       ))}
     </View>
   );
 }
 
+function groupMatches(matches: TournamentMatchContract[]) {
+  const map = new Map<
+    string,
+    {
+      key: string;
+      title: string;
+      subtitle: string | null;
+      matches: TournamentMatchContract[];
+    }
+  >();
+
+  for (const match of matches) {
+    const division = match.divisionName ?? "Tournament";
+    const phaseLabel = match.phase === "bracket" ? "Bracket" : "Pool play";
+    const key = `${division}::${match.phase}`;
+    const existing = map.get(key);
+    if (existing) {
+      existing.matches.push(match);
+    } else {
+      map.set(key, {
+        key,
+        title: division,
+        subtitle: phaseLabel,
+        matches: [match],
+      });
+    }
+  }
+
+  return Array.from(map.values());
+}
+
 const styles = StyleSheet.create({
-  stack: { gap: 10 },
+  stack: { gap: 22 },
+  summary: { fontSize: 14, fontWeight: "600" },
+  group: { gap: 8 },
+  groupTitle: { fontSize: 15, fontWeight: "700" },
+  groupSubtitle: { fontSize: 13, fontWeight: "600", marginTop: -4 },
+  rows: { gap: 10 },
+  empty: { gap: 8, paddingVertical: 24 },
+  emptyTitle: { fontSize: 18, fontWeight: "700" },
+  emptyBody: { fontSize: 15, lineHeight: 22 },
 });

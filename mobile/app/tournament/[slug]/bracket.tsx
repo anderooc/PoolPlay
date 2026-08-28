@@ -34,7 +34,7 @@ import { fetchTournamentPlay } from "~/api/endpoints";
 import { BRACKET_TYPE_LABELS } from "~/lib/format";
 import { DrawnBracket } from "~/tournament/bracket-draw";
 import { flattenBrackets, type DisplayBracket } from "~/tournament/flatten-brackets";
-import { SectionBack } from "~/tournament/section-back";
+import { HostSettingsEntry } from "~/tournament/host-settings-entry";
 import { ErrorScreen, LoadingScreen } from "~/tournament/screen-state";
 import { usePublicLoader } from "~/tournament/use-public-loader";
 import { useThemeColors, type ThemeColors } from "~/theme/colors";
@@ -88,10 +88,14 @@ export default function BracketScreen() {
         />
       }
     >
-      <SectionBack
-        label="Tournament"
-        fallbackHref={slug ? `/tournament/${slug}` : "/"}
-      />
+      {slug ? (
+        <HostSettingsEntry
+          slug={slug}
+          href={`/tournament/${slug}/settings/bracket`}
+          title="Bracket settings"
+          detail="Gold / silver / bronze structure"
+        />
+      ) : null}
       {data.divisions.length === 0 ? (
         <Text style={[styles.empty, { color: colors.mutedForeground }]}>
           Divisions have not been posted yet. The bracket lands here after the

@@ -25,8 +25,8 @@ import { useCallback, useLayoutEffect } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { fetchTournamentPlay } from "~/api/endpoints";
 import { formatSigned } from "~/lib/format";
+import { HostSettingsEntry } from "~/tournament/host-settings-entry";
 import { MatchRow } from "~/tournament/match-row";
-import { SectionBack } from "~/tournament/section-back";
 import { ErrorScreen, LoadingScreen } from "~/tournament/screen-state";
 import { usePublicLoader } from "~/tournament/use-public-loader";
 import { useThemeColors, type ThemeColors } from "~/theme/colors";
@@ -82,10 +82,14 @@ export default function PoolsScreen() {
         />
       }
     >
-      <SectionBack
-        label="Tournament"
-        fallbackHref={slug ? `/tournament/${slug}` : "/"}
-      />
+      {slug ? (
+        <HostSettingsEntry
+          slug={slug}
+          href={`/tournament/${slug}/settings/pool`}
+          title="Pool settings"
+          detail="Match format, scoring, and tie-breaks"
+        />
+      ) : null}
       {withPools.length === 0 ? (
         <Text style={[styles.empty, { color: colors.mutedForeground }]}>
           This tournament goes straight to the bracket. Open Bracket to follow

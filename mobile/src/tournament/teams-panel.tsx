@@ -18,7 +18,7 @@
 
 import type { TournamentTeamContract } from "@/lib/api/contracts/tournament";
 import { StyleSheet, Text, View } from "react-native";
-import { useThemeColors } from "~/theme/colors";
+import { useThemeColors, withAlpha } from "~/theme/colors";
 
 export function TournamentTeamsPanel({
   teams,
@@ -29,9 +29,14 @@ export function TournamentTeamsPanel({
 
   if (teams.length === 0) {
     return (
-      <Text style={{ color: colors.mutedForeground, fontSize: 15 }}>
-        No teams are confirmed yet. Check back as registration fills in.
-      </Text>
+      <View style={styles.empty}>
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+          No teams yet
+        </Text>
+        <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>
+          Confirmed teams appear here as registration fills in.
+        </Text>
+      </View>
     );
   }
 
@@ -39,21 +44,57 @@ export function TournamentTeamsPanel({
 
   return (
     <View style={styles.stack}>
+      <Text style={[styles.summary, { color: colors.mutedForeground }]}>
+        {teams.length} team{teams.length === 1 ? "" : "s"} confirmed
+      </Text>
       {groups.map((group) => (
         <View key={group.name} style={styles.group}>
-          <Text style={[styles.groupTitle, { color: colors.mutedForeground }]}>
-            {group.name}
-          </Text>
-          {group.teams.map((team) => (
-            <View key={team.slug} style={styles.row}>
-              <Text style={[styles.name, { color: colors.foreground }]}>
-                {team.name}
-              </Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>
-                {team.schoolName ?? team.university}
+          <View style={styles.groupHeader}>
+            <Text style={[styles.groupTitle, { color: colors.foreground }]}>
+              {group.name}
+            </Text>
+            <View
+              style={[
+                styles.countChip,
+                { backgroundColor: withAlpha(colors.secondary, 0.12) },
+              ]}
+            >
+              <Text style={[styles.countLabel, { color: colors.secondary }]}>
+                {group.teams.length}
               </Text>
             </View>
-          ))}
+          </View>
+          <View
+            style={[styles.list, { borderColor: colors.border }]}
+          >
+            {group.teams.map((team, index) => (
+              <View
+                key={team.slug}
+                style={[
+                  styles.row,
+                  index > 0
+                    ? {
+                        borderTopWidth: StyleSheet.hairlineWidth,
+                        borderTopColor: colors.border,
+                      }
+                    : null,
+                ]}
+              >
+                <Text
+                  style={[styles.name, { color: colors.foreground }]}
+                  numberOfLines={2}
+                >
+                  {team.name}
+                </Text>
+                <Text
+                  style={[styles.school, { color: colors.mutedForeground }]}
+                  numberOfLines={1}
+                >
+                  {team.schoolName ?? team.university}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
       ))}
     </View>
@@ -79,13 +120,38 @@ function groupByDivision(teams: TournamentTeamContract[]) {
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: 20 },
-  group: { gap: 2 },
-  groupTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    marginBottom: 6,
+  stack: { gap: 22 },
+  summary: { fontSize: 14, fontWeight: "600" },
+  group: { gap: 10 },
+  groupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
   },
-  row: { paddingVertical: 10, gap: 2 },
-  name: { fontSize: 16, fontWeight: "600" },
+  groupTitle: { fontSize: 15, fontWeight: "700", flex: 1 },
+  countChip: {
+    minWidth: 28,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  countLabel: { fontSize: 12, fontWeight: "700" },
+  list: {
+    borderWidth: 1,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  row: {
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    gap: 3,
+  },
+  name: { fontSize: 16, fontWeight: "600", lineHeight: 21 },
+  school: { fontSize: 14, lineHeight: 18 },
+  empty: { gap: 8, paddingVertical: 24 },
+  emptyTitle: { fontSize: 18, fontWeight: "700" },
+  emptyBody: { fontSize: 15, lineHeight: 22 },
 });
