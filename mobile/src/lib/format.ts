@@ -17,10 +17,25 @@
  */
 
 export const TOURNAMENT_STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
   registration_open: "Registration open",
   registration_closed: "Registration closed",
   in_progress: "In progress",
   completed: "Completed",
+};
+
+export const TOURNAMENT_STATUS_VALUES = [
+  "draft",
+  "registration_open",
+  "registration_closed",
+  "in_progress",
+  "completed",
+] as const;
+
+export const REGISTRATION_STATUS_LABELS: Record<string, string> = {
+  pending: "Pending",
+  confirmed: "Confirmed",
+  checked_in: "Checked in",
 };
 
 export const TEAM_GENDER_VALUES = ["mens", "womens"] as const;

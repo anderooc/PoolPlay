@@ -96,6 +96,30 @@ function RootStack() {
         options={{ title: "Bracket settings", headerBackTitle: "Tournament" }}
       />
       <Stack.Screen
+        name="tournament/[slug]/host/index"
+        options={{ title: "Host", headerBackTitle: "Tournament" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/host/setup"
+        options={{ title: "Setup", headerBackTitle: "Host" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/host/registrations"
+        options={{ title: "Registrations", headerBackTitle: "Host" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/host/pools"
+        options={{ title: "Pool ops", headerBackTitle: "Host" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/host/bracket"
+        options={{ title: "Bracket ops", headerBackTitle: "Host" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/host/schedule"
+        options={{ title: "Schedule", headerBackTitle: "Host" }}
+      />
+      <Stack.Screen
         name="tournament/new"
         options={{ title: "Create tournament", headerBackTitle: "Tournaments" }}
       />

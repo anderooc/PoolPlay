@@ -236,6 +236,11 @@ function HostLinks({
   const router = useRouter();
   const links = [
     {
+      href: `/tournament/${slug}/host` as const,
+      title: "Host dashboard",
+      detail: "Status, checklist, and tournament ops",
+    },
+    {
       href: `/tournament/${slug}/settings/pool` as const,
       title: "Pool settings",
       detail: "Match format, scoring, and tie-breaks",

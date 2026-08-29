@@ -43,6 +43,22 @@ import type {
   TournamentTeamListContract,
 } from "@/lib/api/contracts/tournament";
 import type {
+  TournamentHostEntityResultContract,
+  TournamentHostBracketResultContract,
+  TournamentHostBulkMutationResultContract,
+  TournamentHostOverviewResultContract,
+  TournamentHostPoolSeedingResultContract,
+  TournamentHostPoolsResultContract,
+  TournamentHostRegistrationsResultContract,
+  TournamentHostReleaseResultContract,
+  TournamentHostScheduleFillPreviewContract,
+  TournamentHostScheduleFillResultContract,
+  TournamentHostScheduleResultContract,
+  TournamentHostScheduleScopeContract,
+  TournamentHostSetupResultContract,
+  TournamentHostWaitlistPromoteResultContract,
+} from "@/lib/api/contracts/tournament-host";
+import type {
   TournamentBracketSettingsContract,
   TournamentChatContract,
   TournamentEmailContract,
@@ -715,5 +731,276 @@ export function updateTournamentBracketSettings(
   return apiRequest(tournamentPath(slug, "/settings/bracket"), {
     method: "POST",
     body,
+  });
+}
+
+export function fetchTournamentHostOverview(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentHostOverviewResultContract> {
+  return apiRequest<TournamentHostOverviewResultContract>(
+    tournamentPath(slug, "/host"),
+    { signal }
+  );
+}
+
+export function updateTournamentHostStatus(
+  slug: string,
+  status: string
+): Promise<TournamentHostOverviewResultContract> {
+  return apiRequest(tournamentPath(slug, "/host"), {
+    method: "PATCH",
+    body: { status },
+  });
+}
+
+export function updateTournamentHostDate(
+  slug: string,
+  date: string
+): Promise<TournamentHostOverviewResultContract> {
+  return apiRequest(tournamentPath(slug, "/host"), {
+    method: "PATCH",
+    body: { date },
+  });
+}
+
+export function fetchTournamentHostSetup(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentHostSetupResultContract> {
+  return apiRequest<TournamentHostSetupResultContract>(
+    tournamentPath(slug, "/host/setup"),
+    { signal }
+  );
+}
+
+export function updateTournamentHostRegistrationAvailability(
+  slug: string,
+  body: { capacity: number | null; deadline: string | null }
+): Promise<TournamentHostSetupResultContract> {
+  return apiRequest(tournamentPath(slug, "/host/setup/registration"), {
+    method: "PATCH",
+    body,
+  });
+}
+
+export function addTournamentHostDivision(
+  slug: string,
+  name: string
+): Promise<TournamentHostEntityResultContract> {
+  return apiRequest(tournamentPath(slug, "/host/divisions"), {
+    method: "POST",
+    body: { name },
+  });
+}
+
+export function removeTournamentHostDivision(
+  slug: string,
+  divisionId: string
+): Promise<TournamentHostSetupResultContract> {
+  return apiRequest(
+    tournamentPath(slug, `/host/divisions/${divisionId}`),
+    { method: "DELETE" }
+  );
+}
+
+export function addTournamentHostCourt(
+  slug: string,
+  name: string
+): Promise<TournamentHostEntityResultContract> {
+  return apiRequest(tournamentPath(slug, "/host/courts"), {
+    method: "POST",
+    body: { name },
+  });
+}
+
+export function removeTournamentHostCourt(
+  slug: string,
+  courtId: string
+): Promise<TournamentHostSetupResultContract> {
+  return apiRequest(tournamentPath(slug, `/host/courts/${courtId}`), {
+    method: "DELETE",
+  });
+}
+
+export function setTournamentHostDivisionCourts(
+  slug: string,
+  divisionId: string,
+  courtIds: string[]
+): Promise<TournamentHostSetupResultContract> {
+  return apiRequest(tournamentPath(slug, `/host/divisions/${divisionId}`), {
+    method: "PATCH",
+    body: { courtIds },
+  });
+}
+
+export function fetchTournamentHostRegistrations(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentHostRegistrationsResultContract> {
+  return apiRequest<TournamentHostRegistrationsResultContract>(
+    tournamentPath(slug, "/host/registrations"),
+    { signal }
+  );
+}
+
+export function updateTournamentHostRegistration(
+  slug: string,
+  registrationId: string,
+  body: { status?: string; divisionId?: string | null }
+): Promise<TournamentHostRegistrationsResultContract> {
+  return apiRequest(
+    tournamentPath(slug, `/host/registrations/${registrationId}`),
+    { method: "PATCH", body }
+  );
+}
+
+export function confirmTournamentHostRegistrations(
+  slug: string,
+  registrationIds: string[]
+): Promise<TournamentHostBulkMutationResultContract> {
+  return apiRequest(tournamentPath(slug, "/host/registrations/confirm"), {
+    method: "POST",
+    body: { registrationIds },
+  });
+}
+
+export function checkInTournamentHostRegistrations(
+  slug: string,
+  registrationIds: string[]
+): Promise<TournamentHostBulkMutationResultContract> {
+  return apiRequest(tournamentPath(slug, "/host/registrations/check-in"), {
+    method: "POST",
+    body: { registrationIds },
+  });
+}
+
+export function removeTournamentHostRegistrations(
+  slug: string,
+  registrationIds: string[]
+): Promise<TournamentHostBulkMutationResultContract> {
+  return apiRequest(tournamentPath(slug, "/host/registrations/bulk"), {
+    method: "DELETE",
+    body: { registrationIds },
+  });
+}
+
+export function promoteTournamentHostWaitlist(
+  slug: string,
+  operationId: string
+): Promise<TournamentHostWaitlistPromoteResultContract> {
+  return apiRequest(tournamentPath(slug, "/host/waitlist/promote"), {
+    method: "POST",
+    body: { operationId },
+  });
+}
+
+export function removeTournamentHostWaitlistEntry(
+  slug: string,
+  entryId: string
+): Promise<TournamentHostRegistrationsResultContract> {
+  return apiRequest(tournamentPath(slug, `/host/waitlist/${entryId}`), {
+    method: "DELETE",
+  });
+}
+
+export function fetchTournamentHostPools(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentHostPoolsResultContract> {
+  return apiRequest<TournamentHostPoolsResultContract>(
+    tournamentPath(slug, "/host/pools"),
+    { signal }
+  );
+}
+
+export function updateTournamentHostPoolSeeding(
+  slug: string,
+  poolId: string,
+  teamIds: string[]
+): Promise<TournamentHostPoolSeedingResultContract> {
+  return apiRequest(tournamentPath(slug, `/host/pools/${poolId}/seeding`), {
+    method: "POST",
+    body: { teamIds },
+  });
+}
+
+export function releaseTournamentHostDivisionPools(
+  slug: string,
+  divisionId: string
+): Promise<TournamentHostReleaseResultContract> {
+  return apiRequest(
+    tournamentPath(slug, `/host/divisions/${divisionId}/release`),
+    { method: "POST", body: {} }
+  );
+}
+
+export function fetchTournamentHostBrackets(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentHostBracketResultContract> {
+  return apiRequest<TournamentHostBracketResultContract>(
+    tournamentPath(slug, "/host/brackets"),
+    { signal }
+  );
+}
+
+export function regenerateTournamentHostBrackets(
+  slug: string
+): Promise<TournamentHostBracketResultContract> {
+  return apiRequest(tournamentPath(slug, "/host/brackets/regenerate"), {
+    method: "POST",
+    body: {},
+  });
+}
+
+export function fetchTournamentHostSchedule(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentHostScheduleResultContract> {
+  return apiRequest<TournamentHostScheduleResultContract>(
+    tournamentPath(slug, "/host/schedule"),
+    { signal }
+  );
+}
+
+export function updateTournamentHostMatchSchedule(
+  slug: string,
+  matchId: string,
+  scheduledTime: string | null
+): Promise<TournamentHostScheduleResultContract> {
+  return apiRequest(
+    tournamentPath(slug, `/host/matches/${matchId}/schedule`),
+    { method: "PATCH", body: { scheduledTime } }
+  );
+}
+
+export function previewTournamentHostScheduleFill(
+  slug: string,
+  body: {
+    scope: TournamentHostScheduleScopeContract;
+    firstStartIso: string;
+    intervalMinutes: number;
+    overwrite: boolean;
+  }
+): Promise<TournamentHostScheduleFillPreviewContract> {
+  return apiRequest(tournamentPath(slug, "/host/schedule/fill"), {
+    method: "POST",
+    body: { ...body, preview: true },
+  });
+}
+
+export function applyTournamentHostScheduleFill(
+  slug: string,
+  body: {
+    scope: TournamentHostScheduleScopeContract;
+    firstStartIso: string;
+    intervalMinutes: number;
+    overwrite: boolean;
+  }
+): Promise<TournamentHostScheduleFillResultContract> {
+  return apiRequest(tournamentPath(slug, "/host/schedule/fill"), {
+    method: "POST",
+    body: { ...body, preview: false },
   });
 }
