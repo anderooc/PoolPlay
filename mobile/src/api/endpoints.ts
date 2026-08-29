@@ -22,6 +22,10 @@ import type {
   SchoolListContract,
   SchoolMutationResultContract,
 } from "@/lib/api/contracts/school";
+import type {
+  MatchConsoleContract,
+  MatchConsoleMutationResultContract,
+} from "@/lib/api/contracts/match-console";
 import type { DashboardContract } from "@/lib/api/contracts/dashboard";
 import type {
   TeamDetailContract,
@@ -361,6 +365,74 @@ export function fetchTournamentMatch(
       authenticated: false,
       signal,
     }
+  );
+}
+
+export function fetchMatchConsole(
+  tournamentSlug: string,
+  matchSlug: string,
+  signal?: AbortSignal
+): Promise<MatchConsoleContract> {
+  return apiRequest<MatchConsoleContract>(
+    tournamentPath(
+      tournamentSlug,
+      `/matches/${encodeURIComponent(matchSlug)}/console`
+    ),
+    { signal }
+  );
+}
+
+type MatchConsoleAction = "warmup" | "start" | "pause" | "finalize" | "reopen";
+
+export function runMatchConsoleAction(
+  tournamentSlug: string,
+  matchSlug: string,
+  action: MatchConsoleAction,
+  body?: { winnerSlug?: string | null }
+): Promise<MatchConsoleMutationResultContract> {
+  return apiRequest<MatchConsoleMutationResultContract>(
+    tournamentPath(
+      tournamentSlug,
+      `/matches/${encodeURIComponent(matchSlug)}/console`
+    ),
+    { method: "POST", body: { action, ...body } }
+  );
+}
+
+export function saveMatchSetScore(
+  tournamentSlug: string,
+  matchSlug: string,
+  setNumber: number,
+  teamAScore: number,
+  teamBScore: number
+): Promise<MatchConsoleMutationResultContract> {
+  return apiRequest<MatchConsoleMutationResultContract>(
+    tournamentPath(
+      tournamentSlug,
+      `/matches/${encodeURIComponent(matchSlug)}/sets/${setNumber}`
+    ),
+    { method: "PUT", body: { teamAScore, teamBScore } }
+  );
+}
+
+type MatchCrewAction =
+  | "claim"
+  | "release"
+  | "claim_point_keeper"
+  | "release_point_keeper";
+
+export function runMatchCrewAction(
+  tournamentSlug: string,
+  matchSlug: string,
+  action: MatchCrewAction,
+  body?: { role?: string }
+): Promise<MatchConsoleMutationResultContract> {
+  return apiRequest<MatchConsoleMutationResultContract>(
+    tournamentPath(
+      tournamentSlug,
+      `/matches/${encodeURIComponent(matchSlug)}/crew`
+    ),
+    { method: "POST", body: { action, ...body } }
   );
 }
 

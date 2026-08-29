@@ -17,10 +17,18 @@
  */
 
 import type { TournamentMatchDetailContract } from "@/lib/api/contracts/tournament";
-import { useLocalSearchParams, useNavigation } from "expo-router";
-import { useCallback, useLayoutEffect } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { fetchTournamentMatch } from "~/api/endpoints";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { fetchMatchConsole, fetchTournamentMatch } from "~/api/endpoints";
+import { useSession } from "~/auth/session";
 import {
   formatMatchTime,
   MATCH_STATUS_LABELS,
@@ -33,10 +41,13 @@ import { useThemeColors, type ThemeColors } from "~/theme/colors";
 export default function MatchDetailScreen() {
   const colors = useThemeColors();
   const navigation = useNavigation();
+  const router = useRouter();
+  const { session } = useSession();
   const { slug, matchSlug } = useLocalSearchParams<{
     slug: string;
     matchSlug: string;
   }>();
+  const [canOpenConsole, setCanOpenConsole] = useState(false);
 
   const load = useCallback(
     (signal?: AbortSignal) => {
@@ -54,6 +65,29 @@ export default function MatchDetailScreen() {
   );
 
   usePolling(poll, 5000, data?.status === "in_progress");
+
+  useEffect(() => {
+    if (!session || !slug || !matchSlug) {
+      setCanOpenConsole(false);
+      return;
+    }
+    const controller = new AbortController();
+    void fetchMatchConsole(slug, matchSlug, controller.signal)
+      .then((console) => {
+        const perms = console.permissions;
+        setCanOpenConsole(
+          perms.canScore ||
+            perms.canRunLifecycle ||
+            perms.canClaimCrewSlot ||
+            perms.isOrganizer ||
+            perms.isRefMember
+        );
+      })
+      .catch(() => {
+        setCanOpenConsole(false);
+      });
+    return () => controller.abort();
+  }, [session, slug, matchSlug, data?.status]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -112,6 +146,20 @@ export default function MatchDetailScreen() {
         <Text style={[styles.meta, { color: colors.mutedForeground }]}>
           {meta}
         </Text>
+      ) : null}
+
+      {canOpenConsole ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            router.push(`/tournament/${slug}/matches/${matchSlug}/console`)
+          }
+          style={[styles.consoleBtn, { backgroundColor: colors.primary }]}
+        >
+          <Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>
+            Open match console
+          </Text>
+        </Pressable>
       ) : null}
 
       <View style={[styles.board, { borderColor: colors.border }]}>
@@ -214,6 +262,12 @@ const styles = StyleSheet.create({
   kicker: { fontSize: 14, fontWeight: "600" },
   status: { fontSize: 28, fontWeight: "700", letterSpacing: -0.4 },
   meta: { fontSize: 15 },
+  consoleBtn: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 4,
+  },
   board: {
     marginTop: 12,
     borderWidth: 1,

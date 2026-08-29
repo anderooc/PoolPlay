@@ -106,6 +106,20 @@ export const REGION_LABELS: Record<string, string> = {
   northwest: "Northwest",
 };
 
+export const MATCH_PHASE_LABELS: Record<string, string> = {
+  upcoming: "Upcoming",
+  warmup: "Warmup",
+  paused: "Paused",
+  in_progress: "Live",
+  completed: "Final",
+};
+
+export const MATCH_FORMAT_LABELS: Record<string, string> = {
+  play_all_3: "Play all 3 sets",
+  best_of_2: "Best of 2",
+  two_with_tiebreak: "2 sets + tiebreak",
+};
+
 /** Today as `YYYY-MM-DD` in the device's local timezone. */
 export function todayISO(): string {
   const d = new Date();
