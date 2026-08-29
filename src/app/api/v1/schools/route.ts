@@ -17,9 +17,12 @@
  */
 
 import { requireViewer } from "@/lib/api/auth";
+import { badRequest } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
 import { loadSchoolListForViewer } from "@/lib/api/queries/schools";
+import { createSchoolForViewer } from "@/lib/api/queries/school-create";
 import { jsonSuccess } from "@/lib/api/response";
+import { createSchoolSchema } from "@/lib/validators";
 import type { SchoolVerificationStatus, TeamRegion } from "@/types";
 
 function parseListParam<T extends string>(
@@ -65,4 +68,20 @@ export const GET = apiHandler(async (request: Request) => {
       offset: Number.isFinite(offsetRaw) ? offsetRaw : 0,
     })
   );
+});
+
+export const POST = apiHandler(async (request: Request) => {
+  const { user } = await requireViewer(request);
+  const body = (await request.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
+  if (!body) throw badRequest("Request body is required.");
+
+  const parsed = createSchoolSchema.safeParse(body);
+  if (!parsed.success) {
+    throw badRequest(parsed.error.issues[0].message);
+  }
+
+  return jsonSuccess(await createSchoolForViewer(user, parsed.data));
 });

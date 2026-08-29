@@ -17,30 +17,11 @@
  */
 
 import { requireViewer } from "@/lib/api/auth";
-import { badRequest } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
-import { loadTeamListForViewer } from "@/lib/api/queries/teams";
-import { createTeamForViewer } from "@/lib/api/queries/team-create";
+import { loadCreateOptionsForViewer } from "@/lib/api/queries/create-options";
 import { jsonSuccess } from "@/lib/api/response";
-import { createTeamSchema } from "@/lib/validators";
 
 export const GET = apiHandler(async (request: Request) => {
   const { user } = await requireViewer(request);
-  return jsonSuccess(await loadTeamListForViewer(user));
-});
-
-export const POST = apiHandler(async (request: Request) => {
-  const { user } = await requireViewer(request);
-  const body = (await request.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
-  if (!body) throw badRequest("Request body is required.");
-
-  const parsed = createTeamSchema.safeParse(body);
-  if (!parsed.success) {
-    throw badRequest(parsed.error.issues[0].message);
-  }
-
-  return jsonSuccess(await createTeamForViewer(user, parsed.data));
+  return jsonSuccess(await loadCreateOptionsForViewer(user));
 });

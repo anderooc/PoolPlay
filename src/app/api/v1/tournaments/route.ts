@@ -17,14 +17,18 @@
  */
 
 import type { TournamentListContract } from "@/lib/api/contracts/tournament";
+import { requireViewer } from "@/lib/api/auth";
+import { badRequest } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
 import { buildTournamentListItemContract } from "@/lib/api/projections/tournament";
+import { createTournamentForViewer } from "@/lib/api/queries/tournament-create";
 import {
   applyTournamentListQuery,
   parseTournamentListQuery,
 } from "@/lib/api/queries/tournament-list";
 import { jsonSuccess } from "@/lib/api/response";
 import { getCachedPublicTournamentList } from "@/lib/tournaments/public-list-cache";
+import { createTournamentSchema } from "@/lib/validators";
 
 /**
  * Public tournament list, mirroring /explore. Intentionally unauthenticated so
@@ -46,4 +50,20 @@ export const GET = apiHandler(async (request: Request) => {
   return jsonSuccess(body, {
     meta: { cursor: { next: page.nextOffset?.toString() ?? null } },
   });
+});
+
+export const POST = apiHandler(async (request: Request) => {
+  const { user } = await requireViewer(request);
+  const body = (await request.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
+  if (!body) throw badRequest("Request body is required.");
+
+  const parsed = createTournamentSchema.safeParse(body);
+  if (!parsed.success) {
+    throw badRequest(parsed.error.issues[0].message);
+  }
+
+  return jsonSuccess(await createTournamentForViewer(user, parsed.data));
 });
