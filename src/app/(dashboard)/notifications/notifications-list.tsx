@@ -18,12 +18,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
+  getNotificationCenter,
   markNotificationsRead,
   type NotificationCenterItem,
 } from "./actions";
@@ -31,6 +32,8 @@ import {
   formatNotificationTime,
   notificationKindLabel,
 } from "@/lib/notifications/display";
+import { subscribeToUserNotifications } from "@/lib/notifications/realtime";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 export function NotificationsList({
@@ -40,6 +43,15 @@ export function NotificationsList({
 }) {
   const [items, setItems] = useState(initialItems);
   const unreadCount = items.filter((item) => !item.readAt).length;
+
+  useEffect(() => {
+    const supabase = createClient();
+    return subscribeToUserNotifications(supabase, () => {
+      void getNotificationCenter(80).then((result) => {
+        setItems(result.notifications);
+      });
+    });
+  }, []);
 
   async function markOne(item: NotificationCenterItem) {
     if (item.readAt) return;

@@ -38,6 +38,8 @@ import {
   formatNotificationTime,
   notificationKindLabel,
 } from "@/lib/notifications/display";
+import { subscribeToUserNotifications } from "@/lib/notifications/realtime";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 export function NotificationBell({
@@ -58,6 +60,13 @@ export function NotificationBell({
 
   useEffect(() => {
     void refresh();
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    return subscribeToUserNotifications(supabase, () => {
+      void refresh();
+    });
   }, []);
 
   async function handleOpenChange(open: boolean) {
