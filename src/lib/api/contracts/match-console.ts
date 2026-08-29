@@ -16,10 +16,67 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { MatchFormat } from "@/lib/labels/match-format";
-import type { WarmupFormat } from "@/lib/labels/warmup-format";
-import type { MatchRefCrewState } from "@/lib/tournaments/match-ref-crew";
-import type { MatchPhase, MatchScoreState } from "@/lib/tournaments/match-format";
+/** Wire-safe copies of match labels — keep this file free of server imports. */
+export type MatchConsoleMatchFormat =
+  | "play_all_3"
+  | "best_of_2"
+  | "two_with_tiebreak";
+
+export type MatchConsoleWarmupFormat = "none" | "three_three_one";
+
+export type MatchConsolePhase =
+  | "upcoming"
+  | "warmup"
+  | "paused"
+  | "in_progress"
+  | "completed";
+
+export interface MatchConsoleSetTrackerEntry {
+  setNumber: number;
+  target: number;
+  teamAScore: number;
+  teamBScore: number;
+  complete: boolean;
+  current: boolean;
+}
+
+export interface MatchConsoleScoreState {
+  setsWonA: number;
+  setsWonB: number;
+  requiredSets: number;
+  maxSets: number;
+  currentSetNumber: number;
+  currentTarget: number;
+  tracker: MatchConsoleSetTrackerEntry[];
+}
+
+export type MatchConsoleRefCrewRole =
+  | "up_ref"
+  | "down_ref"
+  | "line_ref_1"
+  | "line_ref_2"
+  | "scorekeeper_1"
+  | "scorekeeper_2"
+  | "scorekeeper_3";
+
+export interface MatchConsoleRefCrewSlot {
+  role: MatchConsoleRefCrewRole;
+  label: string;
+  userId: string | null;
+  fullName: string | null;
+  claimedAt: string | null;
+  required: boolean;
+}
+
+export interface MatchConsoleRefCrewState {
+  slots: MatchConsoleRefCrewSlot[];
+  pointKeeperUserId: string | null;
+  pointKeeperFullName: string | null;
+  missingRequiredRoles: MatchConsoleRefCrewRole[];
+  isCrewComplete: boolean;
+  viewerSlot: MatchConsoleRefCrewRole | null;
+  viewerIsPointKeeper: boolean;
+}
 
 export interface MatchConsoleTeamContract {
   id: string;
@@ -38,7 +95,7 @@ export interface MatchConsoleContract {
   tournamentName: string;
   matchSlug: string;
   status: "upcoming" | "in_progress" | "completed";
-  derivedPhase: MatchPhase;
+  derivedPhase: MatchConsolePhase;
   scheduledTime: string | null;
   warmupStartedAt: string | null;
   startedAt: string | null;
@@ -52,14 +109,14 @@ export interface MatchConsoleContract {
   winnerSlug: string | null;
   sets: MatchConsoleSetContract[];
   settings: {
-    matchFormat: MatchFormat;
+    matchFormat: MatchConsoleMatchFormat;
     setStartingScore: number;
     setTargetScore: number;
     tiebreakTargetScore: number;
-    warmupFormat: WarmupFormat;
+    warmupFormat: MatchConsoleWarmupFormat;
   };
-  scoreState: MatchScoreState;
-  crew: MatchRefCrewState;
+  scoreState: MatchConsoleScoreState;
+  crew: MatchConsoleRefCrewState;
   permissions: {
     canScore: boolean;
     canRunLifecycle: boolean;
