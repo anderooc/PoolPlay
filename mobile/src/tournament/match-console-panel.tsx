@@ -16,10 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { MatchConsoleContract } from "@/lib/api/contracts/match-console";
-import type { MatchRefCrewRole } from "@/lib/tournaments/match-ref-crew";
-import { MATCH_REF_CREW_ROLE_LABELS } from "@/lib/tournaments/match-ref-crew";
-import { targetForSet } from "@/lib/tournaments/match-format";
+import type {
+  MatchConsoleContract,
+  MatchConsoleRefCrewRole,
+} from "@/lib/api/contracts/match-console";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -59,7 +59,7 @@ export function MatchConsolePanel({
   ) => Promise<void>;
   onCrewAction: (
     action: "claim" | "release" | "claim_point_keeper" | "release_point_keeper",
-    role?: MatchRefCrewRole
+    role?: MatchConsoleRefCrewRole
   ) => void;
 }) {
   const [selectedSetNumber, setSelectedSetNumber] = useState(
@@ -87,14 +87,8 @@ export function MatchConsolePanel({
     crew.pointKeeperUserId != null ||
     crew.slots.some((slot) => slot.userId != null);
   const activeEntry = data.scoreState.tracker[selectedSetNumber - 1];
-  const activeTarget = targetForSet(
-    {
-      format: data.settings.matchFormat,
-      targetScore: data.settings.setTargetScore,
-      tiebreakTargetScore: data.settings.tiebreakTargetScore,
-    },
-    selectedSetNumber
-  );
+  const activeTarget =
+    activeEntry?.target ?? data.scoreState.currentTarget;
   const editingPastSet = selectedSetNumber < data.scoreState.currentSetNumber;
   const winnerName =
     data.winnerSlug === data.teamA?.slug
@@ -145,7 +139,10 @@ export function MatchConsolePanel({
             <Text style={{ color: colors.destructive, fontSize: 13 }}>
               Crew incomplete — still need:{" "}
               {crew.missingRequiredRoles
-                .map((role) => MATCH_REF_CREW_ROLE_LABELS[role])
+                .map(
+                  (role) =>
+                    crew.slots.find((slot) => slot.role === role)?.label ?? role
+                )
                 .join(", ")}
             </Text>
           ) : null}
