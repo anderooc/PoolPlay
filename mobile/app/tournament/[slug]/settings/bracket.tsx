@@ -21,6 +21,7 @@ import { Redirect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -31,6 +32,7 @@ import {
 } from "react-native";
 import {
   fetchTournamentBracketSettings,
+  regenerateTournamentHostBrackets,
   updateTournamentBracketSettings,
 } from "~/api/endpoints";
 import { useSession } from "~/auth/session";
@@ -47,6 +49,7 @@ export default function BracketSettingsScreen() {
     null
   );
   const [busy, setBusy] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -288,6 +291,56 @@ export default function BracketSettingsScreen() {
           { borderTopColor: colors.border, backgroundColor: colors.background },
         ]}
       >
+        {draft.canRegenerate ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={regenerating || busy}
+            onPress={() =>
+              Alert.alert(
+                "Regenerate brackets?",
+                "This clears current bracket matches and re-seeds from pool standings.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Regenerate",
+                    style: "destructive",
+                    onPress: () => {
+                      setRegenerating(true);
+                      setActionError(null);
+                      void regenerateTournamentHostBrackets(slug!)
+                        .then((result) => {
+                          setDraft(result.settings);
+                          setSaved(true);
+                          void refresh();
+                        })
+                        .catch((cause) => {
+                          setActionError(
+                            messageFor(cause, "Could not regenerate brackets.")
+                          );
+                        })
+                        .finally(() => setRegenerating(false));
+                    },
+                  },
+                ]
+              )
+            }
+            style={[
+              styles.regenerate,
+              {
+                borderColor: colors.destructive,
+                opacity: regenerating || busy ? 0.5 : 1,
+              },
+            ]}
+          >
+            {regenerating ? (
+              <ActivityIndicator color={colors.destructive} />
+            ) : (
+              <Text style={{ color: colors.destructive, fontWeight: "700" }}>
+                Regenerate brackets
+              </Text>
+            )}
+          </Pressable>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           disabled={busy || locked || !draft.hasPoolToBracket}
@@ -333,7 +386,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  footer: { borderTopWidth: 1, paddingHorizontal: 20, paddingVertical: 12 },
+  footer: { borderTopWidth: 1, paddingHorizontal: 20, paddingVertical: 12, gap: 10 },
+  regenerate: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
   save: {
     borderRadius: 12,
     paddingVertical: 14,
