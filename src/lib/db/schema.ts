@@ -121,6 +121,16 @@ export const matchStatusEnum = pgEnum("match_status", [
   "completed",
 ]);
 
+export const matchRefCrewRoleEnum = pgEnum("match_ref_crew_role", [
+  "up_ref",
+  "down_ref",
+  "line_ref_1",
+  "line_ref_2",
+  "scorekeeper_1",
+  "scorekeeper_2",
+  "scorekeeper_3",
+]);
+
 export const matchFormatEnum = pgEnum("match_format", [
   "play_all_3",
   "best_of_2",
@@ -974,6 +984,10 @@ export const matches = pgTable(
      * planned start). */
     startedAt: timestamp("started_at"),
     winnerId: uuid("winner_id").references(() => teams.id),
+    /** Active point keeper for this match; must hold a scorekeeper crew slot. */
+    pointKeeperUserId: uuid("point_keeper_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -995,6 +1009,25 @@ export const sets = pgTable(
   },
   (t) => [
     uniqueIndex("sets_match_set_number_unique").on(t.matchId, t.setNumber),
+  ]
+);
+
+export const matchRefCrew = pgTable(
+  "match_ref_crew",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    matchId: uuid("match_id")
+      .references(() => matches.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    role: matchRefCrewRoleEnum("role").notNull(),
+    claimedAt: timestamp("claimed_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("match_ref_crew_match_role_unique").on(t.matchId, t.role),
+    uniqueIndex("match_ref_crew_match_user_unique").on(t.matchId, t.userId),
   ]
 );
 
@@ -1376,4 +1409,9 @@ export const matchesRelations = relations(matches, ({ one, many }) => ({
 
 export const setsRelations = relations(sets, ({ one }) => ({
   match: one(matches, { fields: [sets.matchId], references: [matches.id] }),
+}));
+
+export const matchRefCrewRelations = relations(matchRefCrew, ({ one }) => ({
+  match: one(matches, { fields: [matchRefCrew.matchId], references: [matches.id] }),
+  user: one(users, { fields: [matchRefCrew.userId], references: [users.id] }),
 }));
