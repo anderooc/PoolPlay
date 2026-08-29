@@ -954,13 +954,19 @@ export async function updateRegistrationStatus(
         error: `Waiver incomplete (${compliance.completedCount}/${compliance.totalCount}). Complete waivers or waive players before check-in.`,
       };
     }
+  } else if (status === "confirmed" && reg.status === "checked_in") {
+    if (!await canCheckInRegistrations(tournament, user)) {
+      return {
+        error: "Check-in can only be undone while the tournament is in progress.",
+      };
+    }
   } else if (!await canEditRegistrations(tournament, user)) {
     return {
       error: "Registrations cannot be updated in the current tournament stage.",
     };
   }
 
-  if (status === "confirmed") {
+  if (status === "confirmed" && reg.status === "pending") {
     const paymentSettings = paymentSettingsFromTournament(tournament);
     const payments = await getPaymentsByRegistrationIds([registrationId]);
     const payment = payments.get(registrationId);
