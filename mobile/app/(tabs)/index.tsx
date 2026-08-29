@@ -126,6 +126,26 @@ export default function DashboardScreen() {
           </Text>
           <Pressable
             accessibilityRole="button"
+            onPress={() => router.push("/schools/new")}
+            style={[styles.linkRow, { borderColor: colors.border }]}
+          >
+            <Text style={{ color: colors.foreground, fontWeight: "700" }}>
+              Create a school
+            </Text>
+            <Text style={{ color: colors.primary, fontSize: 20 }}>›</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push("/teams/new")}
+            style={[styles.linkRow, { borderColor: colors.border }]}
+          >
+            <Text style={{ color: colors.foreground, fontWeight: "700" }}>
+              Create a team
+            </Text>
+            <Text style={{ color: colors.primary, fontSize: 20 }}>›</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
             onPress={() => router.push("/schools")}
             style={[styles.linkRow, { borderColor: colors.border }]}
           >
@@ -194,7 +214,14 @@ export default function DashboardScreen() {
 
         {data!.teams.length === 0 ? (
           <Text style={[styles.empty, { color: colors.mutedForeground }]}>
-            No teams yet. Create one on the web to manage your roster.
+            No teams yet.{" "}
+            <Text
+              style={{ color: colors.primary, fontWeight: "700" }}
+              onPress={() => router.push("/teams/new")}
+            >
+              Create one
+            </Text>{" "}
+            to manage your roster.
           </Text>
         ) : (
           data!.teams.map((team) => (

@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import type { CreateEntityResultContract } from "@/lib/api/contracts/create";
+import type { CreateOptionsContract } from "@/lib/api/contracts/create-options";
 import type {
   SchoolDetailContract,
   SchoolJoinResultContract,
@@ -62,6 +64,56 @@ import { apiDownload, apiRequest } from "./client";
  * the wire format shows up as a compile error here rather than as a runtime
  * surprise on a device.
  */
+
+export function fetchCreateOptions(
+  signal?: AbortSignal
+): Promise<CreateOptionsContract> {
+  return apiRequest<CreateOptionsContract>("/api/v1/me/create-options", {
+    signal,
+  });
+}
+
+export function createSchool(body: {
+  name: string;
+  university: string;
+  gender: string;
+  region: string;
+  description?: string | null;
+  websiteUrl?: string | null;
+  domainHint?: string | null;
+}): Promise<CreateEntityResultContract> {
+  return apiRequest<CreateEntityResultContract>("/api/v1/schools", {
+    method: "POST",
+    body,
+  });
+}
+
+export function createTeam(body: {
+  name: string;
+  gender: string;
+  region: string;
+  schoolId?: string | null;
+}): Promise<CreateEntityResultContract> {
+  return apiRequest<CreateEntityResultContract>("/api/v1/teams", {
+    method: "POST",
+    body,
+  });
+}
+
+export function createTournament(body: {
+  hostSchoolId: string;
+  name: string;
+  description?: string;
+  date: string;
+  location: string;
+  address?: string;
+  playFormat: string;
+}): Promise<CreateEntityResultContract> {
+  return apiRequest<CreateEntityResultContract>("/api/v1/tournaments", {
+    method: "POST",
+    body,
+  });
+}
 
 export function fetchViewer(signal?: AbortSignal): Promise<ViewerContract> {
   return apiRequest<ViewerContract>("/api/v1/me", { signal });

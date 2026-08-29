@@ -17,8 +17,8 @@
  */
 
 import type { TeamListItemContract } from "@/lib/api/contracts/team";
-import { Redirect, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { Redirect, useNavigation, useRouter } from "expo-router";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import {
   FlatList,
   Pressable,
@@ -41,6 +41,7 @@ import { ErrorScreen, LoadingScreen } from "~/tournament/screen-state";
 
 export default function TeamsScreen() {
   const colors = useThemeColors();
+  const navigation = useNavigation();
   const router = useRouter();
   const { session, isLoading: sessionLoading } = useSession();
   const [teams, setTeams] = useState<TeamListItemContract[] | null>(null);
@@ -68,6 +69,24 @@ export default function TeamsScreen() {
     void load(controller.signal);
     return () => controller.abort();
   }, [session, load]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Create team"
+          onPress={() => router.push("/teams/new")}
+          hitSlop={8}
+          style={{ paddingHorizontal: 4, paddingVertical: 6 }}
+        >
+          <Text style={{ color: colors.primary, fontWeight: "700", fontSize: 16 }}>
+            New
+          </Text>
+        </Pressable>
+      ),
+    });
+  }, [colors.primary, navigation, router]);
 
   if (sessionLoading) return <LoadingScreen />;
   if (!session) return <Redirect href="/sign-in" />;
@@ -105,9 +124,17 @@ export default function TeamsScreen() {
               No teams yet
             </Text>
             <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>
-              Create a team on the web to manage your roster and register for
-              tournaments.
+              Create a team to manage your roster and register for tournaments.
             </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push("/teams/new")}
+              style={[styles.createBtn, { backgroundColor: colors.primary }]}
+            >
+              <Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>
+                Create team
+              </Text>
+            </Pressable>
           </View>
         }
         renderItem={({ item }) => (
@@ -162,6 +189,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center",
+  },
+  createBtn: {
+    marginTop: 12,
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    alignSelf: "center",
   },
   row: {
     borderWidth: 1,

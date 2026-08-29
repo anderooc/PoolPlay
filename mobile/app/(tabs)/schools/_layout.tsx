@@ -33,6 +33,7 @@ export default function SchoolsStackLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ title: "Find schools" }} />
+      <Stack.Screen name="new" options={{ title: "Create school" }} />
       <Stack.Screen
         name="[slug]"
         options={{ headerBackTitle: "Find" }}

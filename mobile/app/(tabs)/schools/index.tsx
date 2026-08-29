@@ -188,7 +188,17 @@ export default function SchoolsScreen() {
               Your school · {mySchool.name}
             </Text>
           </Pressable>
-        ) : null}
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push("/schools/new")}
+            style={[styles.createBtn, { backgroundColor: colors.primary }]}
+          >
+            <Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>
+              Create school
+            </Text>
+          </Pressable>
+        )}
       </View>
 
       <FlatList
@@ -269,6 +279,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
+  },
+  createBtn: {
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    alignItems: "center",
   },
   list: { paddingHorizontal: 16, paddingBottom: 40, gap: 10 },
   empty: { paddingTop: 40, textAlign: "center", fontSize: 15, lineHeight: 22 },

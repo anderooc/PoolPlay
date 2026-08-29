@@ -661,33 +661,53 @@ export default function SchoolDetailScreen() {
             </>
           )}
         </>
-      ) : data.teams.length === 0 ? (
-        <Text style={{ color: colors.mutedForeground }}>
-          No teams linked to this school yet.
-        </Text>
       ) : (
-        data.teams.map((team) => (
-          <Pressable
-            key={team.slug}
-            accessibilityRole="button"
-            onPress={() => router.push(`/teams/${team.slug}`)}
-            style={[styles.memberRow, { borderColor: colors.border }]}
-          >
-            <View style={{ flex: 1, gap: 2 }}>
+        <>
+          {data.viewer.canManageRoster ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() =>
+                router.push({
+                  pathname: "/teams/new",
+                  params: { schoolSlug: data.slug },
+                })
+              }
+              style={[styles.secondaryBtn, { borderColor: colors.border }]}
+            >
               <Text style={{ color: colors.foreground, fontWeight: "700" }}>
-                {team.name}
+                New team
               </Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
-                {GENDER_LABELS[team.gender] ?? team.gender}
-                {" · "}
-                {REGION_LABELS[team.region] ?? team.region}
-                {" · "}
-                {team.memberCount} member{team.memberCount === 1 ? "" : "s"}
-              </Text>
-            </View>
-            <Text style={{ color: colors.primary, fontSize: 22 }}>›</Text>
-          </Pressable>
-        ))
+            </Pressable>
+          ) : null}
+          {data.teams.length === 0 ? (
+            <Text style={{ color: colors.mutedForeground }}>
+              No teams linked to this school yet.
+            </Text>
+          ) : (
+            data.teams.map((team) => (
+              <Pressable
+                key={team.slug}
+                accessibilityRole="button"
+                onPress={() => router.push(`/teams/${team.slug}`)}
+                style={[styles.memberRow, { borderColor: colors.border }]}
+              >
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={{ color: colors.foreground, fontWeight: "700" }}>
+                    {team.name}
+                  </Text>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+                    {GENDER_LABELS[team.gender] ?? team.gender}
+                    {" · "}
+                    {REGION_LABELS[team.region] ?? team.region}
+                    {" · "}
+                    {team.memberCount} member{team.memberCount === 1 ? "" : "s"}
+                  </Text>
+                </View>
+                <Text style={{ color: colors.primary, fontSize: 22 }}>›</Text>
+              </Pressable>
+            ))
+          )}
+        </>
       )}
     </ScrollView>
   );

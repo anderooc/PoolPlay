@@ -33,6 +33,7 @@ export default function TeamsStackLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ title: "Teams" }} />
+      <Stack.Screen name="new" options={{ title: "Create team" }} />
       <Stack.Screen
         name="[slug]"
         options={{ headerBackTitle: "Teams" }}

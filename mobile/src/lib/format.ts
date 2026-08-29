@@ -120,6 +120,27 @@ export const MATCH_FORMAT_LABELS: Record<string, string> = {
   two_with_tiebreak: "2 sets + tiebreak",
 };
 
+export const PLAY_FORMAT_VALUES = [
+  "pool_to_bracket",
+  "single_elimination",
+  "double_elimination",
+] as const;
+
+export const PLAY_FORMAT_LABELS: Record<string, string> = {
+  pool_to_bracket: "Group play to bracket",
+  single_elimination: "Single elimination",
+  double_elimination: "Double elimination",
+};
+
+export const PLAY_FORMAT_DESCRIPTIONS: Record<string, string> = {
+  pool_to_bracket:
+    "Teams play round-robin in pools, then top finishers advance to elimination brackets.",
+  single_elimination:
+    "Teams go straight into a single-elimination bracket; one loss eliminates a team.",
+  double_elimination:
+    "Teams play in winners and losers brackets; a team must lose twice to be eliminated.",
+};
+
 /** Today as `YYYY-MM-DD` in the device's local timezone. */
 export function todayISO(): string {
   const d = new Date();

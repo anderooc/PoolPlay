@@ -182,7 +182,25 @@ export default function TournamentsScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: session
-        ? undefined
+        ? () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Create tournament"
+              onPress={() => router.push("/tournament/new")}
+              hitSlop={8}
+              style={{ paddingHorizontal: 4, paddingVertical: 6 }}
+            >
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontWeight: "700",
+                  fontSize: 16,
+                }}
+              >
+                New
+              </Text>
+            </Pressable>
+          )
         : () => (
             <Pressable
               accessibilityRole="button"
@@ -203,7 +221,7 @@ export default function TournamentsScreen() {
             </Pressable>
           ),
     });
-  }, [colors.primary, navigation, session]);
+  }, [colors.primary, navigation, router, session]);
 
   if (tournaments === null && error === null) {
     return <LoadingScreen />;
