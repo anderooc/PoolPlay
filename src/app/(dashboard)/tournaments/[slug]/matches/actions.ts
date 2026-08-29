@@ -20,20 +20,15 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import {
-  matches,
-  pools,
-  sets,
-  teamMembers,
-  tournaments,
-} from "@/lib/db/schema";
+import { matches, pools, sets, tournaments } from "@/lib/db/schema";
 import { and, asc, eq, ne } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { updateScoreSchema } from "@/lib/validators";
 import {
-  canRefereeMatch,
-  resolveIsTournamentOrganizer,
-} from "@/lib/tournaments/permissions";
+  canEditMatchScores,
+  canHostOverrideMatchScoring,
+  canRunMatchLifecycle,
+} from "@/lib/tournaments/match-control-permissions";
 import { getMatchTournamentId } from "@/lib/tournaments/match-query";
 import { assertNoCourtScheduleConflict } from "@/lib/tournaments/court-schedule";
 import { assignBracketRefsForBracket } from "@/lib/tournaments/bracket-structure";
@@ -48,6 +43,18 @@ import {
   targetForSet,
 } from "@/lib/tournaments/match-format";
 import { isTournamentArchived } from "@/lib/tournament-status";
+import { toApiError } from "@/lib/api/errors";
+import {
+  claimPointKeeperForViewer,
+  claimRefCrewSlotForViewer,
+  releasePointKeeperForViewer,
+  releaseRefCrewSlotForViewer,
+} from "@/lib/api/queries/match-ref-crew-mutations";
+import {
+  parseMatchRefCrewRole,
+  type MatchRefCrewRole,
+} from "@/lib/tournaments/match-ref-crew";
+import { resolveIsTournamentOrganizer } from "@/lib/tournaments/permissions";
 
 type MatchRow = typeof matches.$inferSelect;
 type TournamentRow = typeof tournaments.$inferSelect;
@@ -60,20 +67,7 @@ interface ControlGate {
   isOrganizer: boolean;
 }
 
-async function loadUserTeamIds(userId: string): Promise<Set<string>> {
-  const rows = await db
-    .select({ teamId: teamMembers.teamId })
-    .from(teamMembers)
-    .where(eq(teamMembers.userId, userId));
-  return new Set(rows.map((r) => r.teamId));
-}
-
-/**
- * Authorizes the current user to run a match's lifecycle/scoring. The host has
- * full control; otherwise the user must be a member of the assigned ref team
- * while the tournament is in progress.
- */
-async function assertCanControlMatch(matchId: string): Promise<ControlGate> {
+async function loadControlGate(matchId: string): Promise<ControlGate> {
   const fail = (error: string): ControlGate => ({
     error,
     user: null,
@@ -101,20 +95,39 @@ async function assertCanControlMatch(matchId: string): Promise<ControlGate> {
     .limit(1);
   if (!tournament) return fail("Tournament not found");
 
-  const userTeamIds = await loadUserTeamIds(user.id);
-  const isOrganizer = await resolveIsTournamentOrganizer(tournament, user);
-
-  if (!await canRefereeMatch(tournament, user, match, userTeamIds)) {
-    return fail(
-      "Only the assigned ref team or the host can run this match while the tournament is in progress."
-    );
-  }
+  const isOrganizer = await canHostOverrideMatchScoring(tournament, user);
 
   return { error: null, user, tournament, match, isOrganizer };
 }
 
+async function assertCanEditScores(matchId: string): Promise<ControlGate> {
+  const gate = await loadControlGate(matchId);
+  if (gate.error || !gate.user || !gate.tournament || !gate.match) return gate;
+  if (!(await canEditMatchScores(gate.tournament, gate.user, gate.match))) {
+    return {
+      ...gate,
+      error:
+        "Only the designated point keeper or host can edit scores for this match.",
+    };
+  }
+  return gate;
+}
+
+async function assertCanRunLifecycle(matchId: string): Promise<ControlGate> {
+  const gate = await loadControlGate(matchId);
+  if (gate.error || !gate.user || !gate.tournament || !gate.match) return gate;
+  if (!(await canRunMatchLifecycle(gate.tournament, gate.user, gate.match))) {
+    return {
+      ...gate,
+      error:
+        "Only the designated point keeper or host can run this match.",
+    };
+  }
+  return gate;
+}
+
 export async function startWarmup(matchId: string) {
-  const gate = await assertCanControlMatch(matchId);
+  const gate = await assertCanRunLifecycle(matchId);
   if (gate.error || !gate.match) return { error: gate.error };
 
   if (gate.match.status !== "upcoming") {
@@ -132,7 +145,7 @@ export async function startWarmup(matchId: string) {
 }
 
 export async function startMatch(matchId: string) {
-  const gate = await assertCanControlMatch(matchId);
+  const gate = await assertCanRunLifecycle(matchId);
   if (gate.error || !gate.match) return { error: gate.error };
 
   if (gate.match.status === "completed") {
@@ -160,7 +173,7 @@ export async function startMatch(matchId: string) {
  * ref can resume later; status returns to `upcoming` and warmup is cleared.
  */
 export async function pauseMatch(matchId: string) {
-  const gate = await assertCanControlMatch(matchId);
+  const gate = await assertCanRunLifecycle(matchId);
   if (gate.error || !gate.match) return { error: gate.error };
 
   if (gate.match.status !== "in_progress") {
@@ -201,7 +214,7 @@ export async function saveSetScore(formData: FormData) {
 
   const { matchId, setNumber, teamAScore, teamBScore } = parsed.data;
 
-  const gate = await assertCanControlMatch(matchId);
+  const gate = await assertCanEditScores(matchId);
   if (gate.error || !gate.match || !gate.tournament) {
     return { error: gate.error };
   }
@@ -274,7 +287,7 @@ export async function saveSetScore(formData: FormData) {
 }
 
 export async function finalizeMatch(matchId: string, winnerId: string | null) {
-  const gate = await assertCanControlMatch(matchId);
+  const gate = await assertCanRunLifecycle(matchId);
   if (gate.error || !gate.match) return { error: gate.error };
 
   if (gate.match.status === "completed") {
@@ -306,7 +319,7 @@ export async function finalizeMatch(matchId: string, winnerId: string | null) {
 
 /** Host-only: reopen a completed match for corrections. */
 export async function reopenMatch(matchId: string) {
-  const gate = await assertCanControlMatch(matchId);
+  const gate = await assertCanRunLifecycle(matchId);
   if (gate.error || !gate.match) return { error: gate.error };
   if (!gate.isOrganizer) {
     return { error: "Only the host can reopen a completed match." };
@@ -390,4 +403,60 @@ export async function updateMatchScheduledTime(
   revalidatePath(`/tournaments/[slug]/matches/[matchSlug]`, "page");
   revalidatePath("/tournaments/[slug]", "page");
   return { success: true as const };
+}
+
+function revalidateMatchPages() {
+  revalidatePath(`/tournaments/[slug]/matches/[matchSlug]`, "page");
+  revalidatePath("/tournaments/[slug]", "page");
+}
+
+async function runCrewMutation(
+  matchId: string,
+  run: (user: Awaited<ReturnType<typeof requireUser>>) => Promise<unknown>
+) {
+  try {
+    const user = await requireUser();
+    await run(user);
+    revalidateMatchPages();
+    return { success: true as const };
+  } catch (cause) {
+    const error = toApiError(cause);
+    return { error: error.message };
+  }
+}
+
+export async function claimRefCrewSlot(matchId: string, role: MatchRefCrewRole) {
+  return runCrewMutation(matchId, (user) =>
+    claimRefCrewSlotForViewer(matchId, role, user)
+  );
+}
+
+export async function releaseRefCrewSlot(matchId: string) {
+  return runCrewMutation(matchId, (user) =>
+    releaseRefCrewSlotForViewer(matchId, user)
+  );
+}
+
+export async function claimPointKeeper(matchId: string) {
+  return runCrewMutation(matchId, (user) =>
+    claimPointKeeperForViewer(matchId, user)
+  );
+}
+
+export async function releasePointKeeper(matchId: string) {
+  return runCrewMutation(matchId, (user) =>
+    releasePointKeeperForViewer(matchId, user)
+  );
+}
+
+export async function claimRefCrewSlotFromForm(formData: FormData) {
+  const matchId = formData.get("matchId");
+  const role = parseMatchRefCrewRole(formData.get("role"));
+  if (typeof matchId !== "string" || !matchId) {
+    return { error: "Match not found." };
+  }
+  if (role === "invalid") {
+    return { error: "Choose a crew role." };
+  }
+  return claimRefCrewSlot(matchId, role);
 }

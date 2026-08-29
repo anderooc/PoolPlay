@@ -70,6 +70,8 @@ import {
 } from "../actions";
 import { MatchStartTimeEditor } from "../match-start-time-editor";
 import { MatchCourtEditor } from "../match-court-editor";
+import { MatchRefCrewPanel } from "./match-ref-crew-panel";
+import type { MatchRefCrewState } from "@/lib/tournaments/match-ref-crew";
 
 interface ConsoleMatch {
   id: string;
@@ -104,7 +106,11 @@ export function MatchConsole({
   match,
   settings,
   courts,
-  canControl,
+  canScore,
+  canRunLifecycle,
+  canClaimCrewSlot,
+  canBecomePointKeeper,
+  crew,
   isOrganizer,
   isRefMember,
 }: {
@@ -113,11 +119,16 @@ export function MatchConsole({
   match: ConsoleMatch;
   settings: ConsoleSettings;
   courts: { id: string; name: string }[];
-  canControl: boolean;
+  canScore: boolean;
+  canRunLifecycle: boolean;
+  canClaimCrewSlot: boolean;
+  canBecomePointKeeper: boolean;
+  crew: MatchRefCrewState;
   isOrganizer: boolean;
   isRefMember: boolean;
 }) {
   const router = useRouter();
+  const canControl = canScore || canRunLifecycle;
 
   const phase: MatchPhase = matchPhase({
     status: match.status,
@@ -340,12 +351,22 @@ export function MatchConsole({
           </div>
           {isRefMember && (
             <p className="text-xs font-medium text-info">
-              You&apos;re on the working/ref team for this match — you can run
-              warmup, start play, and keep score.
+              You&apos;re on the ref crew for this match — check in below, then
+              claim the point keeper role to run scoring.
             </p>
           )}
         </CardHeader>
       </Card>
+
+      <MatchRefCrewPanel
+        matchId={match.id}
+        crew={crew}
+        canClaimCrewSlot={canClaimCrewSlot}
+        canBecomePointKeeper={canBecomePointKeeper}
+        isOrganizer={isOrganizer}
+        busy={busy}
+        onBusyChange={setBusy}
+      />
 
       {/* Lifecycle / scorekeeper — live score sits above sets */}
       {phase === "completed" ? (
@@ -368,16 +389,29 @@ export function MatchConsole({
             )}
           </CardContent>
         </Card>
-      ) : !canControl ? (
+      ) : !canRunLifecycle && !(canScore && phase === "in_progress") ? (
         <Card>
           <CardContent className="py-6 text-center text-sm text-muted-foreground">
-            {phase === "warmup"
-              ? "Warmup in progress."
-              : phase === "in_progress"
-                ? "Match in progress — scores update live."
-                : phase === "paused"
-                  ? "Match is paused. Scores are saved until the ref resumes."
-                  : "Waiting for the ref team or host to start the match."}
+            {canClaimCrewSlot || crew.viewerSlot ? (
+              <>
+                Check in to a crew slot above
+                {crew.viewerSlot &&
+                ["scorekeeper_1", "scorekeeper_2", "scorekeeper_3"].includes(
+                  crew.viewerSlot
+                ) &&
+                !crew.viewerIsPointKeeper
+                  ? ", then claim point keeper to run scoring."
+                  : "."}
+              </>
+            ) : phase === "warmup" ? (
+              "Warmup in progress."
+            ) : phase === "in_progress" ? (
+              "Match in progress — scores update live."
+            ) : phase === "paused" ? (
+              "Match is paused. Scores are saved until the ref resumes."
+            ) : (
+              "Waiting for the ref crew or host to start the match."
+            )}
           </CardContent>
         </Card>
       ) : phase === "paused" ? (
@@ -433,9 +467,10 @@ export function MatchConsole({
           </CardContent>
         </Card>
       ) : (
-        // in_progress + canControl → scorekeeper
+        // in_progress + canScore → scorekeeper
         <Card>
-          <Scorekeeper
+          {canScore ? (
+            <Scorekeeper
             key={`${match.id}-${activeSetNumber}`}
             matchId={match.id}
             setNumber={activeSetNumber}
@@ -450,6 +485,8 @@ export function MatchConsole({
             onSelectSet={setSelectedSetNumber}
             editingPastSet={editingPastSet}
           />
+          ) : null}
+          {canRunLifecycle ? (
           <CardContent className="space-y-4 pt-0">
             <Separator />
 
@@ -510,6 +547,7 @@ export function MatchConsole({
               </div>
             </div>
           </CardContent>
+          ) : null}
         </Card>
       )}
 
@@ -562,12 +600,12 @@ export function MatchConsole({
               ? entry.teamAScore
               : entry.teamBScore;
             const selectable =
-              canControl &&
+              canScore &&
               phase === "in_progress" &&
               entry.setNumber <= liveSetNumber;
             const selected =
               phase === "in_progress" &&
-              canControl &&
+              canScore &&
               entry.setNumber === activeSetNumber;
             const isLive =
               entry.setNumber === liveSetNumber && phase !== "completed";

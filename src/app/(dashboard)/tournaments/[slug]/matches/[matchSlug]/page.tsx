@@ -24,10 +24,16 @@ import { asc, eq } from "drizzle-orm";
 import { BackLink } from "@/components/layout/back-link";
 import { getTournamentBySlugIfVisible } from "@/lib/tournaments/access";
 import {
-  canRefereeMatch,
+  canClaimRefCrewSlot,
+  canEditMatchScores,
+  canRunMatchLifecycle,
+  isRefTeamMember,
+} from "@/lib/tournaments/match-control-permissions";
+import {
   canViewDivisionPoolPlay,
   resolveIsTournamentOrganizer,
 } from "@/lib/tournaments/permissions";
+import { loadMatchRefCrewStateForViewer } from "@/lib/api/queries/match-ref-crew-mutations";
 import { resolveMatchInTournament } from "@/lib/tournaments/match-query";
 import { isUuid } from "@/lib/tournaments/match-slug";
 import {
@@ -159,11 +165,18 @@ export default async function MatchPage({ params }: Props) {
     ]);
 
   const userTeamIds = new Set(memberRows.map((r) => r.teamId));
-  const canControl = await canRefereeMatch(tournament, user, match, userTeamIds);
-  const isRefMember =
-    !isOrganizer &&
-    match.refTeamId != null &&
-    userTeamIds.has(match.refTeamId);
+  const isRefMember = isRefTeamMember(match, userTeamIds);
+  const canScore = await canEditMatchScores(tournament, user, match);
+  const canRunLifecycle = await canRunMatchLifecycle(tournament, user, match);
+  const canClaimCrewSlot = canClaimRefCrewSlot(tournament, match, userTeamIds);
+  const crew = await loadMatchRefCrewStateForViewer(match.id, user);
+  const canBecomePointKeeper =
+    canClaimCrewSlot &&
+    crew.viewerSlot != null &&
+    ["scorekeeper_1", "scorekeeper_2", "scorekeeper_3"].includes(
+      crew.viewerSlot
+    ) &&
+    !crew.viewerIsPointKeeper;
 
   const isBye = isBracketRoundOneByeMatch(match);
 
@@ -233,7 +246,11 @@ export default async function MatchPage({ params }: Props) {
           warmupFormat: tournament.warmupFormat,
         }}
         courts={tournamentCourts}
-        canControl={canControl}
+        canScore={canScore}
+        canRunLifecycle={canRunLifecycle}
+        canClaimCrewSlot={canClaimCrewSlot}
+        canBecomePointKeeper={canBecomePointKeeper}
+        crew={crew}
         isOrganizer={isOrganizer}
         isRefMember={isRefMember}
       />
