@@ -23,7 +23,7 @@ import {
   loadTournamentBracketSettings,
   updateTournamentBracketSettingsForViewer,
 } from "@/lib/api/queries/tournament-host-settings";
-import { requirePostedTournament } from "@/lib/api/queries/tournament-ops";
+import { requireHostTournament } from "@/lib/api/queries/tournament-host";
 import { jsonSuccess } from "@/lib/api/response";
 
 interface RouteContext {
@@ -33,7 +33,7 @@ interface RouteContext {
 export const GET = apiHandler(async (request: Request, context: RouteContext) => {
   const { user } = await requireViewer(request);
   const { slug } = await context.params;
-  const tournament = await requirePostedTournament(slug);
+  const tournament = await requireHostTournament(slug, user);
   return jsonSuccess(await loadTournamentBracketSettings(tournament, user));
 });
 

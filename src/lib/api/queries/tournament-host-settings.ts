@@ -39,6 +39,7 @@ import type {
   TournamentPoolSettingsContract,
 } from "../contracts/tournament-ops";
 import { badRequest, forbidden } from "../errors";
+import { requireHostTournament } from "./tournament-host";
 import {
   requirePostedTournament,
   type PostedTournamentRow,
@@ -83,8 +84,7 @@ export async function updateTournamentPoolSettingsForViewer(
     poolTiebreakCriteria: string[];
   }
 ): Promise<TournamentPoolSettingsContract> {
-  const tournament = await requirePostedTournament(slug);
-  await requireHost(tournament, user);
+  const tournament = await requireHostTournament(slug, user);
 
   const parsed = updateMatchFormatSchema.safeParse(input);
   if (!parsed.success) {
@@ -186,8 +186,7 @@ export async function updateTournamentBracketSettingsForViewer(
     silverTeamCount: number | null;
   }
 ): Promise<TournamentBracketSettingsContract> {
-  const tournament = await requirePostedTournament(slug);
-  await requireHost(tournament, user);
+  const tournament = await requireHostTournament(slug, user);
 
   const bracketCount = Math.min(3, Math.max(1, Math.floor(input.bracketCount)));
   let goldTeamCount = input.goldTeamCount;
@@ -277,6 +276,40 @@ export async function updateTournamentBracketSettingsForViewer(
     await ensureTournamentCombinedBrackets(tournament.id);
   }
 
-  const refreshed = await requirePostedTournament(slug);
-  return loadTournamentBracketSettings(refreshed, user);
+  const [refreshed] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournament.id))
+    .limit(1);
+  return loadTournamentBracketSettings(refreshed ?? tournament, user);
+}
+
+export async function loadTournamentHostBracketSettings(
+  slug: string,
+  user: AppUser
+) {
+  const tournament = await requireHostTournament(slug, user);
+  return {
+    success: true as const,
+    settings: await loadTournamentBracketSettings(tournament, user),
+  };
+}
+
+export async function regenerateTournamentHostBrackets(
+  slug: string,
+  user: AppUser
+) {
+  const tournament = await requireHostTournament(slug, user);
+  const result = await regenerateTournamentCombinedBrackets(tournament.id);
+  if (result.error) throw badRequest(result.error);
+
+  const [refreshed] = await db
+    .select()
+    .from(tournaments)
+    .where(eq(tournaments.id, tournament.id))
+    .limit(1);
+  return {
+    success: true as const,
+    settings: await loadTournamentBracketSettings(refreshed ?? tournament, user),
+  };
 }
