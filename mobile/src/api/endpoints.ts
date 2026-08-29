@@ -30,6 +30,14 @@ import type {
 } from "@/lib/api/contracts/match-console";
 import type { DashboardContract } from "@/lib/api/contracts/dashboard";
 import type {
+  NotificationsContract,
+  NotificationsReadResultContract,
+} from "@/lib/api/contracts/notifications";
+import type {
+  PushTokenRegisterResultContract,
+  PushTokenUnregisterResultContract,
+} from "@/lib/api/contracts/push-token";
+import type {
   TeamDetailContract,
   TeamListContract,
   TeamMutationResultContract,
@@ -1002,5 +1010,43 @@ export function applyTournamentHostScheduleFill(
   return apiRequest(tournamentPath(slug, "/host/schedule/fill"), {
     method: "POST",
     body: { ...body, preview: false },
+  });
+}
+
+export function fetchNotifications(
+  options?: { limit?: number; signal?: AbortSignal }
+): Promise<NotificationsContract> {
+  return apiRequest<NotificationsContract>("/api/v1/notifications", {
+    signal: options?.signal,
+    query: options?.limit ? { limit: options.limit } : undefined,
+  });
+}
+
+export function markNotificationsRead(
+  ids?: string[]
+): Promise<NotificationsReadResultContract> {
+  return apiRequest("/api/v1/notifications/read", {
+    method: "POST",
+    body: ids ? { ids } : {},
+  });
+}
+
+export function registerPushToken(body: {
+  token: string;
+  platform: string;
+  deviceName?: string | null;
+}): Promise<PushTokenRegisterResultContract> {
+  return apiRequest("/api/v1/me/push-token", {
+    method: "POST",
+    body,
+  });
+}
+
+export function unregisterPushToken(
+  token: string
+): Promise<PushTokenUnregisterResultContract> {
+  return apiRequest("/api/v1/me/push-token", {
+    method: "DELETE",
+    body: { token },
   });
 }

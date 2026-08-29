@@ -148,6 +148,16 @@ export default function ProfileScreen() {
 
       <Pressable
         accessibilityRole="button"
+        onPress={() => router.push("/notifications")}
+        style={[styles.action, { borderColor: colors.border }]}
+      >
+        <Text style={{ color: colors.foreground, fontWeight: "700" }}>
+          Notifications
+        </Text>
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
         onPress={() => router.push("/profile/edit")}
         style={[styles.action, { borderColor: colors.border }]}
       >

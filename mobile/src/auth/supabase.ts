@@ -28,10 +28,8 @@ import { largeSecureStore } from "./large-secure-store";
 assertSupabaseConfig();
 
 /**
- * Supabase is used here only as an identity provider. All application data goes
- * through the brackt API, because the database revokes table privileges from
- * the `authenticated` role — querying Postgres directly from the app would
- * return almost nothing.
+ * Supabase provides auth and Realtime for inbox updates on tables exposed with
+ * row-level security. Application mutations still go through the brackt API.
  */
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {

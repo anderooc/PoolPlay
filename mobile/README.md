@@ -130,4 +130,15 @@ optional peer of `expo-router` and resolves to a version that demands a newer
 Sign-in, the public tournament list, tournament detail (overview, teams,
 matches), and the profile screen exist to prove the chain end to end. Still to
 come: live match pages, pool standings, brackets, personal schedule,
-notifications with push, and offline handling for score entry.
+offline handling for score entry, and richer notification preferences.
+
+## Push notifications
+
+1. Run `npx eas init` in `mobile/` and set `EXPO_PUBLIC_EAS_PROJECT_ID` in
+   `.env.local` to the project UUID.
+2. Build a dev client or production binary with `expo-notifications` native code
+   (push does not work in Expo Go for production tokens on iOS).
+3. Optionally set `EXPO_ACCESS_TOKEN` on the API server for higher Expo Push
+   rate limits.
+4. Apply migrations `00056_user_push_tokens.sql` and
+   `00057_user_notifications_realtime.sql` (`npm run db:push` from repo root).

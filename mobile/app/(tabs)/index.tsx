@@ -17,8 +17,8 @@
  */
 
 import type { DashboardContract } from "@/lib/api/contracts/dashboard";
-import { Redirect, useRouter } from "expo-router";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Redirect, useFocusEffect, useNavigation, useRouter } from "expo-router";
+import { useCallback, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import {
   Pressable,
   RefreshControl,
@@ -28,7 +28,7 @@ import {
   View,
 } from "react-native";
 import { ApiClientError } from "~/api/client";
-import { fetchDashboard } from "~/api/endpoints";
+import { fetchDashboard, fetchNotifications } from "~/api/endpoints";
 import { useSession } from "~/auth/session";
 import {
   DASHBOARD_RELATION_LABELS,
@@ -38,15 +38,19 @@ import {
   TEAM_ROLE_LABELS,
 } from "~/lib/format";
 import { useThemeColors, withAlpha } from "~/theme/colors";
+import { useNotificationsRealtimeRevision } from "~/notifications/NotificationsRealtimeProvider";
 import { ErrorScreen, LoadingScreen } from "~/tournament/screen-state";
 
 export default function DashboardScreen() {
   const colors = useThemeColors();
+  const navigation = useNavigation();
   const router = useRouter();
   const { session, isLoading: sessionLoading } = useSession();
   const [data, setData] = useState<DashboardContract | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const notificationsRevision = useNotificationsRealtimeRevision();
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -62,6 +66,89 @@ export default function DashboardScreen() {
       );
     }
   }, []);
+
+  const loadUnread = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const inbox = await fetchNotifications({ limit: 1, signal });
+      setUnreadNotifications(inbox.unreadCount);
+    } catch {
+      // Badge is best-effort.
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!session) return;
+      const controller = new AbortController();
+      void loadUnread(controller.signal);
+      return () => controller.abort();
+    }, [session, loadUnread])
+  );
+
+  useEffect(() => {
+    if (!session) return;
+    const controller = new AbortController();
+    void loadUnread(controller.signal);
+    return () => controller.abort();
+  }, [notificationsRevision, session, loadUnread]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: session
+        ? () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                unreadNotifications > 0
+                  ? `Notifications, ${unreadNotifications} unread`
+                  : "Notifications"
+              }
+              onPress={() => router.push("/notifications")}
+              hitSlop={8}
+              style={{ paddingHorizontal: 4, paddingVertical: 6 }}
+            >
+              <View style={{ position: "relative" }}>
+                <Text
+                  style={{
+                    color: colors.primary,
+                    fontWeight: "700",
+                    fontSize: 16,
+                  }}
+                >
+                  Inbox
+                </Text>
+                {unreadNotifications > 0 ? (
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: -6,
+                      right: -10,
+                      minWidth: 16,
+                      height: 16,
+                      borderRadius: 999,
+                      paddingHorizontal: 4,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: colors.destructive,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: colors.card,
+                        fontSize: 10,
+                        fontWeight: "800",
+                      }}
+                    >
+                      {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </Pressable>
+          )
+        : undefined,
+    });
+  }, [colors, navigation, router, session, unreadNotifications]);
 
   useEffect(() => {
     if (!session) return;

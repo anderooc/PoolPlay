@@ -21,6 +21,8 @@ import { StatusBar } from "expo-status-bar";
 import { Platform, useColorScheme } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SessionProvider } from "~/auth/session";
+import { NotificationsRealtimeProvider } from "~/notifications/NotificationsRealtimeProvider";
+import { PushNotificationProvider } from "~/notifications/PushNotificationProvider";
 import { useThemeColors } from "~/theme/colors";
 
 function RootStack() {
@@ -42,6 +44,10 @@ function RootStack() {
       <Stack.Screen
         name="sign-in"
         options={{ title: "Sign in", presentation: "modal" }}
+      />
+      <Stack.Screen
+        name="notifications"
+        options={{ title: "Notifications", headerBackTitle: "Back" }}
       />
       <Stack.Screen
         name="tournament/[slug]/index"
@@ -137,8 +143,12 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <SessionProvider>
-        <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-        <RootStack />
+        <NotificationsRealtimeProvider>
+          <PushNotificationProvider>
+            <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+            <RootStack />
+          </PushNotificationProvider>
+        </NotificationsRealtimeProvider>
       </SessionProvider>
     </SafeAreaProvider>
   );
