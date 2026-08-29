@@ -57,3 +57,5 @@ graphify-out/
 
 # Supabase CLI local state (linked project ref, pooler URL, tool versions)
 supabase/.temp/
+
+mobile/.claude/
