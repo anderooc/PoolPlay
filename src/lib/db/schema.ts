@@ -787,6 +787,29 @@ export const userNotifications = pgTable(
   ]
 );
 
+export const userPushTokens = pgTable(
+  "user_push_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    token: text("token").notNull(),
+    platform: text("platform").notNull(),
+    deviceName: text("device_name"),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("user_push_tokens_token_uidx").on(t.token),
+    index("user_push_tokens_user_id_idx").on(t.userId),
+  ]
+);
+
 export const tournamentPostingAnnouncements = pgTable(
   "tournament_posting_announcements",
   {
@@ -1053,6 +1076,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   schoolMemberships: many(schoolMembers),
   organizedTournaments: many(tournaments),
   notifications: many(userNotifications),
+  pushTokens: many(userPushTokens),
   postingAnnouncements: many(tournamentPostingAnnouncements),
   schoolJoinRequests: many(schoolJoinRequests),
   resolvedSchoolJoinRequests: many(schoolJoinRequests, {
@@ -1196,6 +1220,13 @@ export const userNotificationsRelations = relations(
     }),
   })
 );
+
+export const userPushTokensRelations = relations(userPushTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [userPushTokens.userId],
+    references: [users.id],
+  }),
+}));
 
 export const tournamentPostingAnnouncementsRelations = relations(
   tournamentPostingAnnouncements,

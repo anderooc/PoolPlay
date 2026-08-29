@@ -16,10 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { userNotifications } from "@/lib/db/schema";
 import type { UserNotificationKind } from "@/types";
+import { deliverPushNotifications } from "./push";
 
 export type NotificationInput = {
   userId: string;
@@ -51,16 +52,31 @@ export async function createUserNotifications(
     unique.set(`${input.userId}:${input.kind}:${input.href ?? ""}:${input.title}`, input);
   }
 
-  await db.insert(userNotifications).values(
-    [...unique.values()].map((input) => ({
-      userId: input.userId,
-      kind: input.kind,
-      title: input.title,
-      body: input.body ?? null,
-      href: input.href ?? null,
-      tournamentId: input.tournamentId ?? null,
-    }))
-  );
+  const inserted = await db
+    .insert(userNotifications)
+    .values(
+      [...unique.values()].map((input) => ({
+        userId: input.userId,
+        kind: input.kind,
+        title: input.title,
+        body: input.body ?? null,
+        href: input.href ?? null,
+        tournamentId: input.tournamentId ?? null,
+      }))
+    )
+    .returning({
+      id: userNotifications.id,
+      userId: userNotifications.userId,
+      title: userNotifications.title,
+      body: userNotifications.body,
+      href: userNotifications.href,
+    });
+
+  if (inserted.length > 0) {
+    void deliverPushNotifications(inserted).catch(() => {
+      // Push delivery is best-effort.
+    });
+  }
 }
 
 export async function listUserNotifications(
@@ -87,13 +103,13 @@ export async function listUserNotifications(
 export async function countUnreadUserNotifications(
   userId: string
 ): Promise<number> {
-  const rows = await db
-    .select({ id: userNotifications.id })
+  const [row] = await db
+    .select({ value: count() })
     .from(userNotifications)
     .where(
       and(eq(userNotifications.userId, userId), isNull(userNotifications.readAt))
     );
-  return rows.length;
+  return row?.value ?? 0;
 }
 
 export async function markUserNotificationsRead(
