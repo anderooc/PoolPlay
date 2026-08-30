@@ -20,12 +20,15 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
-import { signUpSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "@/lib/validators";
-import { checkContentFilter } from "@/lib/utils/content-filter";
+import { loginSchema } from "@/lib/validators";
 import { appBaseUrl } from "@/lib/email/resend";
 import { checkAuthRateLimit } from "@/lib/rate-limit/auth";
+import {
+  confirmPasswordResetForViewer,
+  requestPasswordResetEmail,
+  signUpAccount,
+} from "@/lib/api/queries/auth-mutations";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function login(formData: FormData) {
   const raw = {
@@ -65,39 +68,21 @@ export async function requestPasswordReset(formData: FormData) {
     email: formData.get("email") as string,
   };
 
-  const parsed = forgotPasswordSchema.safeParse(raw);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0].message };
-  }
-
-  const rateLimit = await checkAuthRateLimit(
-    "password-reset",
-    parsed.data.email
-  );
-  if (!rateLimit.allowed) return { error: rateLimit.message };
-
-  const supabase = await createClient();
-  const redirectTo = `${appBaseUrl()}/auth/callback?next=/reset-password`;
-
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-      redirectTo,
+    const result = await requestPasswordResetEmail({
+      email: raw.email,
+      redirectTo: `${appBaseUrl()}/auth/callback?next=/reset-password`,
     });
-    if (error) {
-      return { error: error.message };
-    }
-  } catch {
+    return {
+      success: true as const,
+      message: result.message,
+    };
+  } catch (cause) {
     return {
       error:
-        "Authentication service is unavailable or blocked from this network. Try again in a few minutes or switch networks.",
+        cause instanceof Error ? cause.message : "Could not send reset email.",
     };
   }
-
-  return {
-    success: true as const,
-    message:
-      "If an account exists for that email, we sent a link to reset your password.",
-  };
 }
 
 export async function updatePassword(formData: FormData) {
@@ -106,33 +91,17 @@ export async function updatePassword(formData: FormData) {
     confirmPassword: formData.get("confirmPassword") as string,
   };
 
-  const parsed = resetPasswordSchema.safeParse(raw);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0].message };
-  }
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) {
     return { error: "Your reset link expired. Request a new one from the sign-in page." };
   }
 
-  try {
-    const { error } = await supabase.auth.updateUser({
-      password: parsed.data.password,
-    });
-    if (error) {
-      return { error: error.message };
-    }
-  } catch {
-    return {
-      error:
-        "Authentication service is unavailable or blocked from this network. Try again in a few minutes or switch networks.",
-    };
-  }
+  const result = await confirmPasswordResetForViewer(user, raw).catch(
+    (cause: unknown) => ({
+      error: cause instanceof Error ? cause.message : "Could not update password.",
+    })
+  );
+  if ("error" in result) return result;
 
   redirect("/login?reset=success");
 }
@@ -142,65 +111,19 @@ export async function signup(formData: FormData) {
     email: formData.get("email") as string,
     password: formData.get("password") as string,
     fullName: formData.get("fullName") as string,
-    university: (formData.get("university") as string) || undefined,
   };
 
-  const parsed = signUpSchema.safeParse(raw);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0].message };
-  }
-
-  const signupContentError = checkContentFilter(
-    parsed.data.fullName,
-    parsed.data.university
-  );
-  if (signupContentError) return { error: signupContentError };
-
-  const rateLimit = await checkAuthRateLimit("signup", parsed.data.email);
-  if (!rateLimit.allowed) return { error: rateLimit.message };
+  const result = await signUpAccount(raw).catch((cause: unknown) => ({
+    error: cause instanceof Error ? cause.message : "Could not create account.",
+  }));
+  if ("error" in result) return result;
 
   const supabase = await createClient();
-  let data: { user: { id: string } | null } | null = null;
-  let error: { message: string } | null = null;
-  try {
-    const res = await supabase.auth.signUp({
-      email: parsed.data.email,
-      password: parsed.data.password,
-      options: {
-        data: {
-          full_name: parsed.data.fullName,
-          university: parsed.data.university,
-        },
-      },
-    });
-    data = res.data as { user: { id: string } | null };
-    error = res.error;
-  } catch {
-    return {
-      error:
-        "Authentication service is unavailable or blocked from this network. Try again in a few minutes or switch networks.",
-    };
-  }
-
-  if (error) {
-    return { error: error.message };
-  }
-
-  if (data.user) {
-    try {
-      await db.insert(users).values({
-        authId: data.user.id,
-        email: parsed.data.email,
-        fullName: parsed.data.fullName,
-        university: parsed.data.university || null,
-        displayEmail: parsed.data.email,
-        displaySchool: parsed.data.university?.trim() || null,
-        role: "player",
-      });
-    } catch {
-      // User row may already exist from a trigger
-    }
-  }
+  const { error } = await supabase.auth.signInWithPassword({
+    email: raw.email,
+    password: raw.password,
+  });
+  if (error) return { error: error.message };
 
   redirect("/dashboard?welcome=1");
 }
