@@ -86,6 +86,13 @@ export const DASHBOARD_RELATION_LABELS: Record<string, string> = {
   hosting: "Hosting",
 };
 
+export const PERSONAL_SCHEDULE_ROLE_LABELS: Record<string, string> = {
+  playing: "Playing",
+  reffing: "Reffing",
+  crew: "Officiating",
+  scorekeeping: "Scorekeeping",
+};
+
 export const USER_PLAYER_GENDERS = ["male", "female"] as const;
 
 export const USER_PLAYER_GENDER_LABELS: Record<string, string> = {

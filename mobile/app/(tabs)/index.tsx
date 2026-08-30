@@ -17,6 +17,7 @@
  */
 
 import type { DashboardContract } from "@/lib/api/contracts/dashboard";
+import type { PersonalScheduleMatchContract } from "@/lib/api/contracts/personal-schedule";
 import { Redirect, useFocusEffect, useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import {
@@ -28,7 +29,7 @@ import {
   View,
 } from "react-native";
 import { ApiClientError } from "~/api/client";
-import { fetchDashboard, fetchNotifications } from "~/api/endpoints";
+import { fetchDashboard, fetchNotifications, fetchPersonalSchedule } from "~/api/endpoints";
 import { useSession } from "~/auth/session";
 import {
   DASHBOARD_RELATION_LABELS,
@@ -40,6 +41,7 @@ import {
 import { useThemeColors, withAlpha } from "~/theme/colors";
 import { useNotificationsRealtimeRevision } from "~/notifications/NotificationsRealtimeProvider";
 import { ErrorScreen, LoadingScreen } from "~/tournament/screen-state";
+import { PersonalSchedulePanel } from "~/tournament/personal-schedule-panel";
 
 export default function DashboardScreen() {
   const colors = useThemeColors();
@@ -47,6 +49,9 @@ export default function DashboardScreen() {
   const router = useRouter();
   const { session, isLoading: sessionLoading } = useSession();
   const [data, setData] = useState<DashboardContract | null>(null);
+  const [scheduleMatches, setScheduleMatches] = useState<
+    PersonalScheduleMatchContract[]
+  >([]);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -55,8 +60,12 @@ export default function DashboardScreen() {
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
       setError(null);
-      const page = await fetchDashboard(signal);
+      const [page, schedule] = await Promise.all([
+        fetchDashboard(signal),
+        fetchPersonalSchedule(signal, { limit: 5 }),
+      ]);
       setData(page);
+      setScheduleMatches(schedule.matches);
     } catch (cause) {
       if (signal?.aborted) return;
       setError(
@@ -276,6 +285,17 @@ export default function DashboardScreen() {
           />
         </View>
       )}
+
+      {!isNewUser && scheduleMatches.length > 0 ? (
+        <Section
+          title="Upcoming matches"
+          actionLabel="View all"
+          onAction={() => router.push("/my-schedule")}
+          colors={colors}
+        >
+          <PersonalSchedulePanel matches={scheduleMatches} compact />
+        </Section>
+      ) : null}
 
       <Section
         title="My teams"

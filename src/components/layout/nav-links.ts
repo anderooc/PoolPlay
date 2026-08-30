@@ -22,6 +22,7 @@ import {
   Users,
   Building2,
   Calendar,
+  CalendarClock,
   ShieldAlert,
   Bell,
   type LucideIcon,
@@ -40,6 +41,7 @@ export interface NavLink {
 
 export const navLinks: NavLink[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, exact: true },
+  { label: "My schedule", href: "/my-schedule", icon: CalendarClock },
   { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Tournaments", href: "/tournaments", icon: Trophy },
   {

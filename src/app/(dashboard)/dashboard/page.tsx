@@ -23,6 +23,7 @@ import { eq } from "drizzle-orm";
 import { formatTournamentDateDisplay } from "@/lib/date-iso";
 import { getUserSchoolSummary } from "@/lib/schools/navigation";
 import { getDashboardTournaments } from "@/lib/tournaments/dashboard";
+import { loadPersonalScheduleForViewer } from "@/lib/api/queries/personal-schedule";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,11 +40,13 @@ import {
   ArrowRight,
   Clock,
   GraduationCap,
+  CalendarClock,
 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { pageMetadata } from "@/lib/metadata";
 import { cn } from "@/lib/utils";
+import { PersonalScheduleMatchList } from "../my-schedule/personal-schedule-match-list";
 
 export const metadata = pageMetadata("Dashboard");
 
@@ -53,7 +56,8 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [userTeams, allMyTournaments, school] = await Promise.all([
+  const [userTeams, allMyTournaments, school, personalSchedule] =
+    await Promise.all([
     db
       .select({
         id: teams.id,
@@ -72,6 +76,7 @@ export default async function DashboardPage() {
     // and stats should reflect the full set.
     getDashboardTournaments(user.id),
     getUserSchoolSummary(user.id),
+    loadPersonalScheduleForViewer(user, { limit: 5 }),
   ]);
 
   const upcomingCount = allMyTournaments.filter((t) => t.relation !== "past").length;
@@ -183,6 +188,27 @@ export default async function DashboardPage() {
           />
         </div>
       )}
+
+      {!isNewUser && personalSchedule.matches.length > 0 ? (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle>Upcoming matches</CardTitle>
+            <Link
+              href="/my-schedule"
+              className={buttonVariants({ size: "sm", variant: "outline" })}
+            >
+              <CalendarClock className="mr-2 h-4 w-4" />
+              View all
+            </Link>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <PersonalScheduleMatchList
+              matches={personalSchedule.matches}
+              compact
+            />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
