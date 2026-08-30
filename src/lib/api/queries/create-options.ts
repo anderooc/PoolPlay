@@ -19,7 +19,7 @@
 import { and, asc, eq, ne } from "drizzle-orm";
 import type { AppUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { schoolMembers, schools, users } from "@/lib/db/schema";
+import { schoolMembers, schools } from "@/lib/db/schema";
 import { getUserHostingSchool } from "@/lib/schools/hosting";
 import type { CreateOptionsContract } from "../contracts/create-options";
 
@@ -38,14 +38,8 @@ async function findExistingSchoolSlugForUser(
 export async function loadCreateOptionsForViewer(
   user: AppUser
 ): Promise<CreateOptionsContract> {
-  const [profile, existingSchoolSlug, hostingSchool, manageableSchools] =
+  const [existingSchoolSlug, hostingSchool, manageableSchools] =
     await Promise.all([
-      db
-        .select({ university: users.university })
-        .from(users)
-        .where(eq(users.id, user.id))
-        .limit(1)
-        .then((rows) => rows[0] ?? null),
       findExistingSchoolSlugForUser(user.id),
       getUserHostingSchool(user.id),
       db
@@ -71,6 +65,5 @@ export async function loadCreateOptionsForViewer(
     canCreateSchool: existingSchoolSlug == null,
     hostingSchool,
     manageableSchools,
-    viewerUniversity: profile?.university?.trim() || null,
   };
 }

@@ -38,7 +38,6 @@ export const signUpSchema = z.object({
     ),
   password: z.string().min(8, "Password must be at least 8 characters"),
   fullName: z.string().min(1, "Full name is required"),
-  university: z.string().optional(),
 });
 
 export const loginSchema = z.object({
@@ -100,12 +99,23 @@ export const changePasswordSchema = z
     path: ["password"],
   });
 
-export const createTeamSchema = z.object({
-  name: z.string().min(1, "Team name is required"),
-  gender: z.enum(TEAM_GENDERS, { message: "Select men's or women's" }),
-  region: z.enum(TEAM_REGIONS, { message: "Select a region" }),
-  schoolId: z.string().uuid().optional().nullable(),
-});
+export const createTeamSchema = z
+  .object({
+    name: z.string().min(1, "Team name is required"),
+    gender: z.enum(TEAM_GENDERS, { message: "Select men's or women's" }),
+    region: z.enum(TEAM_REGIONS, { message: "Select a region" }),
+    schoolId: z.string().uuid().optional().nullable(),
+    university: z.string().trim().max(120).optional().nullable(),
+  })
+  .refine(
+    (data) =>
+      data.schoolId != null ||
+      (data.university != null && data.university.length > 0),
+    {
+      message: "University is required for standalone teams.",
+      path: ["university"],
+    }
+  );
 
 export const createSchoolSchema = z.object({
   name: z.string().min(1, "School name is required").max(120),

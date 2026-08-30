@@ -85,6 +85,7 @@ export async function createTeam(formData: FormData) {
       typeof rawSchoolId === "string" && rawSchoolId.length > 0
         ? rawSchoolId
         : undefined,
+    university: (formData.get("university") as string) || undefined,
   });
 
   if (!parsed.success) {
@@ -122,17 +123,9 @@ export async function createTeam(formData: FormData) {
     teamRegion = parentSchool.region;
     teamUniversity = parentSchool.university;
   } else {
-    const [profile] = await db
-      .select({ university: users.university })
-      .from(users)
-      .where(eq(users.id, user.id))
-      .limit(1);
-    teamUniversity = profile?.university?.trim() ?? "";
+    teamUniversity = parsed.data.university?.trim() ?? "";
     if (!teamUniversity) {
-      return {
-        error:
-          "Link this team to a school, or add your university when you sign up.",
-      };
+      return { error: "University is required for standalone teams." };
     }
   }
 

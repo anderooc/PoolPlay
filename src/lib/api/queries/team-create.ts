@@ -89,16 +89,9 @@ export async function createTeamForViewer(
     teamRegion = parentSchool.region;
     teamUniversity = parentSchool.university;
   } else {
-    const [profile] = await db
-      .select({ university: users.university })
-      .from(users)
-      .where(eq(users.id, user.id))
-      .limit(1);
-    teamUniversity = profile?.university?.trim() ?? "";
+    teamUniversity = parsed.data.university?.trim() ?? "";
     if (!teamUniversity) {
-      throw badRequest(
-        "Link this team to a school, or add your university when you sign up."
-      );
+      throw badRequest("University is required for standalone teams.");
     }
   }
 

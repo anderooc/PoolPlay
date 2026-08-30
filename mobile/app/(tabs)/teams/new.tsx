@@ -53,6 +53,7 @@ export default function CreateTeamScreen() {
   const [error, setError] = useState<string | null>(null);
   const [selectedSchoolId, setSelectedSchoolId] = useState(STANDALONE);
   const [name, setName] = useState("");
+  const [university, setUniversity] = useState("");
   const [gender, setGender] = useState<string | null>(null);
   const [region, setRegion] = useState<string | null>(null);
 
@@ -113,6 +114,7 @@ export default function CreateTeamScreen() {
         gender: teamGender,
         region: teamRegion,
         schoolId: selectedSchool?.id ?? null,
+        university: selectedSchool ? undefined : university.trim(),
       });
       router.replace(`/teams/${result.slug}`);
     } catch (cause) {
@@ -124,7 +126,8 @@ export default function CreateTeamScreen() {
 
   const valid =
     name.trim().length > 0 &&
-    (selectedSchool != null || (gender != null && region != null));
+    (selectedSchool != null ||
+      (gender != null && region != null && university.trim().length > 0));
 
   return (
     <ScrollView
@@ -141,7 +144,7 @@ export default function CreateTeamScreen() {
         {options?.manageableSchools.length === 0 ? (
           <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>
             You&apos;re not a president or officer of any school yet. You can
-            still create a standalone team if your profile has a university.
+            still create a standalone team by entering your university below.
           </Text>
         ) : (
           <View style={styles.schoolList}>
@@ -188,6 +191,14 @@ export default function CreateTeamScreen() {
         </View>
       ) : (
         <>
+          <FormField label="University" colors={colors}>
+            <FormTextInput
+              value={university}
+              onChangeText={setUniversity}
+              placeholder="State University"
+              colors={colors}
+            />
+          </FormField>
           <FormField label="Gender" colors={colors}>
             <ChipPicker
               options={TEAM_GENDER_VALUES}

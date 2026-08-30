@@ -38,5 +38,4 @@ export interface CreateOptionsContract {
   canCreateSchool: boolean;
   hostingSchool: HostingSchoolOptionContract | null;
   manageableSchools: ManageableSchoolOptionContract[];
-  viewerUniversity: string | null;
 }

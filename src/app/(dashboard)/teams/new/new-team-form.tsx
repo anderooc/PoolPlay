@@ -186,7 +186,18 @@ export function NewTeamForm({
                   />
                 </div>
               ) : (
-                <TeamAttributeFields />
+                <>
+                  <TeamAttributeFields />
+                  <div className="space-y-2">
+                    <Label htmlFor="university">University</Label>
+                    <Input
+                      id="university"
+                      name="university"
+                      placeholder="State University"
+                      required
+                    />
+                  </div>
+                </>
               )}
               {!selectedSchool && (
                 <p className="text-sm text-muted-foreground">

@@ -118,15 +118,6 @@ export default function SignupPage() {
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="university">University</Label>
-                <Input
-                  id="university"
-                  name="university"
-                  placeholder="State University"
-                  disabled={isPending}
-                />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
@@ -139,6 +130,10 @@ export default function SignupPage() {
                   autoComplete="new-password"
                 />
               </div>
+              <p className="text-xs text-muted-foreground">
+                After signing up, add gender, position, and jersey number under
+                Profile.
+              </p>
               {error && (
                 <p role="alert" className="text-sm text-destructive">
                   {error}
