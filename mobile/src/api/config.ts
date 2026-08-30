@@ -38,23 +38,35 @@ function forLoopbackHost(url: string): string {
 }
 
 /**
- * In development the API runs on the same machine as the Expo dev server, so the
- * address the app was loaded from is also the API's address. Deriving it means a
- * phone on the same network needs no configuration and keeps working when the
- * router hands out a different IP.
+ * In development the API runs on the same machine as the Expo dev server. On a
+ * physical device the Expo host address is the right LAN target; simulators and
+ * emulators should use loopback aliases instead (stale LAN IPs are common).
  */
 function devServerBaseUrl(): string | undefined {
   const host = Constants.expoConfig?.hostUri?.split(":")[0];
   return host ? `http://${host}:${API_PORT}` : undefined;
 }
 
+function isIosSimulator(): boolean {
+  return Platform.OS === "ios" && Constants.isDevice === false;
+}
+
+function isAndroidEmulator(): boolean {
+  return Platform.OS === "android" && Constants.isDevice === false;
+}
+
 function developmentBaseUrl(): string {
   const configured = extra("apiBaseUrl");
   if (configured) return forLoopbackHost(configured);
 
-  return (
-    devServerBaseUrl() ?? forLoopbackHost(`http://localhost:${API_PORT}`)
-  );
+  if (isIosSimulator()) {
+    return `http://localhost:${API_PORT}`;
+  }
+  if (isAndroidEmulator()) {
+    return `http://10.0.2.2:${API_PORT}`;
+  }
+
+  return devServerBaseUrl() ?? forLoopbackHost(`http://localhost:${API_PORT}`);
 }
 
 export const API_BASE_URL = (

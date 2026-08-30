@@ -29,6 +29,7 @@ import {
 } from "react-native";
 import { changePassword } from "~/api/endpoints";
 import { useSession } from "~/auth/session";
+import { goBackOrReplace } from "~/lib/navigation";
 import { useThemeColors } from "~/theme/colors";
 import { messageFor } from "~/tournament/use-public-loader";
 
@@ -55,7 +56,7 @@ export default function ChangePasswordScreen() {
     setError(null);
     try {
       await changePassword({ currentPassword, password, confirmPassword });
-      router.back();
+      goBackOrReplace(router, "/profile");
     } catch (cause) {
       setError(messageFor(cause, "Could not update password."));
     } finally {

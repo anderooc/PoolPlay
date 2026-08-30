@@ -34,6 +34,7 @@ import {
 } from "~/api/endpoints";
 import { useSession } from "~/auth/session";
 import { formatDeadline } from "~/lib/format";
+import { goBackOrReplace } from "~/lib/navigation";
 import { useThemeColors, withAlpha } from "~/theme/colors";
 import { ErrorScreen, LoadingScreen } from "~/tournament/screen-state";
 import { messageFor, usePublicLoader } from "~/tournament/use-public-loader";
@@ -174,7 +175,9 @@ export default function RegisterScreen() {
             </Text>
             <Pressable
               accessibilityRole="button"
-              onPress={() => router.back()}
+              onPress={() =>
+                goBackOrReplace(router, `/tournament/${slug}`)
+              }
               style={[styles.done, { borderColor: colors.primary }]}
             >
               <Text style={{ color: colors.primary, fontWeight: "700" }}>

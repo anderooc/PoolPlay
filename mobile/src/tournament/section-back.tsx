@@ -18,6 +18,7 @@
 
 import { useRouter, type Href } from "expo-router";
 import { Pressable, StyleSheet, Text } from "react-native";
+import { goBackOrReplace } from "~/lib/navigation";
 import { useThemeColors } from "~/theme/colors";
 
 export function SectionBack({
@@ -35,13 +36,7 @@ export function SectionBack({
       accessibilityRole="button"
       accessibilityLabel={`Back to ${label}`}
       hitSlop={10}
-      onPress={() => {
-        if (router.canGoBack()) {
-          router.back();
-          return;
-        }
-        router.replace(fallbackHref ?? "/");
-      }}
+      onPress={() => goBackOrReplace(router, fallbackHref ?? "/")}
       style={styles.row}
     >
       <Text style={[styles.chevron, { color: colors.primary }]}>‹</Text>

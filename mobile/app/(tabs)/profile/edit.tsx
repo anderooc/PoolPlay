@@ -36,6 +36,7 @@ import {
   VOLLEYBALL_POSITIONS,
   VOLLEYBALL_POSITION_LABELS,
 } from "~/lib/format";
+import { goBackOrReplace } from "~/lib/navigation";
 import { useThemeColors, withAlpha } from "~/theme/colors";
 import { LoadingScreen } from "~/tournament/screen-state";
 import { messageFor } from "~/tournament/use-public-loader";
@@ -97,7 +98,7 @@ export default function EditProfileScreen() {
         volleyballPosition,
         jerseyNumber: jerseyNumber.trim() === "" ? null : jerseyNumber.trim(),
       });
-      router.back();
+      goBackOrReplace(router, "/profile");
     } catch (cause) {
       setError(messageFor(cause, "Could not save profile."));
     } finally {

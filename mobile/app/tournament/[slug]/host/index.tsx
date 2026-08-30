@@ -76,7 +76,7 @@ export default function TournamentHostScreen() {
   );
 
   if (sessionLoading) return <LoadingScreen />;
-  if (!session) return <Redirect href="/login" />;
+  if (!session) return <Redirect href="/sign-in" />;
   if (!slug) {
     return (
       <ErrorScreen
