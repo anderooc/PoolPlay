@@ -16,9 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text } from "react-native";
+import { confirmPasswordReset } from "~/api/endpoints";
 import { useSession } from "~/auth/session";
 import {
   AuthInput,
@@ -27,19 +28,25 @@ import {
   authStyles,
 } from "~/components/auth-screen";
 import { goBackOrReplace } from "~/lib/navigation";
+import { LoadingScreen } from "~/tournament/screen-state";
 import { useThemeColors } from "~/theme/colors";
 
-export default function SignInScreen() {
+export default function ResetPasswordScreen() {
   const colors = useThemeColors();
   const router = useRouter();
-  const { signIn } = useSession();
-
-  const [email, setEmail] = useState("");
+  const { session, isLoading } = useSession();
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canSubmit = email.trim().length > 0 && password.length > 0 && !isSubmitting;
+  const canSubmit =
+    password.length >= 8 &&
+    confirmPassword.length > 0 &&
+    !isSubmitting;
+
+  if (isLoading) return <LoadingScreen />;
+  if (!session) return <Redirect href="/forgot-password" />;
 
   async function onSubmit() {
     if (!canSubmit) return;
@@ -47,10 +54,12 @@ export default function SignInScreen() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await signIn(email, password);
+      await confirmPasswordReset({ password, confirmPassword });
       goBackOrReplace(router, "/");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not sign in.");
+      setError(
+        cause instanceof Error ? cause.message : "Could not update password."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -59,37 +68,31 @@ export default function SignInScreen() {
   return (
     <AuthScreen>
       <Text style={[authStyles.heading, { color: colors.foreground }]}>
-        Sign in to brackt
+        Choose a new password
       </Text>
-
-      <AuthInput
-        value={email}
-        onChangeText={setEmail}
-        placeholder="you@university.edu"
-        autoCapitalize="none"
-        autoCorrect={false}
-        autoComplete="email"
-        keyboardType="email-address"
-        textContentType="username"
-      />
+      <Text style={[authStyles.subheading, { color: colors.mutedForeground }]}>
+        Enter a new password for your brackt account.
+      </Text>
 
       <AuthInput
         value={password}
         onChangeText={setPassword}
-        placeholder="Password"
+        placeholder="New password"
         secureTextEntry
         autoCapitalize="none"
-        autoComplete="current-password"
-        textContentType="password"
+        autoComplete="new-password"
+        textContentType="newPassword"
+      />
+      <AuthInput
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
+        placeholder="Confirm password"
+        secureTextEntry
+        autoCapitalize="none"
+        autoComplete="new-password"
+        textContentType="newPassword"
         onSubmitEditing={onSubmit}
       />
-
-      <View style={{ alignItems: "flex-end" }}>
-        <AuthLink
-          label="Forgot password?"
-          onPress={() => router.push("/forgot-password")}
-        />
-      </View>
 
       {error ? (
         <Text style={[authStyles.error, { color: colors.destructive }]}>
@@ -114,14 +117,14 @@ export default function SignInScreen() {
           <Text
             style={[authStyles.buttonLabel, { color: colors.primaryForeground }]}
           >
-            Sign in
+            Update password
           </Text>
         )}
       </Pressable>
 
       <AuthLink
-        label="Don't have an account? Sign up"
-        onPress={() => router.push("/sign-up")}
+        label="Link expired? Request a new one"
+        onPress={() => router.push("/forgot-password")}
       />
     </AuthScreen>
   );

@@ -18,9 +18,11 @@
 
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text } from "react-native";
+import { signUpAccount } from "~/api/endpoints";
 import { useSession } from "~/auth/session";
 import {
+  AuthFieldLabel,
   AuthInput,
   AuthLink,
   AuthScreen,
@@ -29,17 +31,22 @@ import {
 import { goBackOrReplace } from "~/lib/navigation";
 import { useThemeColors } from "~/theme/colors";
 
-export default function SignInScreen() {
+export default function SignUpScreen() {
   const colors = useThemeColors();
   const router = useRouter();
   const { signIn } = useSession();
 
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canSubmit = email.trim().length > 0 && password.length > 0 && !isSubmitting;
+  const canSubmit =
+    fullName.trim().length > 0 &&
+    email.trim().length > 0 &&
+    password.length >= 8 &&
+    !isSubmitting;
 
   async function onSubmit() {
     if (!canSubmit) return;
@@ -47,21 +54,41 @@ export default function SignInScreen() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await signIn(email, password);
+      await signUpAccount({
+        email: email.trim(),
+        password,
+        fullName: fullName.trim(),
+      });
+      await signIn(email.trim(), password);
       goBackOrReplace(router, "/");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not sign in.");
+      setError(cause instanceof Error ? cause.message : "Could not create account.");
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <AuthScreen>
+    <AuthScreen scroll>
       <Text style={[authStyles.heading, { color: colors.foreground }]}>
-        Sign in to brackt
+        Create account
+      </Text>
+      <Text style={[authStyles.subheading, { color: colors.mutedForeground }]}>
+        Create your brackt account with a school or institutional email.
       </Text>
 
+      <AuthFieldLabel>Full name</AuthFieldLabel>
+      <AuthInput
+        value={fullName}
+        onChangeText={setFullName}
+        placeholder="Jane Smith"
+        autoCapitalize="words"
+        textContentType="name"
+      />
+
+      <AuthFieldLabel hint="Must be an institutional address (e.g. .edu).">
+        School email
+      </AuthFieldLabel>
       <AuthInput
         value={email}
         onChangeText={setEmail}
@@ -73,23 +100,22 @@ export default function SignInScreen() {
         textContentType="username"
       />
 
+      <AuthFieldLabel>Password</AuthFieldLabel>
       <AuthInput
         value={password}
         onChangeText={setPassword}
-        placeholder="Password"
+        placeholder="At least 8 characters"
         secureTextEntry
         autoCapitalize="none"
-        autoComplete="current-password"
-        textContentType="password"
+        autoComplete="new-password"
+        textContentType="newPassword"
         onSubmitEditing={onSubmit}
       />
 
-      <View style={{ alignItems: "flex-end" }}>
-        <AuthLink
-          label="Forgot password?"
-          onPress={() => router.push("/forgot-password")}
-        />
-      </View>
+      <Text style={[authStyles.hint, { color: colors.mutedForeground }]}>
+        After signing up, add gender, position, and jersey number under Profile →
+        Edit profile.
+      </Text>
 
       {error ? (
         <Text style={[authStyles.error, { color: colors.destructive }]}>
@@ -114,15 +140,12 @@ export default function SignInScreen() {
           <Text
             style={[authStyles.buttonLabel, { color: colors.primaryForeground }]}
           >
-            Sign in
+            Create account
           </Text>
         )}
       </Pressable>
 
-      <AuthLink
-        label="Don't have an account? Sign up"
-        onPress={() => router.push("/sign-up")}
-      />
+      <AuthLink label="Already have an account? Sign in" onPress={() => router.push("/sign-in")} />
     </AuthScreen>
   );
 }

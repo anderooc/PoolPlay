@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import type { AuthSuccessContract } from "@/lib/api/contracts/auth";
 import type { CreateEntityResultContract } from "@/lib/api/contracts/create";
 import type { CreateOptionsContract } from "@/lib/api/contracts/create-options";
 import type {
@@ -23,12 +24,15 @@ import type {
   SchoolJoinResultContract,
   SchoolListContract,
   SchoolMutationResultContract,
+  SchoolUpdateResultContract,
+  SchoolVerificationSubmitResultContract,
 } from "@/lib/api/contracts/school";
 import type {
   MatchConsoleContract,
   MatchConsoleMutationResultContract,
 } from "@/lib/api/contracts/match-console";
 import type { DashboardContract } from "@/lib/api/contracts/dashboard";
+import type { PersonalScheduleContract } from "@/lib/api/contracts/personal-schedule";
 import type {
   NotificationsContract,
   NotificationsReadResultContract,
@@ -117,6 +121,7 @@ export function createTeam(body: {
   gender: string;
   region: string;
   schoolId?: string | null;
+  university?: string;
 }): Promise<CreateEntityResultContract> {
   return apiRequest<CreateEntityResultContract>("/api/v1/teams", {
     method: "POST",
@@ -157,6 +162,39 @@ export function updateProfile(body: UpdateProfileBody): Promise<ViewerContract> 
   });
 }
 
+export function signUpAccount(body: {
+  email: string;
+  password: string;
+  fullName: string;
+}): Promise<AuthSuccessContract> {
+  return apiRequest<AuthSuccessContract>("/api/v1/auth/signup", {
+    method: "POST",
+    body,
+    authenticated: false,
+  });
+}
+
+export function requestPasswordReset(body: {
+  email: string;
+  redirectTo: string;
+}): Promise<AuthSuccessContract> {
+  return apiRequest<AuthSuccessContract>("/api/v1/auth/password-reset", {
+    method: "POST",
+    body,
+    authenticated: false,
+  });
+}
+
+export function confirmPasswordReset(body: {
+  password: string;
+  confirmPassword: string;
+}): Promise<AuthSuccessContract> {
+  return apiRequest<AuthSuccessContract>("/api/v1/auth/password-reset/confirm", {
+    method: "POST",
+    body,
+  });
+}
+
 export function changePassword(body: {
   currentPassword: string;
   password: string;
@@ -172,6 +210,21 @@ export function fetchDashboard(
   signal?: AbortSignal
 ): Promise<DashboardContract> {
   return apiRequest<DashboardContract>("/api/v1/dashboard", { signal });
+}
+
+export function fetchPersonalSchedule(
+  signal?: AbortSignal,
+  params?: { limit?: number }
+): Promise<PersonalScheduleContract> {
+  const search = new URLSearchParams();
+  if (params?.limit != null) {
+    search.set("limit", String(params.limit));
+  }
+  const query = search.toString();
+  return apiRequest<PersonalScheduleContract>(
+    `/api/v1/me/schedule${query ? `?${query}` : ""}`,
+    { signal }
+  );
 }
 
 export type SchoolListParams = {
@@ -200,6 +253,39 @@ export function fetchSchool(
   return apiRequest<SchoolDetailContract>(
     `/api/v1/schools/${encodeURIComponent(slug)}`,
     { signal }
+  );
+}
+
+export function updateSchool(
+  slug: string,
+  body: {
+    name?: string;
+    university?: string;
+    gender?: string;
+    region?: string;
+    description?: string | null;
+    websiteUrl?: string | null;
+    domainHint?: string | null;
+  }
+): Promise<SchoolUpdateResultContract> {
+  return apiRequest<SchoolUpdateResultContract>(
+    `/api/v1/schools/${encodeURIComponent(slug)}`,
+    {
+      method: "PATCH",
+      body,
+    }
+  );
+}
+
+export function submitSchoolVerification(
+  slug: string
+): Promise<SchoolVerificationSubmitResultContract> {
+  return apiRequest<SchoolVerificationSubmitResultContract>(
+    `/api/v1/schools/${encodeURIComponent(slug)}/verification`,
+    {
+      method: "POST",
+      body: {},
+    }
   );
 }
 

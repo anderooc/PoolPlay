@@ -12,6 +12,9 @@ cp .env.example .env.local   # fill in the two Supabase values
 npm start
 ```
 
+Add `brackt://reset-password` to **Supabase → Authentication → URL configuration →
+Redirect URLs** so mobile password-reset emails open the app.
+
 The web app must be running for the API to answer:
 
 ```bash
@@ -21,13 +24,14 @@ npm run dev
 
 ### Pointing at the API
 
-Usually nothing to do. The API host is derived from the Expo dev server the app
-loaded from, so a phone on the same wifi finds it without configuration and keeps
-working when your router hands out a different IP. On the Android emulator
-`localhost` is rewritten to `10.0.2.2`, since there it means the emulator itself.
+On the **iOS simulator** and **Android emulator**, the API defaults to
+`http://localhost:3000` (rewritten to `10.0.2.2` on Android) so the app talks
+to the Next.js dev server on your machine without chasing LAN IPs.
 
-Set `EXPO_PUBLIC_API_BASE_URL` to override — a staging deployment, or a port
-other than 3000:
+On a **physical device**, the API host is derived from the Expo dev server
+address (same wifi). If that breaks after a network change, set
+`EXPO_PUBLIC_API_BASE_URL` explicitly — e.g. `http://10.0.0.34:3000` (your Mac's
+current LAN address from `ipconfig getifaddr en0`).
 
 ```
 EXPO_PUBLIC_API_BASE_URL=https://brackt-staging.example.com
