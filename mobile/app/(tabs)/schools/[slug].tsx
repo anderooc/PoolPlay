@@ -47,6 +47,7 @@ import {
   removeSchoolMember,
   requestSchoolJoin,
   resolveSchoolJoinRequest,
+  submitSchoolVerification,
   transferSchoolPresidency,
   updateSchoolMemberJersey,
   updateSchoolMemberPosition,
@@ -113,8 +114,29 @@ export default function SchoolDetailScreen() {
           </Text>
         </Pressable>
       ),
+      headerRight: data?.viewer.canManageSchool
+        ? () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit school"
+              onPress={() => router.push(`/schools/${slug}/edit`)}
+              hitSlop={8}
+              style={{ paddingHorizontal: 4, paddingVertical: 6 }}
+            >
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontWeight: "600",
+                  fontSize: 16,
+                }}
+              >
+                Edit
+              </Text>
+            </Pressable>
+          )
+        : undefined,
     });
-  }, [colors.primary, data?.name, navigation, router]);
+  }, [colors.primary, data?.name, data?.viewer.canManageSchool, navigation, router, slug]);
 
   if (sessionLoading) return <LoadingScreen />;
   if (!session) return <Redirect href="/sign-in" />;
@@ -232,6 +254,26 @@ export default function SchoolDetailScreen() {
       }
     >
       <Header school={data} colors={colors} />
+
+      {data.viewer.canManageSchool &&
+      data.verificationStatus !== "verified" ? (
+        <VerificationPanel
+          school={data}
+          colors={colors}
+          busy={busy}
+          onSubmit={() =>
+            void runAction(async () => {
+              const result = await submitSchoolVerification(slug!);
+              Alert.alert(
+                "Submitted for verification",
+                result.domainMatched
+                  ? "An admin will review your school. Your officer emails matched the domain on file."
+                  : "An admin will review your school."
+              );
+            })
+          }
+        />
+      ) : null}
 
       {data.viewer.isMember ? (
         <Text style={[styles.badge, { color: colors.primary }]}>
@@ -883,6 +925,73 @@ function RosterSection({
   );
 }
 
+function VerificationPanel({
+  school,
+  colors,
+  busy,
+  onSubmit,
+}: {
+  school: SchoolDetailContract;
+  colors: ThemeColors;
+  busy: boolean;
+  onSubmit: () => void;
+}) {
+  const blockedReason = school.viewer.verificationBlockedReason;
+  const canSubmit = school.viewer.canSubmitForVerification;
+
+  return (
+    <View
+      style={[
+        styles.verifyPanel,
+        {
+          borderColor: colors.border,
+          backgroundColor: withAlpha(colors.primary, 0.05),
+        },
+      ]}
+    >
+      <Text style={[styles.verifyTitle, { color: colors.foreground }]}>
+        School verification
+      </Text>
+      {school.domainMatched ? (
+        <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "600" }}>
+          Domain match on file — officers&apos; emails matched @{school.domainHint}
+        </Text>
+      ) : school.viewer.emailDomainMatches && school.domainHint ? (
+        <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+          Your email matches @{school.domainHint}. Officer emails on file will be
+          checked when you submit.
+        </Text>
+      ) : null}
+      {blockedReason && !canSubmit ? (
+        <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+          {blockedReason}
+        </Text>
+      ) : null}
+      {canSubmit ? (
+        <Pressable
+          accessibilityRole="button"
+          disabled={busy}
+          onPress={onSubmit}
+          style={[
+            styles.primaryBtn,
+            {
+              backgroundColor: colors.primary,
+              opacity: busy ? 0.5 : 1,
+              alignSelf: "flex-start",
+            },
+          ]}
+        >
+          <Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>
+            {school.verificationStatus === "rejected"
+              ? "Resubmit for verification"
+              : "Submit for verification"}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 function Header({
   school,
   colors,
@@ -957,6 +1066,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   description: { fontSize: 15, lineHeight: 22, marginTop: 6 },
+  verifyPanel: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
+  },
+  verifyTitle: { fontSize: 16, fontWeight: "700" },
   badge: { fontSize: 14, fontWeight: "700" },
   actions: { gap: 10 },
   manageBlock: { gap: 10 },

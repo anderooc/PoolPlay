@@ -38,6 +38,10 @@ export default function SchoolsStackLayout() {
         name="[slug]"
         options={{ headerBackTitle: "Find" }}
       />
+      <Stack.Screen
+        name="[slug]/edit"
+        options={{ title: "Edit school", headerBackTitle: "School" }}
+      />
     </Stack>
   );
 }

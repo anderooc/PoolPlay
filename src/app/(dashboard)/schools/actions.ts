@@ -41,11 +41,8 @@ import {
 import {
   canManageSchool,
   canManageSchoolRoster,
-  canSubmitForVerification,
   canTransferPresidency,
-  emailMatchesDomain,
   emailMatchesSchoolDomain,
-  getVerificationEligibility,
   type CurrentSchoolMembership,
 } from "@/lib/schools/permissions";
 import type { SchoolMemberRole } from "@/types";
@@ -66,6 +63,10 @@ import {
   deleteSchoolWithEligibilityLocks,
 } from "@/lib/schools/school-deletion";
 import { releaseJerseyIfSchoolConflict } from "@/lib/profile/jersey-number-store";
+import {
+  submitSchoolVerificationForViewer,
+  updateSchoolForViewer,
+} from "@/lib/api/queries/school-update";
 
 const schoolSearchSchema = z.object({
   query: z.string().max(200).optional().default(""),
@@ -245,11 +246,6 @@ export async function updateSchool(
   const school = await loadSchool(schoolId);
   if (!school) return { error: "School not found" };
 
-  const membership = await loadMembership(schoolId, user.id);
-  if (!canManageSchool(membership, user)) {
-    return { error: "Only the school president can edit details." };
-  }
-
   const parsed = updateSchoolSchema.safeParse({
     name: formData.get("name") ?? undefined,
     university: formData.get("university") ?? undefined,
@@ -264,61 +260,19 @@ export async function updateSchool(
     return { error: parsed.error.issues[0].message };
   }
 
-  const contentError = await flagBlockedContent(user.id, [
-    { area: "school.name", text: parsed.data.name ?? null },
-    { area: "school.university", text: parsed.data.university ?? null },
-    { area: "school.description", text: parsed.data.description ?? null },
-  ]);
-  if (contentError) return { error: contentError };
-
-  let slug = school.slug;
-  const renaming =
-    parsed.data.name !== undefined && parsed.data.name !== school.name;
-  if (renaming) {
-    const base = slugify(
-      `${parsed.data.name} ${parsed.data.university ?? school.university}`,
-      "school"
-    );
-    const otherSlugs = await db
-      .select({ slug: schools.slug })
-      .from(schools)
-      .where(ne(schools.id, schoolId));
-    slug = uniqueSlug(
-      base,
-      otherSlugs.map((r) => r.slug)
-    );
-  }
-
-  await db
-    .update(schools)
-    .set({
-      name: parsed.data.name ?? school.name,
-      slug,
-      university: parsed.data.university ?? school.university,
-      gender: parsed.data.gender ?? school.gender,
-      region: parsed.data.region ?? school.region,
-      description:
-        parsed.data.description !== undefined
-          ? parsed.data.description ?? null
-          : school.description,
-      websiteUrl:
-        parsed.data.websiteUrl !== undefined
-          ? parsed.data.websiteUrl
-          : school.websiteUrl,
-      domainHint:
-        parsed.data.domainHint !== undefined
-          ? parsed.data.domainHint
-          : school.domainHint,
-      updatedAt: new Date(),
+  const result = await updateSchoolForViewer(user, school.slug, parsed.data).catch(
+    (cause: unknown) => ({
+      error: cause instanceof Error ? cause.message : "Could not update school.",
     })
-    .where(eq(schools.id, schoolId));
+  );
+  if ("error" in result) return result;
 
   revalidatePath("/schools");
   revalidatePath(`/schools/${school.slug}`);
-  if (slug !== school.slug) {
-    revalidatePath(`/schools/${slug}`);
+  if (result.slug !== school.slug) {
+    revalidatePath(`/schools/${result.slug}`);
   }
-  return { success: true as const, slug };
+  return { success: true as const, slug: result.slug };
 }
 
 export async function deleteSchool(schoolId: string) {
@@ -887,54 +841,18 @@ export async function submitForVerification(schoolId: string) {
   const school = await loadSchool(schoolId);
   if (!school) return { error: "School not found" };
 
-  const membership = await loadMembership(schoolId, user.id);
-
-  // Re-compute eligibility on the server: counts and president presence
-  // could have changed since the page was rendered.
-  const officerRows = await db
-    .select({
-      role: schoolMembers.role,
-      email: users.email,
-    })
-    .from(schoolMembers)
-    .innerJoin(users, eq(schoolMembers.userId, users.id))
-    .where(eq(schoolMembers.schoolId, schoolId));
-
-  const presidentRow = officerRows.find((r) => r.role === "president");
-  const officerCount = officerRows.filter((r) => r.role === "officer").length;
-
-  const eligibility = getVerificationEligibility({
-    status: school.verificationStatus,
-    hasPresident: !!presidentRow,
-    officerCount,
-  });
-
-  if (!canSubmitForVerification(membership, user, eligibility)) {
-    return {
-      error:
-        eligibility.reason ??
-        "Only the president can submit for verification.",
-    };
-  }
-
-  const domainMatched = officerRows.some(
-    (r) =>
-      (r.role === "president" || r.role === "officer") &&
-      emailMatchesDomain(r.email, school.domainHint)
-  );
-
-  await db
-    .update(schools)
-    .set({
-      domainMatched,
-      verificationStatus: "pending",
-      updatedAt: new Date(),
-    })
-    .where(eq(schools.id, schoolId));
+  const result = await submitSchoolVerificationForViewer(
+    user,
+    school.slug
+  ).catch((cause: unknown) => ({
+    error:
+      cause instanceof Error ? cause.message : "Could not submit for verification.",
+  }));
+  if ("error" in result) return result;
 
   revalidatePath(`/schools/${school.slug}`);
   revalidatePath("/admin");
-  return { success: true as const, domainMatched };
+  return { success: true as const, domainMatched: result.domainMatched };
 }
 
 /**

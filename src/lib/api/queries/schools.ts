@@ -31,9 +31,12 @@ import {
 import { notifySchoolOfficersOfJoinRequest } from "@/lib/notifications/school-events";
 import { getUserSchoolSummary } from "@/lib/schools/navigation";
 import {
+  canManageSchool,
   canManageSchoolRoster,
+  canSubmitForVerification,
   canTransferPresidency,
   emailMatchesSchoolDomain,
+  getVerificationEligibility,
 } from "@/lib/schools/permissions";
 import {
   hasSchoolSearchCriteria,
@@ -165,7 +168,20 @@ export async function loadSchoolDetailForViewer(
       }
     : null;
   const canManageRoster = canManageSchoolRoster(actorMembership, user);
+  const canManage = canManageSchool(actorMembership, user);
   const canTransfer = canTransferPresidency(actorMembership, user);
+  const officerCount = memberRows.filter((row) => row.role === "officer").length;
+  const hasPresident = memberRows.some((row) => row.role === "president");
+  const verificationEligibility = getVerificationEligibility({
+    status: school.verificationStatus,
+    hasPresident,
+    officerCount,
+  });
+  const canSubmitVerification = canSubmitForVerification(
+    actorMembership,
+    user,
+    verificationEligibility
+  );
   const hasPendingJoinRequest = pendingJoinRows.some(
     (row) => row.userId === user.id
   );
@@ -205,6 +221,7 @@ export async function loadSchoolDetailForViewer(
     description: school.description,
     websiteUrl: school.websiteUrl,
     domainHint: school.domainHint,
+    domainMatched: school.domainMatched,
     verificationStatus: school.verificationStatus,
     memberCount: memberCount ?? 0,
     members: memberRows.map((row) => {
@@ -249,8 +266,12 @@ export async function loadSchoolDetailForViewer(
       canRequestToJoin,
       alreadyInAnotherSchool,
       joinBlockedReason,
+      canManageSchool: canManage,
       canManageRoster,
       canTransferPresidency: canTransfer,
+      canSubmitForVerification: canSubmitVerification,
+      verificationBlockedReason: verificationEligibility.reason,
+      emailDomainMatches: domainMatches,
       canLeave: isMember && myMembership?.role !== "president",
     },
   };

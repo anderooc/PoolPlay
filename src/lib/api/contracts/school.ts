@@ -81,6 +81,7 @@ export interface SchoolDetailContract {
   description: string | null;
   websiteUrl: string | null;
   domainHint: string | null;
+  domainMatched: boolean;
   verificationStatus: SchoolVerificationStatus;
   memberCount: number;
   members: SchoolMemberContract[];
@@ -93,10 +94,25 @@ export interface SchoolDetailContract {
     canRequestToJoin: boolean;
     alreadyInAnotherSchool: boolean;
     joinBlockedReason: string | null;
+    canManageSchool: boolean;
     canManageRoster: boolean;
     canTransferPresidency: boolean;
+    canSubmitForVerification: boolean;
+    verificationBlockedReason: string | null;
+    emailDomainMatches: boolean;
     canLeave: boolean;
   };
+}
+
+export interface SchoolUpdateResultContract {
+  success: true;
+  slug: string;
+  name: string;
+}
+
+export interface SchoolVerificationSubmitResultContract {
+  success: true;
+  domainMatched: boolean;
 }
 
 export interface SchoolJoinResultContract {

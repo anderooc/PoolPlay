@@ -17,30 +17,16 @@
  */
 
 import { requireViewer } from "@/lib/api/auth";
-import { badRequest } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
-import { loadSchoolDetailForViewer } from "@/lib/api/queries/schools";
-import { updateSchoolForViewer } from "@/lib/api/queries/school-update";
+import { submitSchoolVerificationForViewer } from "@/lib/api/queries/school-update";
 import { jsonSuccess } from "@/lib/api/response";
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
 }
 
-export const GET = apiHandler(async (request: Request, context: RouteContext) => {
+export const POST = apiHandler(async (request: Request, context: RouteContext) => {
   const { user } = await requireViewer(request);
   const { slug } = await context.params;
-  return jsonSuccess(await loadSchoolDetailForViewer(slug, user));
-});
-
-export const PATCH = apiHandler(async (request: Request, context: RouteContext) => {
-  const { user } = await requireViewer(request);
-  const { slug } = await context.params;
-  const body = (await request.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
-  if (!body) throw badRequest("Request body is required.");
-
-  return jsonSuccess(await updateSchoolForViewer(user, slug, body));
+  return jsonSuccess(await submitSchoolVerificationForViewer(user, slug));
 });
