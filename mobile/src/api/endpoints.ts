@@ -167,6 +167,42 @@ export function updateProfile(body: UpdateProfileBody): Promise<ViewerContract> 
   });
 }
 
+export function uploadProfileAvatar(body: {
+  base64: string;
+  contentType: string;
+}): Promise<ViewerContract> {
+  return apiRequest<ViewerContract>("/api/v1/me/avatar", {
+    method: "POST",
+    body,
+  });
+}
+
+export function removeProfileAvatar(): Promise<ViewerContract> {
+  return apiRequest<ViewerContract>("/api/v1/me/avatar", {
+    method: "DELETE",
+  });
+}
+
+export function deleteAccount(body: {
+  password: string;
+  confirmation: string;
+}): Promise<{ success: true }> {
+  return apiRequest("/api/v1/me/delete", {
+    method: "POST",
+    body,
+  });
+}
+
+export function deleteTeam(
+  slug: string,
+  confirmationName: string
+): Promise<TeamMutationResultContract> {
+  return apiRequest<TeamMutationResultContract>(`/api/v1/teams/${slug}`, {
+    method: "DELETE",
+    body: { confirmationName },
+  });
+}
+
 export function signUpAccount(body: {
   email: string;
   password: string;

@@ -41,6 +41,10 @@ export default function ProfileStackLayout() {
         name="password"
         options={{ title: "Change password", headerBackTitle: "Profile" }}
       />
+      <Stack.Screen
+        name="delete-account"
+        options={{ title: "Delete account", headerBackTitle: "Profile" }}
+      />
     </Stack>
   );
 }

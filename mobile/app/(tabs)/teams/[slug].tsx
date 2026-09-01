@@ -37,6 +37,7 @@ import {
 } from "react-native";
 import {
   addTeamMember,
+  deleteTeam,
   fetchTeam,
   removeTeamMember,
   updateTeamMemberJersey,
@@ -71,6 +72,7 @@ export default function TeamDetailScreen() {
     Record<string, string>
   >({});
   const [jerseyDrafts, setJerseyDrafts] = useState<Record<string, string>>({});
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
 
   const load = useCallback(
     (signal?: AbortSignal) => fetchTeam(slug ?? "", signal),
@@ -519,6 +521,64 @@ export default function TeamDetailScreen() {
           </View>
         ))
       )}
+
+      {data.viewer.canManage ? (
+        <View style={[styles.addBox, { borderColor: colors.destructive }]}>
+          <Text style={[styles.sectionTitle, { color: colors.destructive }]}>
+            Delete team
+          </Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+            Type the team name exactly to confirm. This cannot be undone.
+          </Text>
+          <TextInput
+            value={deleteConfirmName}
+            onChangeText={setDeleteConfirmName}
+            placeholder={data.name}
+            placeholderTextColor={colors.mutedForeground}
+            autoCapitalize="words"
+            style={[
+              styles.input,
+              {
+                color: colors.foreground,
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+              },
+            ]}
+          />
+          <Pressable
+            accessibilityRole="button"
+            disabled={busy || deleteConfirmName.trim() !== data.name.trim()}
+            onPress={() =>
+              Alert.alert("Delete team?", "This permanently removes the team.", [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete",
+                  style: "destructive",
+                  onPress: () =>
+                    void runAction(async () => {
+                      await deleteTeam(slug!, deleteConfirmName);
+                      router.replace("/teams");
+                    }),
+                },
+              ])
+            }
+            style={[
+              styles.primaryBtn,
+              {
+                backgroundColor: colors.destructive,
+                opacity:
+                  busy || deleteConfirmName.trim() !== data.name.trim()
+                    ? 0.5
+                    : 1,
+              },
+            ]}
+          >
+            <Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>
+              Delete team
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }

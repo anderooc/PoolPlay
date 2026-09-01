@@ -17,9 +17,12 @@
  */
 
 import { Redirect, useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
+import { File } from "expo-file-system";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -28,7 +31,12 @@ import {
   View,
 } from "react-native";
 import { ApiClientError } from "~/api/client";
-import { fetchViewer, updateProfile } from "~/api/endpoints";
+import {
+  fetchViewer,
+  removeProfileAvatar,
+  updateProfile,
+  uploadProfileAvatar,
+} from "~/api/endpoints";
 import { useSession } from "~/auth/session";
 import {
   USER_PLAYER_GENDERS,
@@ -56,6 +64,8 @@ export default function EditProfileScreen() {
   const [jerseyNumber, setJerseyNumber] = useState("");
   const [displayEmail, setDisplayEmail] = useState<string | null>(null);
   const [displaySchool, setDisplaySchool] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     const viewer = await fetchViewer(signal);
@@ -67,6 +77,7 @@ export default function EditProfileScreen() {
     );
     setDisplayEmail(viewer.displayEmail ?? viewer.email);
     setDisplaySchool(viewer.displaySchool ?? viewer.university);
+    setAvatarUrl(viewer.avatarUrl);
     setReady(true);
   }, []);
 
@@ -106,6 +117,44 @@ export default function EditProfileScreen() {
     }
   }
 
+  async function onPickAvatar() {
+    setAvatarBusy(true);
+    setError(null);
+    try {
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.85,
+      });
+      if (picked.canceled || !picked.assets[0]) return;
+      const asset = picked.assets[0];
+      const mime = asset.mimeType ?? "image/jpeg";
+      const file = new File(asset.uri);
+      const base64 = await file.base64();
+      const viewer = await uploadProfileAvatar({
+        base64,
+        contentType: mime,
+      });
+      setAvatarUrl(viewer.avatarUrl);
+    } catch (cause) {
+      setError(messageFor(cause, "Could not update profile photo."));
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function onRemoveAvatar() {
+    setAvatarBusy(true);
+    setError(null);
+    try {
+      await removeProfileAvatar();
+      setAvatarUrl(null);
+    } catch (cause) {
+      setError(messageFor(cause, "Could not remove profile photo."));
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
   return (
     <ScrollView
       style={{ backgroundColor: colors.background }}
@@ -129,6 +178,49 @@ export default function EditProfileScreen() {
         <Text style={{ color: colors.foreground, fontWeight: "600" }}>
           {displaySchool ?? "—"}
         </Text>
+      </View>
+
+      <View style={styles.avatarBlock}>
+        {avatarUrl ? (
+          <Image
+            source={{ uri: avatarUrl }}
+            style={styles.avatar}
+            accessibilityLabel="Profile photo"
+          />
+        ) : (
+          <View
+            style={[
+              styles.avatarPlaceholder,
+              { borderColor: colors.border, backgroundColor: colors.card },
+            ]}
+          >
+            <Text style={{ color: colors.mutedForeground }}>No photo</Text>
+          </View>
+        )}
+        <View style={styles.avatarActions}>
+          <Pressable
+            accessibilityRole="button"
+            disabled={avatarBusy || busy}
+            onPress={() => void onPickAvatar()}
+            style={[styles.avatarBtn, { borderColor: colors.border }]}
+          >
+            <Text style={{ color: colors.primary, fontWeight: "600" }}>
+              {avatarBusy ? "Uploading…" : "Change photo"}
+            </Text>
+          </Pressable>
+          {avatarUrl ? (
+            <Pressable
+              accessibilityRole="button"
+              disabled={avatarBusy || busy}
+              onPress={() => void onRemoveAvatar()}
+              style={[styles.avatarBtn, { borderColor: colors.border }]}
+            >
+              <Text style={{ color: colors.destructive, fontWeight: "600" }}>
+                Remove
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       <Text style={[styles.label, { color: colors.foreground }]}>
@@ -287,6 +379,23 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 2,
     marginBottom: 6,
+  },
+  avatarBlock: { gap: 10, marginBottom: 6 },
+  avatar: { width: 88, height: 88, borderRadius: 44 },
+  avatarPlaceholder: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  avatarBtn: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   label: { fontSize: 15, fontWeight: "700", marginTop: 4 },
   input: {

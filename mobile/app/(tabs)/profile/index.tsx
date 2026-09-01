@@ -21,6 +21,8 @@ import { Redirect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -28,6 +30,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { API_BASE_URL } from "~/api/config";
 import { ApiClientError } from "~/api/client";
 import { fetchViewer } from "~/api/endpoints";
 import { useSession } from "~/auth/session";
@@ -99,6 +102,13 @@ export default function ProfileScreen() {
             { backgroundColor: colors.card, borderColor: colors.border },
           ]}
         >
+          {viewer.avatarUrl ? (
+            <Image
+              source={{ uri: viewer.avatarUrl }}
+              style={styles.avatar}
+              accessibilityLabel="Profile photo"
+            />
+          ) : null}
           <Text style={[styles.name, { color: colors.foreground }]}>
             {viewer.fullName}
           </Text>
@@ -177,6 +187,36 @@ export default function ProfileScreen() {
       </Pressable>
 
       <Pressable
+        accessibilityRole="button"
+        onPress={() => void Linking.openURL(`${API_BASE_URL}/privacy`)}
+        style={[styles.action, { borderColor: colors.border }]}
+      >
+        <Text style={{ color: colors.foreground, fontWeight: "700" }}>
+          Privacy notice
+        </Text>
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => void Linking.openURL(`${API_BASE_URL}/terms`)}
+        style={[styles.action, { borderColor: colors.border }]}
+      >
+        <Text style={{ color: colors.foreground, fontWeight: "700" }}>
+          Terms of use
+        </Text>
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.push("/profile/delete-account")}
+        style={[styles.action, { borderColor: colors.border }]}
+      >
+        <Text style={{ color: colors.destructive, fontWeight: "700" }}>
+          Delete account
+        </Text>
+      </Pressable>
+
+      <Pressable
         onPress={() => void signOut()}
         style={[styles.action, { borderColor: colors.border }]}
       >
@@ -218,6 +258,12 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 40, gap: 12 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 4 },
+  avatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    marginBottom: 8,
+  },
   name: { fontSize: 22, fontWeight: "700" },
   rows: { marginTop: 12, gap: 8 },
   row: {
