@@ -198,6 +198,7 @@ export interface TournamentChatChannelContract {
 }
 
 export interface TournamentChatContract {
+  tournamentId: string;
   canPost: boolean;
   speakingTeams: TournamentSpeakingTeamContract[];
   channels: TournamentChatChannelContract[];

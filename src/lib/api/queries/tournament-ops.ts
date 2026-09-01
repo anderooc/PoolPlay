@@ -601,6 +601,7 @@ export async function loadTournamentChat(
   }
 
   return {
+    tournamentId: tournament.id,
     canPost,
     speakingTeams: await speakingTeamsContract(eligible, teamById),
     channels: channels.map((channel) => {
