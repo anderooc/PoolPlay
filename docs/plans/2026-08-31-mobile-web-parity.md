@@ -20,16 +20,16 @@
 - [x] Mobile profile avatar, delete account, team delete
 
 ## Phase 4 — Host UX polish
-- [ ] Wire bulk division on mobile (API exists)
-- [ ] `GET /api/v1/schedule` (organizer cross-tournament)
-- [ ] Mobile schedule screen
-- [ ] Mobile scoring board (reuse matches API)
+- [x] Wire bulk division on mobile (API exists)
+- [x] `GET /api/v1/schedule` (organizer cross-tournament)
+- [x] Mobile schedule screen
+- [x] Mobile scoring board (reuse matches API)
 
 ## Phase 5 — Realtime & docs
-- [ ] Supabase realtime on mobile tournament chat
-- [ ] Update `mobile/README.md`
+- [x] Supabase realtime on mobile tournament chat
+- [x] Update `mobile/README.md`
 - [x] Privacy/terms links on mobile profile
 
 ## Phase 6 — Production push
-- [ ] EAS build docs (already in README)
+- [x] EAS build docs (already in README)
 - [ ] Notification preferences (later)

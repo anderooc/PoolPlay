@@ -129,20 +129,30 @@ conflicts with React Native's own declarations.
 optional peer of `expo-router` and resolves to a version that demands a newer
 `react` than Expo 57 pins, which breaks a plain `npm install`.
 
-## Not built yet
+## Feature coverage
 
-Sign-in, the public tournament list, tournament detail (overview, teams,
-matches), and the profile screen exist to prove the chain end to end. Still to
-come: live match pages, pool standings, brackets, personal schedule,
-offline handling for score entry, and richer notification preferences.
+The mobile app covers the main player and host flows: sign-in, tournaments
+(overview, teams, matches, pools, brackets, live scores), personal and global
+schedules, tournament chat (with Supabase realtime), host tools (registrations,
+setup, schedule, ref/court assignment, payment/waiver/packet settings), profile
+(avatar, school, teams, notifications), and account deletion.
+
+Still to come: offline score entry, richer notification preferences, and
+auto-schedule controls on the global schedule screen.
 
 ## Push notifications
 
 1. Run `npx eas init` in `mobile/` and set `EXPO_PUBLIC_EAS_PROJECT_ID` in
    `.env.local` to the project UUID.
-2. Build a dev client or production binary with `expo-notifications` native code
-   (push does not work in Expo Go for production tokens on iOS).
-3. Optionally set `EXPO_ACCESS_TOKEN` on the API server for higher Expo Push
+2. Configure `eas.json` profiles (`development`, `preview`, `production`) and
+   build a dev client or production binary — push tokens require native
+   `expo-notifications` code and do not work in Expo Go on iOS.
+3. For production iOS, upload your APNs key in the Expo dashboard and run
+   `eas build --platform ios --profile production`, then submit with
+   `eas submit --platform ios`.
+4. For production Android, use `eas build --platform android --profile production`
+   and submit to the Play Store with `eas submit --platform android`.
+5. Optionally set `EXPO_ACCESS_TOKEN` on the API server for higher Expo Push
    rate limits.
-4. Apply migrations `00056_user_push_tokens.sql` and
+6. Apply migrations `00056_user_push_tokens.sql` and
    `00057_user_notifications_realtime.sql` (`npm run db:push` from repo root).
