@@ -17,10 +17,15 @@
  */
 
 import { getDivisionPlayData } from "@/app/(dashboard)/tournaments/[slug]/brackets/data";
+import type { DivisionPlayData } from "@/app/(dashboard)/tournaments/[slug]/brackets/data";
 import type { AppUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { courts, matches } from "@/lib/db/schema";
 import { assignBracketRefsForBracket } from "@/lib/tournaments/bracket-structure";
+import {
+  eligibleBracketRefIds,
+  type BracketMatchForRefs,
+} from "@/lib/tournaments/bracket-refs";
 import { assertNoCourtScheduleConflict } from "@/lib/tournaments/court-schedule";
 import { loadTournamentCourtOccupancy } from "@/lib/tournaments/court-schedule";
 import { getMatchTournamentId } from "@/lib/tournaments/match-query";
@@ -94,6 +99,80 @@ function previewNote(
   return null;
 }
 
+function buildMatchAssignmentMeta(divisions: DivisionPlayData[]) {
+  const meta = new Map<
+    string,
+    {
+      refTeamId: string | null;
+      refTeamName: string | null;
+      canAssignCourt: boolean;
+      refOptions: { id: string; name: string }[];
+    }
+  >();
+
+  for (const division of divisions) {
+    for (const pool of division.pools) {
+      const poolTeamOptions = pool.teams.map((team) => ({
+        id: team.id,
+        name: team.name,
+      }));
+      for (const match of pool.matches) {
+        meta.set(match.id, {
+          refTeamId: match.refTeamId,
+          refTeamName: match.ref?.name ?? null,
+          canAssignCourt: false,
+          refOptions: poolTeamOptions.filter(
+            (team) => team.id !== match.teamAId && team.id !== match.teamBId
+          ),
+        });
+      }
+    }
+
+    for (const bracket of division.brackets) {
+      const teamNameById = new Map<string, string>();
+      for (const match of bracket.matches) {
+        if (match.teamA) teamNameById.set(match.teamA.id, match.teamA.name);
+        if (match.teamB) teamNameById.set(match.teamB.id, match.teamB.name);
+        if (match.ref) teamNameById.set(match.ref.id, match.ref.name);
+      }
+
+      const forRefs: BracketMatchForRefs[] = bracket.matches
+        .filter(
+          (match) => match.bracketRound != null && match.bracketPosition != null
+        )
+        .map((match) => ({
+          id: match.id,
+          bracketRound: match.bracketRound!,
+          bracketPosition: match.bracketPosition!,
+          teamAId: match.teamAId,
+          teamBId: match.teamBId,
+          winnerId: match.winnerId,
+          status: match.status,
+          courtId: match.courtId,
+          scheduledTime: match.scheduledTime,
+        }));
+
+      for (const match of bracket.matches) {
+        const target = forRefs.find((row) => row.id === match.id);
+        const eligibleIds = target
+          ? eligibleBracketRefIds(target, forRefs)
+          : [];
+        meta.set(match.id, {
+          refTeamId: match.refTeamId,
+          refTeamName: match.ref?.name ?? null,
+          canAssignCourt: true,
+          refOptions: eligibleIds.map((id) => ({
+            id,
+            name: teamNameById.get(id) ?? "Team",
+          })),
+        });
+      }
+    }
+  }
+
+  return meta;
+}
+
 async function buildScheduleContract(
   tournament: Awaited<ReturnType<typeof requireHostTournament>>,
   user: AppUser
@@ -120,6 +199,7 @@ async function buildScheduleContract(
           .where(inArray(matches.id, matchIds));
   const slugById = new Map(slugRows.map((row) => [row.id, row.slug]));
   const courtNameById = new Map(courtRows.map((row) => [row.id, row.name]));
+  const assignmentMeta = buildMatchAssignmentMeta(divisionPlayData);
 
   return {
     date: tournament.date,
@@ -133,21 +213,28 @@ async function buildScheduleContract(
         scope: asScope(group.scope),
         scheduledCount: playable.filter((match) => match.scheduledTime).length,
         totalCount: playable.length,
-        matches: group.matches.map((match) => ({
-          id: match.id,
-          slug: slugById.get(match.id) ?? match.id,
-          groupName: match.groupName,
-          status: match.status,
-          scheduledTime: match.scheduledTime,
-          courtId: match.courtId,
-          courtName: match.courtId
-            ? (courtNameById.get(match.courtId) ?? null)
-            : null,
-          teamAName: match.teamAName,
-          teamBName: match.teamBName,
-          label: matchupLabel(match.teamAName, match.teamBName),
-          isBye: match.isBye,
-        })),
+        matches: group.matches.map((match) => {
+          const assignment = assignmentMeta.get(match.id);
+          return {
+            id: match.id,
+            slug: slugById.get(match.id) ?? match.id,
+            groupName: match.groupName,
+            status: match.status,
+            scheduledTime: match.scheduledTime,
+            courtId: match.courtId,
+            courtName: match.courtId
+              ? (courtNameById.get(match.courtId) ?? null)
+              : null,
+            teamAName: match.teamAName,
+            teamBName: match.teamBName,
+            label: matchupLabel(match.teamAName, match.teamBName),
+            isBye: match.isBye,
+            refTeamId: assignment?.refTeamId ?? null,
+            refTeamName: assignment?.refTeamName ?? null,
+            canAssignCourt: assignment?.canAssignCourt ?? false,
+            refOptions: assignment?.refOptions ?? [],
+          };
+        }),
       };
     }),
   };
