@@ -102,6 +102,27 @@ export interface TournamentHostEntityResultContract {
   setup: TournamentHostSetupContract;
 }
 
+export interface TournamentHostSettingsMutationResultContract {
+  success: true;
+}
+
+export interface TournamentHostWaiverUploadResultContract {
+  success: true;
+  waiver: {
+    id: string;
+    fileName: string;
+    version: number;
+    uploadedAt: string;
+  };
+}
+
+export interface TournamentPacketHostContract {
+  notes: string | null;
+  accentColor: string | null;
+  canEdit: boolean;
+  lockedReason: string | null;
+}
+
 export type TournamentHostRegistrationStatus =
   | "pending"
   | "confirmed"
