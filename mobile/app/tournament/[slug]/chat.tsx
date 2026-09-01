@@ -38,8 +38,9 @@ import {
   postTournamentChatMessage,
 } from "~/api/endpoints";
 import { useSession } from "~/auth/session";
-import { usePolling } from "~/lib/use-polling";
+import { supabase } from "~/auth/supabase";
 import { useThemeColors, withAlpha } from "~/theme/colors";
+import { subscribeToTournamentChat } from "~/tournament/chat-realtime";
 import { ErrorScreen, LoadingScreen } from "~/tournament/screen-state";
 import { messageFor, usePublicLoader } from "~/tournament/use-public-loader";
 
@@ -122,7 +123,12 @@ export default function ChatScreen() {
     "Could not load chat."
   );
 
-  usePolling(() => void poll(), 15_000, Boolean(data));
+  useEffect(() => {
+    if (!data?.tournamentId) return;
+    return subscribeToTournamentChat(supabase, data.tournamentId, () => {
+      void poll();
+    });
+  }, [data?.tournamentId, poll]);
 
   useEffect(() => {
     if (!data) return;
