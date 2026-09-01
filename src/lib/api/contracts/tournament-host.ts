@@ -267,6 +267,10 @@ export interface TournamentHostScheduleMatchContract {
   teamBName: string | null;
   label: string;
   isBye: boolean;
+  refTeamId: string | null;
+  refTeamName: string | null;
+  canAssignCourt: boolean;
+  refOptions: { id: string; name: string }[];
 }
 
 export interface TournamentHostScheduleGroupContract {
