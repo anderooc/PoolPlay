@@ -60,15 +60,23 @@ export function FormTextInput({
   keyboardType,
   autoCapitalize,
   maxLength,
+  editable = true,
+  style,
 }: {
   value: string;
   onChangeText: (value: string) => void;
   placeholder?: string;
   colors: ThemeColors;
   multiline?: boolean;
-  keyboardType?: "default" | "url" | "numbers-and-punctuation";
+  keyboardType?:
+    | "default"
+    | "url"
+    | "numbers-and-punctuation"
+    | "decimal-pad";
   autoCapitalize?: "none" | "sentences" | "words";
   maxLength?: number;
+  editable?: boolean;
+  style?: object;
 }) {
   return (
     <TextInput
@@ -80,9 +88,11 @@ export function FormTextInput({
       keyboardType={keyboardType}
       autoCapitalize={autoCapitalize}
       maxLength={maxLength}
+      editable={editable}
       style={[
         styles.input,
         multiline && styles.textarea,
+        style,
         {
           color: colors.foreground,
           borderColor: colors.border,

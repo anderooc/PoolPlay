@@ -219,6 +219,24 @@ export default function TournamentHostScreen() {
             colors={colors}
           />
         ) : null}
+        <HostLink
+          title="Payment settings"
+          detail="Entry fees and payment methods"
+          onPress={() => router.push(`/tournament/${slug}/settings/payment`)}
+          colors={colors}
+        />
+        <HostLink
+          title="Waiver settings"
+          detail="PDF upload and signing options"
+          onPress={() => router.push(`/tournament/${slug}/settings/waiver`)}
+          colors={colors}
+        />
+        <HostLink
+          title="Tournament packet"
+          detail="Logistics notes and PDF header color"
+          onPress={() => router.push(`/tournament/${slug}/settings/packet`)}
+          colors={colors}
+        />
         {overview.sections.pools ? (
           <HostLink
             title="Pool ops"

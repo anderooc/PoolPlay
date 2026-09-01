@@ -119,6 +119,18 @@ function RootStack() {
         options={{ title: "Bracket settings", headerBackTitle: "Tournament" }}
       />
       <Stack.Screen
+        name="tournament/[slug]/settings/payment"
+        options={{ title: "Payment settings", headerBackTitle: "Tournament" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/settings/waiver"
+        options={{ title: "Waiver settings", headerBackTitle: "Tournament" }}
+      />
+      <Stack.Screen
+        name="tournament/[slug]/settings/packet"
+        options={{ title: "Packet", headerBackTitle: "Tournament" }}
+      />
+      <Stack.Screen
         name="tournament/[slug]/host/index"
         options={{ title: "Host", headerBackTitle: "Tournament" }}
       />

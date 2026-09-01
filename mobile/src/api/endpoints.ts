@@ -67,8 +67,11 @@ import type {
   TournamentHostScheduleFillResultContract,
   TournamentHostScheduleResultContract,
   TournamentHostScheduleScopeContract,
+  TournamentHostSettingsMutationResultContract,
   TournamentHostSetupResultContract,
   TournamentHostWaitlistPromoteResultContract,
+  TournamentHostWaiverUploadResultContract,
+  TournamentPacketHostContract,
 } from "@/lib/api/contracts/tournament-host";
 import type {
   TournamentBracketSettingsContract,
@@ -79,10 +82,12 @@ import type {
   TournamentPacketContract,
   TournamentParticipationContract,
   TournamentPaymentContract,
+  TournamentPaymentSettingsContract,
   TournamentPoolSettingsContract,
   TournamentRegisterOptionsContract,
   TournamentRegisterResultContract,
   TournamentWaiverContract,
+  TournamentWaiverSettingsContract,
 } from "@/lib/api/contracts/tournament-ops";
 import type { ViewerContract } from "@/lib/api/contracts/viewer";
 import { apiDownload, apiRequest } from "./client";
@@ -824,6 +829,82 @@ export function updateTournamentBracketSettings(
 ): Promise<TournamentBracketSettingsContract> {
   return apiRequest(tournamentPath(slug, "/settings/bracket"), {
     method: "POST",
+    body,
+  });
+}
+
+export function fetchTournamentHostPaymentSettings(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentPaymentSettingsContract> {
+  return apiRequest<TournamentPaymentSettingsContract>(
+    tournamentPath(slug, "/host/payment/settings"),
+    { signal }
+  );
+}
+
+export function updateTournamentHostPaymentSettings(
+  slug: string,
+  body: {
+    enabled: boolean;
+    requiredBeforeConfirm: boolean;
+    firstTeamFeeCents: number | null;
+    additionalTeamFeeCents: number | null;
+    venmoHandle: string;
+    zelleHandle: string;
+    cashappHandle: string;
+    otherInstructions: string;
+  }
+): Promise<TournamentHostSettingsMutationResultContract> {
+  return apiRequest(tournamentPath(slug, "/host/payment/settings"), {
+    method: "PATCH",
+    body,
+  });
+}
+
+export function updateTournamentHostWaiverSettings(
+  slug: string,
+  body: TournamentWaiverSettingsContract
+): Promise<TournamentHostSettingsMutationResultContract> {
+  return apiRequest(tournamentPath(slug, "/host/waiver/settings"), {
+    method: "PATCH",
+    body: {
+      enabled: body.enabled,
+      allowDownloadPrint: body.allowDownloadPrint,
+      allowThirdParty: body.allowThirdParty,
+      allowDigitalAck: body.allowDigitalAck,
+      thirdPartyUrl: body.thirdPartyUrl ?? "",
+      requiredBeforeCheckIn: body.requiredBeforeCheckIn,
+    },
+  });
+}
+
+export function uploadTournamentHostWaiverPdf(
+  slug: string,
+  body: { base64: string; fileName?: string }
+): Promise<TournamentHostWaiverUploadResultContract> {
+  return apiRequest(tournamentPath(slug, "/host/waiver/pdf"), {
+    method: "POST",
+    body,
+  });
+}
+
+export function fetchTournamentHostPacket(
+  slug: string,
+  signal?: AbortSignal
+): Promise<TournamentPacketHostContract> {
+  return apiRequest<TournamentPacketHostContract>(
+    tournamentPath(slug, "/host/packet"),
+    { signal }
+  );
+}
+
+export function updateTournamentHostPacket(
+  slug: string,
+  body: { notes?: string; accentColor?: string | null }
+): Promise<TournamentPacketHostContract> {
+  return apiRequest(tournamentPath(slug, "/host/packet"), {
+    method: "PATCH",
     body,
   });
 }
