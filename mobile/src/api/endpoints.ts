@@ -1112,6 +1112,17 @@ export function removeTournamentHostRegistrations(
   });
 }
 
+export function bulkAssignTournamentHostRegistrations(
+  slug: string,
+  registrationIds: string[],
+  divisionId: string | null
+): Promise<TournamentHostBulkMutationResultContract> {
+  return apiRequest(tournamentPath(slug, "/host/registrations/bulk-division"), {
+    method: "POST",
+    body: { registrationIds, divisionId },
+  });
+}
+
 export function promoteTournamentHostWaitlist(
   slug: string,
   operationId: string

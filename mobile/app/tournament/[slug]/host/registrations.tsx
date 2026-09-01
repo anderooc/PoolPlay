@@ -35,6 +35,7 @@ import {
 } from "react-native";
 import {
   checkInTournamentHostRegistrations,
+  bulkAssignTournamentHostRegistrations,
   confirmTournamentHostRegistrations,
   fetchTournamentHostRegistrations,
   promoteTournamentHostWaitlist,
@@ -355,6 +356,13 @@ export default function TournamentHostRegistrationsScreen() {
               )
             )
           }
+          onBulkAssignDivision={(ids, divisionId) =>
+            void runAction("bulk", () =>
+              bulkAssignTournamentHostRegistrations(slug, ids, divisionId).then(
+                (result) => ({ registrations: result.registrations })
+              )
+            )
+          }
           colors={colors}
         />
       ) : null}
@@ -478,6 +486,7 @@ function TeamsTab({
   showPayment,
   showWaiver,
   onAssignDivision,
+  onBulkAssignDivision,
   colors,
 }: {
   rows: TournamentHostRegistrationContract[];
@@ -487,8 +496,41 @@ function TeamsTab({
   showPayment: boolean;
   showWaiver: boolean;
   onAssignDivision: (id: string, divisionId: string | null) => void;
+  onBulkAssignDivision: (ids: string[], divisionId: string | null) => void;
   colors: ReturnType<typeof useThemeColors>;
 }) {
+  const showBulkSelect = divisions.length > 0 && !locked;
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+
+  const allRegIds = useMemo(() => rows.map((row) => row.id), [rows]);
+  const selectedCount = useMemo(
+    () => allRegIds.filter((id) => selectedIds.has(id)).length,
+    [allRegIds, selectedIds]
+  );
+  const allSelected = selectedCount > 0 && selectedCount === allRegIds.length;
+
+  const toggleRowSelected = useCallback((regId: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(regId)) next.delete(regId);
+      else next.add(regId);
+      return next;
+    });
+  }, []);
+
+  const toggleAllSelected = useCallback(() => {
+    setSelectedIds(allSelected ? new Set() : new Set(allRegIds));
+  }, [allRegIds, allSelected]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const liveSelectedIds = useMemo(
+    () => allRegIds.filter((id) => selectedIds.has(id)),
+    [allRegIds, selectedIds]
+  );
+
   if (rows.length === 0) {
     return (
       <Text style={[styles.empty, { color: colors.mutedForeground }]}>
@@ -499,6 +541,59 @@ function TeamsTab({
 
   return (
     <View style={styles.list}>
+      {showBulkSelect ? (
+        <View style={[styles.bulkBar, { borderColor: colors.border }]}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={toggleAllSelected}
+            style={styles.bulkSelectAll}
+          >
+            <Text style={{ color: colors.primary, fontWeight: "700" }}>
+              {allSelected ? "Clear all" : "Select all"}
+            </Text>
+          </Pressable>
+          {selectedCount > 0 ? (
+            <>
+              <Text style={[styles.meta, { color: colors.mutedForeground }]}>
+                {selectedCount} selected
+              </Text>
+              <Text style={[styles.meta, { color: colors.mutedForeground }]}>
+                Assign pool
+              </Text>
+              <View style={styles.chips}>
+                <Pressable
+                  disabled={busyId === "bulk"}
+                  onPress={() => {
+                    onBulkAssignDivision(liveSelectedIds, null);
+                    clearSelection();
+                  }}
+                  style={[styles.chip, { borderColor: colors.border }]}
+                >
+                  <Text style={{ color: colors.foreground, fontWeight: "600" }}>
+                    Unassigned
+                  </Text>
+                </Pressable>
+                {divisions.map((division) => (
+                  <Pressable
+                    key={division.id}
+                    disabled={busyId === "bulk"}
+                    onPress={() => {
+                      onBulkAssignDivision(liveSelectedIds, division.id);
+                      clearSelection();
+                    }}
+                    style={[styles.chip, { borderColor: colors.border }]}
+                  >
+                    <Text style={{ color: colors.foreground, fontWeight: "600" }}>
+                      {division.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : null}
+        </View>
+      ) : null}
+
       {rows.map((row) => (
         <RegistrationCard
           key={row.id}
@@ -506,6 +601,37 @@ function TeamsTab({
           colors={colors}
           showPayment={showPayment}
           showWaiver={showWaiver}
+          leading={
+            showBulkSelect ? (
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: selectedIds.has(row.id) }}
+                onPress={() => toggleRowSelected(row.id)}
+                style={[
+                  styles.checkbox,
+                  {
+                    borderColor: selectedIds.has(row.id)
+                      ? colors.primary
+                      : colors.border,
+                    backgroundColor: selectedIds.has(row.id)
+                      ? withAlpha(colors.primary, 0.12)
+                      : "transparent",
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: selectedIds.has(row.id)
+                      ? colors.primary
+                      : colors.mutedForeground,
+                    fontWeight: "700",
+                  }}
+                >
+                  {selectedIds.has(row.id) ? "✓" : ""}
+                </Text>
+              </Pressable>
+            ) : null
+          }
           extra={
             divisions.length > 0 && !locked ? (
               <View style={styles.divisionRow}>
@@ -926,6 +1052,7 @@ function RegistrationCard({
   colors,
   showPayment,
   showWaiver,
+  leading,
   extra,
   actions,
 }: {
@@ -933,19 +1060,25 @@ function RegistrationCard({
   colors: ReturnType<typeof useThemeColors>;
   showPayment: boolean;
   showWaiver: boolean;
+  leading?: ReactNode;
   extra?: ReactNode;
   actions?: ReactNode;
 }) {
   return (
     <View style={[styles.card, { borderColor: colors.border }]}>
-      <Text style={[styles.teamName, { color: colors.foreground }]}>
-        {row.teamName}
-      </Text>
-      {row.schoolName ? (
-        <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-          {row.schoolName}
-        </Text>
-      ) : null}
+      <View style={styles.cardHeader}>
+        {leading}
+        <View style={styles.cardHeaderText}>
+          <Text style={[styles.teamName, { color: colors.foreground }]}>
+            {row.teamName}
+          </Text>
+          {row.schoolName ? (
+            <Text style={[styles.meta, { color: colors.mutedForeground }]}>
+              {row.schoolName}
+            </Text>
+          ) : null}
+        </View>
+      </View>
       <Text style={[styles.meta, { color: colors.mutedForeground }]}>
         {REGISTRATION_STATUS_LABELS[row.status] ?? row.status}
       </Text>
@@ -999,6 +1132,28 @@ const styles = StyleSheet.create({
   },
   actionDisabled: { opacity: 0.5 },
   divisionRow: { gap: 8, marginTop: 4 },
+  bulkBar: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+  },
+  bulkSelectAll: { alignSelf: "flex-start" },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  cardHeaderText: { flex: 1, gap: 2 },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 1,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     borderWidth: 1,
