@@ -20,8 +20,24 @@ import { createClient } from "@supabase/supabase-js";
 import { eq } from "drizzle-orm";
 import type { AppUser } from "@/lib/auth";
 import { flagBlockedContent } from "@/lib/admin/content-flags";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import {
+  accountDeletionRequests,
+  contentFlags,
+  schoolMembers,
+  teamMembers,
+  tournamentChatMessages,
+  tournamentChatReadCursors,
+  users,
+  waiverCompletions,
+} from "@/lib/db/schema";
+import {
+  removeProfileAvatar,
+  uploadProfileAvatar,
+  validateAvatarBytes,
+  PROFILE_AVATAR_MAX_BYTES,
+} from "@/lib/profile/avatar-storage";
 import {
   assignUserJerseyNumber,
 } from "@/lib/profile/jersey-number-store";
@@ -143,6 +159,175 @@ export async function changePasswordForViewer(
     throw badRequest(
       "Authentication service is unavailable. Try again in a few minutes."
     );
+  }
+
+  return { success: true };
+}
+
+export async function updateAvatarForViewer(
+  user: AppUser,
+  input: { base64: string; contentType: string }
+): Promise<ViewerContract> {
+  let bytes: Uint8Array;
+  try {
+    bytes = Uint8Array.from(Buffer.from(input.base64, "base64"));
+  } catch {
+    throw badRequest("Invalid image payload.");
+  }
+
+  if (bytes.byteLength > PROFILE_AVATAR_MAX_BYTES) {
+    throw badRequest("Profile photo must be 2 MB or smaller.");
+  }
+  if (!validateAvatarBytes(bytes, input.contentType)) {
+    throw badRequest("Photo must be a valid JPEG, PNG, or WebP image.");
+  }
+
+  let avatarStoragePath: string;
+  try {
+    await removeProfileAvatar(user.avatarStoragePath);
+    avatarStoragePath = await uploadProfileAvatar(
+      user.id,
+      bytes,
+      input.contentType
+    );
+  } catch (error) {
+    throw badRequest(
+      error instanceof Error ? error.message : "Could not update profile photo."
+    );
+  }
+
+  const [updated] = await db
+    .update(users)
+    .set({ avatarStoragePath, updatedAt: new Date() })
+    .where(eq(users.id, user.id))
+    .returning();
+
+  if (!updated) {
+    throw badRequest("Could not save profile photo.");
+  }
+
+  return buildViewerContract({
+    ...user,
+    avatarStoragePath: updated.avatarStoragePath,
+    updatedAt: updated.updatedAt,
+  });
+}
+
+export async function removeAvatarForViewer(
+  user: AppUser
+): Promise<ViewerContract> {
+  try {
+    await removeProfileAvatar(user.avatarStoragePath);
+  } catch (error) {
+    throw badRequest(
+      error instanceof Error ? error.message : "Could not remove profile photo."
+    );
+  }
+
+  const [updated] = await db
+    .update(users)
+    .set({ avatarStoragePath: null, updatedAt: new Date() })
+    .where(eq(users.id, user.id))
+    .returning();
+
+  if (!updated) {
+    throw badRequest("Could not remove profile photo.");
+  }
+
+  return buildViewerContract({
+    ...user,
+    avatarStoragePath: null,
+    updatedAt: updated.updatedAt,
+  });
+}
+
+export async function deleteAccountForViewer(
+  user: AppUser,
+  input: { password: string; confirmation: string }
+): Promise<{ success: true }> {
+  if (!input.password) {
+    throw badRequest("Enter your password to continue.");
+  }
+  if (input.confirmation !== "DELETE") {
+    throw badRequest("Type DELETE exactly to confirm.");
+  }
+
+  const supabase = statelessAuthClient();
+  try {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: input.password,
+    });
+    if (error) throw badRequest("Your password is incorrect.");
+  } catch (cause) {
+    if (cause instanceof ApiError) throw cause;
+    throw badRequest("Could not verify your password. Try again later.");
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+    await removeProfileAvatar(user.avatarStoragePath);
+  } catch (error) {
+    throw badRequest(
+      error instanceof Error
+        ? error.message
+        : "Account deletion is temporarily unavailable."
+    );
+  }
+
+  const requestId = await db.transaction(async (tx) => {
+    const [request] = await tx
+      .insert(accountDeletionRequests)
+      .values({ authId: user.authId })
+      .returning({ id: accountDeletionRequests.id });
+
+    await tx
+      .delete(tournamentChatReadCursors)
+      .where(eq(tournamentChatReadCursors.userId, user.id));
+    await tx
+      .delete(tournamentChatMessages)
+      .where(eq(tournamentChatMessages.authorUserId, user.id));
+    await tx.delete(contentFlags).where(eq(contentFlags.userId, user.id));
+    await tx.delete(teamMembers).where(eq(teamMembers.userId, user.id));
+    await tx.delete(schoolMembers).where(eq(schoolMembers.userId, user.id));
+    await tx
+      .update(waiverCompletions)
+      .set({ signedName: null })
+      .where(eq(waiverCompletions.userId, user.id));
+    await tx
+      .update(users)
+      .set({
+        authId: `deleted:${request.id}`,
+        email: `${request.id}@deleted.brackt.invalid`,
+        fullName: "Deleted user",
+        university: null,
+        avatarStoragePath: null,
+        playerGender: null,
+        volleyballPosition: null,
+        jerseyNumber: null,
+        displayEmail: null,
+        displaySchool: null,
+        role: "player",
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id));
+
+    return request.id;
+  });
+
+  const { error: deletionError } = await admin.auth.admin.deleteUser(user.authId);
+  await db
+    .update(accountDeletionRequests)
+    .set(
+      deletionError
+        ? { lastError: deletionError.message }
+        : { completedAt: new Date(), lastError: null }
+    )
+    .where(eq(accountDeletionRequests.id, requestId));
+
+  if (deletionError) {
+    throw badRequest(deletionError.message);
   }
 
   return { success: true };

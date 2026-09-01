@@ -17,7 +17,9 @@
  */
 
 import { requireViewer } from "@/lib/api/auth";
+import { badRequest } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
+import { deleteTeamForViewer } from "@/lib/api/queries/team-mutations";
 import { loadTeamDetailForViewer } from "@/lib/api/queries/teams";
 import { jsonSuccess } from "@/lib/api/response";
 
@@ -29,5 +31,25 @@ export const GET = apiHandler(
     const { user } = await requireViewer(request);
     const { slug } = await context.params;
     return jsonSuccess(await loadTeamDetailForViewer(slug, user));
+  }
+);
+
+export const DELETE = apiHandler(
+  async (
+    request: Request,
+    context: { params: Promise<{ slug: string }> }
+  ) => {
+    const { user } = await requireViewer(request);
+    const { slug } = await context.params;
+    const body = (await request.json().catch(() => null)) as Record<
+      string,
+      unknown
+    > | null;
+    if (!body || typeof body.confirmationName !== "string") {
+      throw badRequest("Provide confirmationName.");
+    }
+    return jsonSuccess(
+      await deleteTeamForViewer(slug, user, body.confirmationName)
+    );
   }
 );
