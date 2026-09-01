@@ -260,6 +260,16 @@ export default function DashboardScreen() {
             </Text>
             <Text style={{ color: colors.primary, fontSize: 20 }}>›</Text>
           </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push("/schedule")}
+            style={[styles.linkRow, { borderColor: colors.border }]}
+          >
+            <Text style={{ color: colors.foreground, fontWeight: "700" }}>
+              Match schedule
+            </Text>
+            <Text style={{ color: colors.primary, fontSize: 20 }}>›</Text>
+          </Pressable>
         </View>
       ) : (
         <View style={styles.stats}>
@@ -285,6 +295,19 @@ export default function DashboardScreen() {
           />
         </View>
       )}
+
+      {!isNewUser ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push("/schedule")}
+          style={[styles.linkRow, { borderColor: colors.border }]}
+        >
+          <Text style={{ color: colors.foreground, fontWeight: "700" }}>
+            Match schedule
+          </Text>
+          <Text style={{ color: colors.primary, fontSize: 20 }}>›</Text>
+        </Pressable>
+      ) : null}
 
       {!isNewUser && scheduleMatches.length > 0 ? (
         <Section

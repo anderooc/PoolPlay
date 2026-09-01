@@ -32,6 +32,7 @@ import type {
   MatchConsoleMutationResultContract,
 } from "@/lib/api/contracts/match-console";
 import type { DashboardContract } from "@/lib/api/contracts/dashboard";
+import type { GlobalScheduleContract } from "@/lib/api/contracts/global-schedule";
 import type { PersonalScheduleContract } from "@/lib/api/contracts/personal-schedule";
 import type {
   NotificationsContract,
@@ -264,6 +265,21 @@ export function fetchPersonalSchedule(
   const query = search.toString();
   return apiRequest<PersonalScheduleContract>(
     `/api/v1/me/schedule${query ? `?${query}` : ""}`,
+    { signal }
+  );
+}
+
+export function fetchGlobalSchedule(
+  signal?: AbortSignal,
+  params?: { limit?: number }
+): Promise<GlobalScheduleContract> {
+  const search = new URLSearchParams();
+  if (params?.limit != null) {
+    search.set("limit", String(params.limit));
+  }
+  const query = search.toString();
+  return apiRequest<GlobalScheduleContract>(
+    `/api/v1/schedule${query ? `?${query}` : ""}`,
     { signal }
   );
 }
