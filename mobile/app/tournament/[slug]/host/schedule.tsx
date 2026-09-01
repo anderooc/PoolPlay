@@ -35,6 +35,8 @@ import {
 import {
   applyTournamentHostScheduleFill,
   fetchTournamentHostSchedule,
+  updateTournamentHostMatchCourt,
+  updateTournamentHostMatchRef,
   updateTournamentHostMatchSchedule,
 } from "~/api/endpoints";
 import { useSession } from "~/auth/session";
@@ -216,6 +218,28 @@ export default function TournamentHostScheduleScreen() {
     [matchClocks, runAction, schedule, slug]
   );
 
+  const onAssignRef = useCallback(
+    async (match: TournamentHostScheduleMatchContract, refTeamId: string | null) => {
+      if (!slug || match.isBye) return;
+      const result = await runAction(`ref-${match.id}`, () =>
+        updateTournamentHostMatchRef(slug, match.id, refTeamId)
+      );
+      if (result) setSchedule(result.schedule);
+    },
+    [runAction, slug]
+  );
+
+  const onAssignCourt = useCallback(
+    async (match: TournamentHostScheduleMatchContract, courtId: string | null) => {
+      if (!slug || !match.canAssignCourt) return;
+      const result = await runAction(`court-${match.id}`, () =>
+        updateTournamentHostMatchCourt(slug, match.id, courtId)
+      );
+      if (result) setSchedule(result.schedule);
+    },
+    [runAction, slug]
+  );
+
   if (sessionLoading) return <LoadingScreen />;
   if (!session) return <Redirect href="/sign-in" />;
   if (!slug) {
@@ -308,6 +332,7 @@ export default function TournamentHostScheduleScreen() {
             <MatchListSection
               colors={colors}
               group={selectedGroup}
+              courts={schedule.courts}
               canSchedule={schedule.canSchedule}
               matchClocks={matchClocks}
               busyKey={busyKey}
@@ -315,6 +340,12 @@ export default function TournamentHostScheduleScreen() {
                 setMatchClocks((current) => ({ ...current, [matchId]: clock }))
               }
               onSave={(match) => void onSaveMatchTime(match)}
+              onAssignRef={(match, refTeamId) =>
+                void onAssignRef(match, refTeamId)
+              }
+              onAssignCourt={(match, courtId) =>
+                void onAssignCourt(match, courtId)
+              }
             />
           ) : null}
         </>
@@ -416,19 +447,31 @@ function BulkFillSection({
 function MatchListSection({
   colors,
   group,
+  courts,
   canSchedule,
   matchClocks,
   busyKey,
   onClockChange,
   onSave,
+  onAssignRef,
+  onAssignCourt,
 }: {
   colors: ReturnType<typeof useThemeColors>;
   group: TournamentHostScheduleGroupContract;
+  courts: { id: string; name: string }[];
   canSchedule: boolean;
   matchClocks: Record<string, string>;
   busyKey: string | null;
   onClockChange: (matchId: string, clock: string) => void;
   onSave: (match: TournamentHostScheduleMatchContract) => void;
+  onAssignRef: (
+    match: TournamentHostScheduleMatchContract,
+    refTeamId: string | null
+  ) => void;
+  onAssignCourt: (
+    match: TournamentHostScheduleMatchContract,
+    courtId: string | null
+  ) => void;
 }) {
   const playable = group.matches.filter((match) => !match.isBye);
 
@@ -444,8 +487,14 @@ function MatchListSection({
       ) : (
         playable.map((match) => {
           const busy = busyKey === `match-${match.id}`;
+          const refBusy = busyKey === `ref-${match.id}`;
+          const courtBusy = busyKey === `court-${match.id}`;
           const locked =
             match.status === "completed" || match.status === "in_progress";
+          const courtLabels: Record<string, string> = { "": "No court" };
+          for (const court of courts) {
+            courtLabels[court.id] = court.name;
+          }
           return (
             <View
               key={match.id}
@@ -471,10 +520,95 @@ function MatchListSection({
                   {match.courtName}
                 </Text>
               ) : null}
+              {match.refTeamName ? (
+                <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+                  Working team: {match.refTeamName}
+                </Text>
+              ) : null}
               {match.scheduledTime ? (
                 <Text style={[styles.hint, { color: colors.mutedForeground }]}>
                   Scheduled {formatMatchTime(match.scheduledTime)}
                 </Text>
+              ) : null}
+              {!locked && match.refOptions.length > 0 ? (
+                <View style={styles.assignBlock}>
+                  <Text style={[styles.assignLabel, { color: colors.foreground }]}>
+                    Working team
+                  </Text>
+                  <View style={styles.chipRow}>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={refBusy}
+                      onPress={() => onAssignRef(match, null)}
+                      style={[
+                        styles.chip,
+                        {
+                          borderColor:
+                            match.refTeamId === null
+                              ? colors.primary
+                              : colors.border,
+                          backgroundColor:
+                            match.refTeamId === null
+                              ? withAlpha(colors.primary, 0.1)
+                              : "transparent",
+                        },
+                      ]}
+                    >
+                      <Text style={{ color: colors.foreground, fontSize: 13 }}>
+                        None
+                      </Text>
+                    </Pressable>
+                    {match.refOptions.map((option) => {
+                      const selected = match.refTeamId === option.id;
+                      return (
+                        <Pressable
+                          key={option.id}
+                          accessibilityRole="button"
+                          disabled={refBusy}
+                          onPress={() => onAssignRef(match, option.id)}
+                          style={[
+                            styles.chip,
+                            {
+                              borderColor: selected
+                                ? colors.primary
+                                : colors.border,
+                              backgroundColor: selected
+                                ? withAlpha(colors.primary, 0.1)
+                                : "transparent",
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={{ color: colors.foreground, fontSize: 13 }}
+                          >
+                            {option.name}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
+              {!locked && match.canAssignCourt && courts.length > 0 ? (
+                <View style={styles.assignBlock}>
+                  <Text style={[styles.assignLabel, { color: colors.foreground }]}>
+                    Court
+                  </Text>
+                  <ChipPicker
+                    options={["", ...courts.map((court) => court.id)]}
+                    value={match.courtId ?? ""}
+                    onChange={(courtId) =>
+                      onAssignCourt(match, courtId || null)
+                    }
+                    colors={colors}
+                    labels={courtLabels}
+                  />
+                  {courtBusy ? (
+                    <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+                      Saving court…
+                    </Text>
+                  ) : null}
+                </View>
               ) : null}
               {canSchedule && !locked ? (
                 <View style={styles.matchEditRow}>
@@ -557,4 +691,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   matchClockField: { flex: 1 },
+  assignBlock: { gap: 8, marginTop: 4 },
+  assignLabel: { fontSize: 14, fontWeight: "600" },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
 });

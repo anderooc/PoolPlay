@@ -1150,6 +1150,28 @@ export function updateTournamentHostMatchSchedule(
   );
 }
 
+export function updateTournamentHostMatchRef(
+  slug: string,
+  matchId: string,
+  refTeamId: string | null
+): Promise<TournamentHostScheduleResultContract> {
+  return apiRequest(
+    tournamentPath(slug, `/host/matches/${matchId}/ref`),
+    { method: "PATCH", body: { refTeamId } }
+  );
+}
+
+export function updateTournamentHostMatchCourt(
+  slug: string,
+  matchId: string,
+  courtId: string | null
+): Promise<TournamentHostScheduleResultContract> {
+  return apiRequest(
+    tournamentPath(slug, `/host/matches/${matchId}/court`),
+    { method: "PATCH", body: { courtId } }
+  );
+}
+
 export function previewTournamentHostScheduleFill(
   slug: string,
   body: {
