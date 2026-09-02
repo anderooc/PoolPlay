@@ -41,6 +41,7 @@ import { withTournamentQueueRanks } from "@/lib/tournaments/waitlist-rank";
 import { getTeamsWaiverSummary } from "@/lib/tournaments/waiver-compliance";
 import { getPaymentsByRegistrationIds } from "@/lib/tournaments/payment-compliance";
 import { RegistrationList } from "../registration-list";
+import { RegistrationExportButton } from "../registration-export-button";
 import {
   WaitlistControls,
   type OrganizerWaitlistRow,
@@ -253,12 +254,17 @@ function RegistrationPanelContent({
 }: RegistrationPanelContentProps) {
   return (
     <div className="space-y-3">
-      <RegistrationPanelDescription
-        listKind={listKind}
-        isOrganizer={isOrganizer}
-        canManage={canManage}
-        hasRows={rows.length > 0}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <RegistrationPanelDescription
+          listKind={listKind}
+          isOrganizer={isOrganizer}
+          canManage={canManage}
+          hasRows={rows.length > 0}
+        />
+        {isOrganizer && canManage ? (
+          <RegistrationExportButton tournamentSlug={tournament.slug} />
+        ) : null}
+      </div>
       <RegistrationList
         tournamentId={tournament.id}
         tournamentSlug={tournament.slug}
