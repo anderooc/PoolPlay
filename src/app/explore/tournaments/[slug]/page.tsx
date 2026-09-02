@@ -1,40 +1,16 @@
 /*
  * brackt - Collegiate club volleyball tournament hub
  * Copyright (C) 2026 Andrew Chang
- * 
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { notFound } from "next/navigation";
-import Link from "next/link";
-import { db } from "@/lib/db";
-import { tournaments, users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
-import { buttonVariants } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { SiteHeader } from "@/components/layout/site-header";
-import { TeamAttributesBadges } from "@/components/team-attributes-badges";
-import { TournamentHostSchoolLink } from "@/components/tournament-host-school-link";
-import { getCurrentAuthProfile } from "@/lib/auth";
-import { getHostSchoolById } from "@/lib/tournaments/host-school";
-import { isTournamentPublishedForPublic } from "@/lib/tournaments/permissions";
-import { formatTournamentDateDisplay } from "@/lib/date-iso";
-import { ArrowRight } from "lucide-react";
-import { TournamentHeaderMeta } from "@/components/tournament-header-meta";
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { pageMetadata } from "@/lib/metadata";
+import { PublicRegistrationAvailability } from "@/components/public-registration-availability";
+import { PublicTournamentLayout } from "@/components/tournament-public/public-tournament-shell";
+import { loadPublicTournamentShell } from "@/lib/tournament-public/load-shell";
+import { formatTournamentDateDisplay } from "@/lib/date-iso";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -44,122 +20,62 @@ export async function generateMetadata({
   params,
 }: Pick<Props, "params">): Promise<Metadata> {
   const { slug } = await params;
-  const [tournament] = await db
-    .select({
-      name: tournaments.name,
-      description: tournaments.description,
-      date: tournaments.date,
-      location: tournaments.location,
-      status: tournaments.status,
-    })
-    .from(tournaments)
-    .where(eq(tournaments.slug, slug))
-    .limit(1);
-
-  if (!tournament || !isTournamentPublishedForPublic(tournament)) {
+  try {
+    const shell = await loadPublicTournamentShell(slug);
+    const description =
+      shell.listItem.description?.trim() ||
+      `${shell.listItem.name} is a collegiate club volleyball tournament in ${shell.listItem.location} on ${formatTournamentDateDisplay(shell.listItem.date)}.`;
+    return pageMetadata(shell.listItem.name, description, {
+      canonical: `/explore/tournaments/${slug}`,
+    });
+  } catch {
     return pageMetadata("Tournament not found", undefined, { noIndex: true });
   }
-
-  const description =
-    tournament.description?.trim() ||
-    `${tournament.name} is a collegiate club volleyball tournament in ${tournament.location} on ${formatTournamentDateDisplay(tournament.date)}.`;
-
-  return pageMetadata(tournament.name, description, {
-    canonical: `/explore/tournaments/${slug}`,
-  });
 }
 
 export default async function ExploreTournamentPage({ params }: Props) {
   const { slug } = await params;
-  const authProfile = await getCurrentAuthProfile();
-
-  const [tournament] = await db
-    .select()
-    .from(tournaments)
-    .where(eq(tournaments.slug, slug))
-    .limit(1);
-
-  if (!tournament || !isTournamentPublishedForPublic(tournament)) {
-    notFound();
-  }
-
-  const [organizer, hostSchool] = await Promise.all([
-    db
-      .select({ fullName: users.fullName })
-      .from(users)
-      .where(eq(users.id, tournament.organizerId))
-      .limit(1)
-      .then((rows) => rows[0] ?? null),
-    getHostSchoolById(tournament.hostSchoolId),
-  ]);
+  const shell = await loadPublicTournamentShell(slug);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader user={authProfile} />
+    <PublicTournamentLayout shell={shell}>
+      <div className="space-y-4">
+        {shell.listItem.description ? (
+          <p className="max-w-2xl whitespace-pre-wrap text-pretty text-sm text-muted-foreground">
+            {shell.listItem.description}
+          </p>
+        ) : null}
 
-      <main id="main-content" tabIndex={-1} className="relative flex-1">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-56 text-foreground/[0.05] bg-dot-grid [mask-image:linear-gradient(to_bottom,black,transparent)]"
-        />
-        <div className="container mx-auto max-w-3xl space-y-6 px-4 py-10">
-          <Link
-            href="/explore"
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            ← All tournaments
-          </Link>
+        {shell.hasReleasedPlay ? (
+          <p className="text-sm text-muted-foreground">
+            Pools, brackets, and live scores are public — use the tabs above to
+            follow the tournament without signing in.
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Match schedules and results will appear here after the host releases
+            pools.
+          </p>
+        )}
 
-          <div className="space-y-2">
-            <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-              <h1 className="min-w-0 max-w-full text-balance text-2xl font-bold tracking-tight sm:text-3xl">
-                {tournament.name}
-              </h1>
-              <StatusBadge
-                kind="tournament"
-                status={tournament.status}
-                date={tournament.date}
-                className="shrink-0 self-start"
-              />
-            </div>
-            <TournamentHeaderMeta
-              location={tournament.location}
-              address={tournament.address}
-              date={tournament.date}
-              organizerName={organizer?.fullName ?? "Unknown organizer"}
+        {shell.registrationOpen && (
+          <div className="rounded-lg border border-border/80 bg-muted/20 p-4 space-y-3">
+            <PublicRegistrationAvailability
+              availability={shell.listItem.registrationAvailability}
             />
-            <div className="flex min-w-0 max-w-full items-center gap-1.5 max-md:overflow-x-auto max-md:pb-0.5 max-md:[scrollbar-width:none]">
-              <TeamAttributesBadges
-                gender={tournament.gender}
-                region={tournament.region}
-              />
-              <TournamentHostSchoolLink school={hostSchool} className="shrink-0" />
-            </div>
-            {tournament.description && (
-              <p className="max-w-2xl whitespace-pre-wrap text-pretty text-sm text-muted-foreground">
-                {tournament.description}
-              </p>
-            )}
+            <p className="text-pretty text-sm text-muted-foreground">
+              Sign in to register a team for this tournament.
+            </p>
+            <Link
+              href={`/tournaments/${shell.slug}/register`}
+              className="mt-3 inline-flex items-center text-sm font-medium text-primary hover:underline"
+            >
+              Register a team
+              <ArrowRight className="ml-1 h-3.5 w-3.5" />
+            </Link>
           </div>
-
-          <Card>
-            <CardContent className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-pretty text-sm text-muted-foreground">
-                Sign in to register a team, view brackets, and follow live scores.
-              </p>
-              <Link
-                href={`/tournaments/${tournament.slug}`}
-                className={buttonVariants({
-                  className: "group shrink-0",
-                })}
-              >
-                Open in dashboard
-                <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
-    </div>
+        )}
+      </div>
+    </PublicTournamentLayout>
   );
 }
