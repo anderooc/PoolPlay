@@ -24,7 +24,6 @@ import { getMatchTournamentId } from "@/lib/tournaments/match-query";
 import {
   canClaimRefCrewSlot,
   canHostOverrideMatchScoring,
-  isRefTeamMember,
 } from "@/lib/tournaments/match-control-permissions";
 import {
   buildMatchRefCrewState,
@@ -151,13 +150,12 @@ export async function releaseRefCrewSlotForViewer(
   matchId: string,
   user: AppUser
 ): Promise<MatchRefCrewState> {
-  const { match, tournament, userTeamIds } = await loadMatchContext(
+  const { match, tournament } = await loadMatchContext(
     matchId,
     user
   );
 
   const isHost = await canHostOverrideMatchScoring(tournament, user);
-  const isRef = isRefTeamMember(match, userTeamIds);
 
   const [slot] = await db
     .select()

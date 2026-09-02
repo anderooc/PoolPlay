@@ -18,7 +18,6 @@
 
 import { and, asc, count, desc, eq } from "drizzle-orm";
 import type { AppUser } from "@/lib/auth";
-import { isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
   schoolJoinRequests,

@@ -39,7 +39,6 @@ import { paymentSettingsFromTournament } from "@/lib/tournaments/payment-setting
 import {
   canCheckInRegistrations,
   canEditRegistrations,
-  resolveIsTournamentOrganizer,
   teamMatchesTournamentGender,
 } from "@/lib/tournaments/permissions";
 import { removeRegistrationsAtomically } from "@/lib/tournaments/registration-roster-mutations";

@@ -13,25 +13,14 @@ import {
   plainTextToHtml,
   tournamentEmailFromAddress,
 } from "@/lib/email/resend";
+import {
+  DEFAULT_NOTIFICATION_PREFERENCE,
+  NOTIFICATION_KINDS,
+  type NotificationPreference,
+} from "@/lib/notifications/preferences-shared";
 
-export type NotificationPreference = {
-  pushEnabled: boolean;
-  emailEnabled: boolean;
-};
-
-const DEFAULT_PREFERENCE: NotificationPreference = {
-  pushEnabled: true,
-  emailEnabled: false,
-};
-
-export const NOTIFICATION_KINDS: UserNotificationKind[] = [
-  "tournament_posted",
-  "tournament_message",
-  "chat_announcement",
-  "registration_update",
-  "school_join_request",
-  "school_join_update",
-];
+export type { NotificationPreference } from "@/lib/notifications/preferences-shared";
+export { NOTIFICATION_KINDS } from "@/lib/notifications/preferences-shared";
 
 export async function loadNotificationPreferencesForUser(
   userId: string
@@ -42,7 +31,7 @@ export async function loadNotificationPreferencesForUser(
     .where(eq(userNotificationPreferences.userId, userId));
 
   const result = Object.fromEntries(
-    NOTIFICATION_KINDS.map((kind) => [kind, { ...DEFAULT_PREFERENCE }])
+    NOTIFICATION_KINDS.map((kind) => [kind, { ...DEFAULT_NOTIFICATION_PREFERENCE }])
   ) as Record<UserNotificationKind, NotificationPreference>;
 
   for (const row of rows) {
@@ -74,7 +63,7 @@ export async function loadNotificationPreferencesForUsers(
     map.set(
       userId,
       Object.fromEntries(
-        NOTIFICATION_KINDS.map((kind) => [kind, { ...DEFAULT_PREFERENCE }])
+        NOTIFICATION_KINDS.map((kind) => [kind, { ...DEFAULT_NOTIFICATION_PREFERENCE }])
       ) as Record<UserNotificationKind, NotificationPreference>
     );
   }
@@ -146,7 +135,7 @@ export async function deliverNotificationEmails(
   const emailByUser = new Map(userRows.map((row) => [row.id, row.email]));
 
   for (const row of rows) {
-    const prefs = prefsByUser.get(row.userId)?.[row.kind] ?? DEFAULT_PREFERENCE;
+    const prefs = prefsByUser.get(row.userId)?.[row.kind] ?? DEFAULT_NOTIFICATION_PREFERENCE;
     if (!prefs.emailEnabled) continue;
 
     const email = emailByUser.get(row.userId);

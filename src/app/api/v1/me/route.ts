@@ -20,10 +20,7 @@ import { requireViewer } from "@/lib/api/auth";
 import { badRequest } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
 import { buildViewerContract } from "@/lib/api/projections/viewer";
-import {
-  changePasswordForViewer,
-  updateProfileForViewer,
-} from "@/lib/api/queries/viewer-mutations";
+import { updateProfileForViewer } from "@/lib/api/queries/viewer-mutations";
 import { jsonSuccess } from "@/lib/api/response";
 
 export const GET = apiHandler(async (request: Request) => {

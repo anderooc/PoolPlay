@@ -21,7 +21,6 @@ import { badRequest } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
 import {
   removeSchoolMemberForViewer,
-  transferSchoolPresidencyForViewer,
   updateSchoolMemberJerseyForViewer,
   updateSchoolMemberRoleForViewer,
   updateSchoolMemberVolleyballPositionForViewer,

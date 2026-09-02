@@ -25,8 +25,7 @@ export default async function InvitePage({ params }: Props) {
   const authProfile = await getCurrentAuthProfile();
   const targetName = invite.schoolName ?? invite.teamName ?? "brackt";
   const targetKind = invite.schoolId ? "school" : "team";
-  const expired =
-    invite.status !== "pending" || invite.expiresAt.getTime() < Date.now();
+  const expired = invite.isExpired;
 
   return (
     <div className="flex min-h-screen flex-col">

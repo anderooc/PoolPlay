@@ -28,7 +28,6 @@ import {
   finalizeMatchForViewer,
   pauseMatchForViewer,
   reopenMatchForViewer,
-  saveSetScoreForViewer,
   startMatchForViewer,
   startWarmupForViewer,
 } from "@/lib/api/queries/match-scoring-mutations";

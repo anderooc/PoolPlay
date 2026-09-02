@@ -25,7 +25,6 @@ import {
   registrationPayments,
   teamMembers,
   teams,
-  tournamentChatChannels,
   tournamentChatMessages,
   tournamentChatReadCursors,
   waiverCompletions,

@@ -39,13 +39,12 @@ import {
   fillableCount,
   matchupLabel,
   proposeMatchTimeFill,
-  type MatchTimeFillInput,
   type ScheduleTimesScope,
 } from "@/lib/utils/match-time-fill";
 import {
   scheduleGroupsFromPlayData,
 } from "@/lib/utils/schedule-times-groups";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import type {
   TournamentHostScheduleContract,
   TournamentHostScheduleFillPreviewContract,

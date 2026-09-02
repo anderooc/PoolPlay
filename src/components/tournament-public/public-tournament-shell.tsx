@@ -4,7 +4,6 @@
  */
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { PublicSiteFooter } from "@/components/layout/public-site-footer";
 import { StatusBadge } from "@/components/ui/status-badge";

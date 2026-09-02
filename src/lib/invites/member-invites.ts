@@ -4,7 +4,7 @@
  */
 
 import { randomBytes } from "node:crypto";
-import { and, eq, inArray, lt } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { memberInvites, schools, teams } from "@/lib/db/schema";
 import { sendMemberInviteEmail } from "@/lib/email/invite-email";
@@ -122,6 +122,7 @@ export type MemberInviteDetails = {
   role: string;
   title: string | null;
   expiresAt: Date;
+  isExpired: boolean;
 };
 
 export async function loadMemberInviteByToken(
@@ -148,7 +149,9 @@ export async function loadMemberInviteByToken(
     .limit(1);
 
   if (!row) return null;
-  return row;
+  const isExpired =
+    row.status !== "pending" || row.expiresAt.getTime() < Date.now();
+  return { ...row, isExpired };
 }
 
 export async function acceptMemberInvite(input: {

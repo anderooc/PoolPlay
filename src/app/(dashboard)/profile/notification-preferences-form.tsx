@@ -20,7 +20,7 @@ import { notificationKindLabel } from "@/lib/notifications/display";
 import {
   NOTIFICATION_KINDS,
   type NotificationPreference,
-} from "@/lib/notifications/preferences";
+} from "@/lib/notifications/preferences-shared";
 import type { UserNotificationKind } from "@/types";
 import { updateNotificationPreferences } from "./actions";
 

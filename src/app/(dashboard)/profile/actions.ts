@@ -47,7 +47,6 @@ import {
   revalidateJerseyPaths,
 } from "@/lib/profile/jersey-number-store";
 import {
-  loadNotificationPreferencesForUser,
   saveNotificationPreferences,
   type NotificationPreference,
 } from "@/lib/notifications/preferences";

@@ -253,7 +253,7 @@ export async function finalizeMatchForViewer(
 }
 
 export async function reopenMatchForViewer(matchId: string, user: AppUser) {
-  const { match, tournament, isOrganizer } = await loadControlGate(matchId, user);
+  const { tournament, isOrganizer } = await loadControlGate(matchId, user);
 
   if (!isOrganizer) {
     throw forbidden("Only the host can reopen a completed match.");

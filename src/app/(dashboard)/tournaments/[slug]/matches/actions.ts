@@ -411,7 +411,7 @@ function revalidateMatchPages() {
 }
 
 async function runCrewMutation(
-  matchId: string,
+  _matchId: string,
   run: (user: Awaited<ReturnType<typeof requireUser>>) => Promise<unknown>
 ) {
   try {

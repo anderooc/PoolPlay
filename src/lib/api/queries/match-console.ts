@@ -23,8 +23,6 @@ import {
   brackets,
   courts,
   divisions,
-  matches,
-  pools,
   sets,
   teamMembers,
   teams,

@@ -40,10 +40,7 @@ import type {
 } from "../contracts/tournament-ops";
 import { badRequest, forbidden } from "../errors";
 import { requireHostTournament } from "./tournament-host";
-import {
-  requirePostedTournament,
-  type PostedTournamentRow,
-} from "./tournament-ops";
+import { type PostedTournamentRow } from "./tournament-ops";
 
 async function requireHost(
   tournament: PostedTournamentRow,
