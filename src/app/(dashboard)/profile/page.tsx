@@ -23,12 +23,18 @@ import { profileAvatarPublicUrl } from "@/lib/profile/avatar-storage";
 import { ProfileForm } from "./profile-form";
 import { ChangePasswordForm } from "./password-form";
 import { AccountDeletionForm } from "./account-deletion-form";
+import { NotificationPreferencesForm } from "./notification-preferences-form";
+import { loadNotificationPreferencesForUser } from "@/lib/notifications/preferences";
 
 export const metadata = pageMetadata("Edit profile");
 
 export default async function ProfilePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  const notificationPreferences = await loadNotificationPreferencesForUser(
+    user.id
+  );
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
@@ -52,6 +58,7 @@ export default async function ProfilePage() {
       />
 
       <ChangePasswordForm />
+      <NotificationPreferencesForm defaults={notificationPreferences} />
       <AccountDeletionForm />
     </div>
   );

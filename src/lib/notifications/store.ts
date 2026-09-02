@@ -21,6 +21,10 @@ import { db } from "@/lib/db";
 import { userNotifications } from "@/lib/db/schema";
 import type { UserNotificationKind } from "@/types";
 import { deliverPushNotifications } from "./push";
+import {
+  deliverNotificationEmails,
+  loadNotificationPreferencesForUsers,
+} from "./preferences";
 
 export type NotificationInput = {
   userId: string;
@@ -51,11 +55,16 @@ export async function createUserNotifications(
   for (const input of inputs) {
     unique.set(`${input.userId}:${input.kind}:${input.href ?? ""}:${input.title}`, input);
   }
+  const payload = [...unique.values()];
+
+  const prefsByUser = await loadNotificationPreferencesForUsers(
+    [...new Set(payload.map((input) => input.userId))]
+  );
 
   const inserted = await db
     .insert(userNotifications)
     .values(
-      [...unique.values()].map((input) => ({
+      payload.map((input) => ({
         userId: input.userId,
         kind: input.kind,
         title: input.title,
@@ -67,14 +76,34 @@ export async function createUserNotifications(
     .returning({
       id: userNotifications.id,
       userId: userNotifications.userId,
+      kind: userNotifications.kind,
       title: userNotifications.title,
       body: userNotifications.body,
       href: userNotifications.href,
     });
 
   if (inserted.length > 0) {
-    void deliverPushNotifications(inserted).catch(() => {
-      // Push delivery is best-effort.
+    const pushRows = inserted.filter((row) => {
+      const prefs = prefsByUser.get(row.userId)?.[row.kind];
+      return prefs?.pushEnabled ?? true;
+    });
+    if (pushRows.length > 0) {
+      void deliverPushNotifications(pushRows).catch(() => {
+        // Push delivery is best-effort.
+      });
+    }
+
+    void deliverNotificationEmails(
+      inserted.map((row) => ({
+        userId: row.userId,
+        kind: row.kind,
+        title: row.title,
+        body: row.body,
+        href: row.href,
+      })),
+      prefsByUser
+    ).catch(() => {
+      // Email delivery is best-effort.
     });
   }
 }

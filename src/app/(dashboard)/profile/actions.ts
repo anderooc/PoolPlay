@@ -46,6 +46,21 @@ import {
   assignUserJerseyNumber,
   revalidateJerseyPaths,
 } from "@/lib/profile/jersey-number-store";
+import {
+  loadNotificationPreferencesForUser,
+  saveNotificationPreferences,
+  type NotificationPreference,
+} from "@/lib/notifications/preferences";
+import type { UserNotificationKind } from "@/types";
+
+export async function updateNotificationPreferences(
+  prefs: Record<UserNotificationKind, NotificationPreference>
+) {
+  const user = await requireUser();
+  await saveNotificationPreferences(user.id, prefs);
+  revalidatePath("/profile");
+  return { success: true };
+}
 
 export async function updateProfile(formData: FormData) {
   const user = await requireUser();
