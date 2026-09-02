@@ -18,8 +18,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useState, useTransition, type FormEvent } from "react";
+import { useState, useTransition, type FormEvent, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +36,17 @@ import { cn } from "@/lib/utils";
 import { signup } from "../actions";
 
 export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
+  );
+}
+
+function SignupForm() {
+  const searchParams = useSearchParams();
+  const prefilledEmail = searchParams.get("email") ?? "";
+  const inviteToken = searchParams.get("invite");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -110,8 +122,9 @@ export default function SignupPage() {
                   type="email"
                   autoComplete="email"
                   placeholder="you@university.edu"
+                  defaultValue={prefilledEmail}
                   required
-                  disabled={isPending}
+                  disabled={isPending || Boolean(prefilledEmail)}
                 />
                 <p className="text-xs text-muted-foreground">
                   Must be an institutional address (i.e. edu).
@@ -130,10 +143,17 @@ export default function SignupPage() {
                   autoComplete="new-password"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                After signing up, add gender, position, and jersey number under
-                Profile.
-              </p>
+              {inviteToken ? (
+                <p className="text-xs text-muted-foreground">
+                  After creating your account, you&apos;ll be able to accept
+                  your team or school invite.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  After signing up, add gender, position, and jersey number under
+                  Profile.
+                </p>
+              )}
               {error && (
                 <p role="alert" className="text-sm text-destructive">
                   {error}

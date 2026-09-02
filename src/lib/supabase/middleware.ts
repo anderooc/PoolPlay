@@ -28,7 +28,9 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/signup") ||
     isForgotPasswordPage;
   const isPublicPage =
-    pathname.startsWith("/explore") || pathname.startsWith("/about");
+    pathname.startsWith("/explore") ||
+    pathname.startsWith("/about") ||
+    pathname.startsWith("/invite");
   const isProtectedPage =
     !isPublicPage &&
     (pathname.startsWith("/dashboard") ||

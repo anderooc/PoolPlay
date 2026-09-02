@@ -45,6 +45,7 @@ import {
   jerseyCollisionError,
   parseJerseyNumber,
 } from "@/lib/profile/jersey-number";
+import { createTeamMemberInvite } from "@/lib/invites/member-invites";
 import {
   assignUserJerseyNumber,
   jerseyTakenOnTeam,
@@ -236,7 +237,16 @@ export async function addTeamMember(teamId: string, formData: FormData) {
     .limit(1);
 
   if (!targetUser) {
-    return { error: "No user found with that email" };
+    const invite = await createTeamMemberInvite({
+      teamId,
+      email,
+      invitedByUserId: user.id,
+      teamName: team.name,
+      inviterName: user.fullName,
+    });
+    if ("error" in invite) return { error: invite.error };
+    revalidatePath(`/teams/${team.slug}`);
+    return { success: true, invited: true };
   }
 
   // When the team belongs to a school, the new player must already be on the

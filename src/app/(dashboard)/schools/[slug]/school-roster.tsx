@@ -72,17 +72,23 @@ export function SchoolRoster({
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [inviteSent, setInviteSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [addRole, setAddRole] = useState<SchoolMemberRole>("member");
 
   async function handleAdd(formData: FormData) {
     setError(null);
+    setInviteSent(false);
     setLoading(true);
     const result = await addSchoolMember(schoolId, formData);
     setLoading(false);
     if (result?.error) {
       setError(result.error);
+      return;
+    }
+    if (result?.invited) {
+      setInviteSent(true);
       return;
     }
     router.refresh();
@@ -290,6 +296,11 @@ export function SchoolRoster({
           </form>
           {error ? (
             <p className="mt-3 text-sm text-destructive">{error}</p>
+          ) : null}
+          {inviteSent ? (
+            <p className="mt-3 text-sm text-success">
+              Invite sent! They&apos;ll get an email with a link to join.
+            </p>
           ) : null}
         </div>
       )}

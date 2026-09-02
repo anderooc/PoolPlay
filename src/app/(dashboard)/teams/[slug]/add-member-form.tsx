@@ -90,17 +90,20 @@ export function AddMemberForm({
 function EmailAddForm({ teamId }: { teamId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [invited, setInvited] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     setError(null);
     setSuccess(false);
+    setInvited(false);
     const result = await addTeamMember(teamId, formData);
     if (result?.error) {
       setError(result.error);
     } else {
       setSuccess(true);
+      setInvited(Boolean(result?.invited));
     }
     setLoading(false);
   }
@@ -146,7 +149,11 @@ function EmailAddForm({ teamId }: { teamId: string }) {
       </form>
       {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
       {success ? (
-        <p className="mt-3 text-sm text-success">Player added!</p>
+        <p className="mt-3 text-sm text-success">
+          {invited
+            ? "Invite sent! They'll get an email with a link to join."
+            : "Player added!"}
+        </p>
       ) : null}
     </div>
   );

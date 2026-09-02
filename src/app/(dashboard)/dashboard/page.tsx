@@ -122,7 +122,7 @@ export default async function DashboardPage() {
                   <Users className="h-4 w-4 text-primary" />
                   <span className="mt-2 font-medium">Create a team</span>
                   <span className="text-xs text-muted-foreground">
-                    Add your roster and set up invites.
+                    Add your roster or invite players by email.
                   </span>
                   <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
                     Start

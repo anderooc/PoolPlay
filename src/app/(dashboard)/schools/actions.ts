@@ -63,6 +63,7 @@ import {
   deleteSchoolWithEligibilityLocks,
 } from "@/lib/schools/school-deletion";
 import { releaseJerseyIfSchoolConflict } from "@/lib/profile/jersey-number-store";
+import { createSchoolMemberInvite } from "@/lib/invites/member-invites";
 import {
   submitSchoolVerificationForViewer,
   updateSchoolForViewer,
@@ -340,9 +341,18 @@ export async function addSchoolMember(
     .limit(1);
 
   if (!target) {
-    return {
-      error: "No user found with that email. They must sign up first.",
-    };
+    const invite = await createSchoolMemberInvite({
+      schoolId,
+      email: parsed.data.email,
+      role: parsed.data.role,
+      title: parsed.data.title,
+      invitedByUserId: user.id,
+      schoolName: school.name,
+      inviterName: user.fullName,
+    });
+    if ("error" in invite) return { error: invite.error };
+    revalidatePath(`/schools/${school.slug}`);
+    return { success: true, invited: true };
   }
 
   const [existing] = await db
