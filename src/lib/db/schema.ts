@@ -89,6 +89,13 @@ export const userNotificationKindEnum = pgEnum("user_notification_kind", [
   "school_join_update",
 ]);
 
+export const memberInviteStatusEnum = pgEnum("member_invite_status", [
+  "pending",
+  "accepted",
+  "expired",
+  "revoked",
+]);
+
 export const tournamentChatChannelKindEnum = pgEnum(
   "tournament_chat_channel_kind",
   ["announcements", "questions", "general"]
@@ -810,6 +817,50 @@ export const userPushTokens = pgTable(
   ]
 );
 
+export const userNotificationPreferences = pgTable(
+  "user_notification_preferences",
+  {
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    kind: userNotificationKindEnum("kind").notNull(),
+    pushEnabled: boolean("push_enabled").default(true).notNull(),
+    emailEnabled: boolean("email_enabled").default(false).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.kind] })]
+);
+
+export const memberInvites = pgTable(
+  "member_invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull(),
+    schoolId: uuid("school_id").references(() => schools.id, {
+      onDelete: "cascade",
+    }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    title: text("title"),
+    invitedByUserId: uuid("invited_by_user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    token: text("token").notNull(),
+    status: memberInviteStatusEnum("status").default("pending").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    acceptedByUserId: uuid("accepted_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("member_invites_token_uidx").on(t.token),
+    index("member_invites_email_pending_idx").on(t.email, t.status),
+  ]
+);
+
 export const tournamentPostingAnnouncements = pgTable(
   "tournament_posting_announcements",
   {
@@ -1077,6 +1128,11 @@ export const usersRelations = relations(users, ({ many }) => ({
   organizedTournaments: many(tournaments),
   notifications: many(userNotifications),
   pushTokens: many(userPushTokens),
+  notificationPreferences: many(userNotificationPreferences),
+  sentMemberInvites: many(memberInvites, { relationName: "memberInviteSender" }),
+  acceptedMemberInvites: many(memberInvites, {
+    relationName: "memberInviteAcceptor",
+  }),
   postingAnnouncements: many(tournamentPostingAnnouncements),
   schoolJoinRequests: many(schoolJoinRequests),
   resolvedSchoolJoinRequests: many(schoolJoinRequests, {
@@ -1225,6 +1281,37 @@ export const userPushTokensRelations = relations(userPushTokens, ({ one }) => ({
   user: one(users, {
     fields: [userPushTokens.userId],
     references: [users.id],
+  }),
+}));
+
+export const userNotificationPreferencesRelations = relations(
+  userNotificationPreferences,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userNotificationPreferences.userId],
+      references: [users.id],
+    }),
+  })
+);
+
+export const memberInvitesRelations = relations(memberInvites, ({ one }) => ({
+  school: one(schools, {
+    fields: [memberInvites.schoolId],
+    references: [schools.id],
+  }),
+  team: one(teams, {
+    fields: [memberInvites.teamId],
+    references: [teams.id],
+  }),
+  invitedBy: one(users, {
+    fields: [memberInvites.invitedByUserId],
+    references: [users.id],
+    relationName: "memberInviteSender",
+  }),
+  acceptedBy: one(users, {
+    fields: [memberInvites.acceptedByUserId],
+    references: [users.id],
+    relationName: "memberInviteAcceptor",
   }),
 }));
 
